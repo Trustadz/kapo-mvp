@@ -20,8 +20,10 @@ export function AuthShell({ children, footer }: AuthShellProps) {
         </span>
         <span className={styles.wordmark}>kapo</span>
       </div>
-      <div className={styles.card}>{children}</div>
-      {footer ? <div className={styles.footer}>{footer}</div> : null}
+      <div className={styles.card}>
+        {children}
+        {footer ? <div className={styles.footer}>{footer}</div> : null}
+      </div>
     </main>
   );
 }

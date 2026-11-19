@@ -33,10 +33,13 @@ export function LoginForm() {
 
     setSubmitting(true);
     try {
-      const result = await postJson<{ user: { id: string } }>('/api/auth/login', {
-        username: normalizeUsername(username),
-        password,
-      });
+      const result = await postJson<{ user: { id: string }; landingHref?: string }>(
+        '/api/auth/login',
+        {
+          username: normalizeUsername(username),
+          password,
+        },
+      );
       if (!result.ok) {
         if (result.fields) setFieldErrors(result.fields);
         setFormError(
@@ -46,7 +49,7 @@ export function LoginForm() {
         );
         return;
       }
-      window.location.assign('/');
+      window.location.assign(result.data.landingHref ?? '/');
     } finally {
       setSubmitting(false);
     }

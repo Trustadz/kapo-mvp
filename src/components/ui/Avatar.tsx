@@ -2,7 +2,7 @@ import { avatarPalette, initials } from '@/lib/avatar';
 import { cn } from '@/lib/cn';
 import styles from './Avatar.module.css';
 
-export type AvatarSize = 24 | 32 | 48 | 64;
+export type AvatarSize = 24 | 32 | 40 | 48 | 64;
 
 export interface AvatarProps {
   name: string;

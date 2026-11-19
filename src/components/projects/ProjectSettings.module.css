@@ -1,0 +1,392 @@
+/* Project settings page (page 08 pattern): 1100px form column, plain surfaces. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 1100px;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-muted-strong);
+}
+
+.breadcrumbLink {
+  color: var(--color-muted);
+  text-decoration: none;
+}
+
+.breadcrumbLink:hover {
+  color: var(--color-text);
+  text-decoration: underline;
+}
+
+.title {
+  font-size: var(--font-size-display);
+  line-height: 1.15;
+}
+
+.tabs {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-2);
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--color-muted);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.tab:hover {
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.tab[data-active] {
+  background: var(--color-surface);
+  color: var(--color-brand-dark);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.cardTitle {
+  font-size: var(--font-size-title);
+  font-weight: 600;
+  margin: 0;
+}
+
+.cardHint {
+  color: var(--color-muted);
+  font-size: var(--font-size-small);
+  margin: 0;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 760px;
+}
+
+.radios {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+}
+
+.workflowList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.workflowRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  background: var(--color-surface-alt);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-4);
+}
+
+.workflowName {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 0 1 320px;
+  min-width: 180px;
+}
+
+.addStatus {
+  align-self: flex-start;
+}
+
+.usage {
+  color: var(--color-muted);
+  font-size: var(--font-size-small);
+}
+
+.workflowFlags {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.workflowActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+
+.iconButton:hover:not(:disabled) {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.iconButton:disabled {
+  color: var(--color-disabled-text);
+  cursor: default;
+}
+
+.mappingBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.mappingRows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.mappingRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.privateState {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-brand-dark);
+  font-weight: 500;
+  margin: 0;
+}
+
+.addMemberRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+  flex-wrap: wrap;
+}
+
+.addMemberLabel {
+  color: var(--color-muted);
+  width: 96px;
+  flex: none;
+}
+
+.addMemberControls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.addMemberControls > :first-child {
+  min-width: 220px;
+  flex: 1;
+}
+
+.accessBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) 0 var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.accessActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.memberList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.memberRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.memberRow:last-child {
+  border-bottom: 0;
+}
+
+.memberIdentity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.memberName {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.memberMeta {
+  color: var(--color-muted);
+  font-size: var(--font-size-small);
+}
+
+.memberSelect {
+  width: 220px;
+  max-width: 100%;
+}
+
+.viewFieldsBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-4);
+}
+
+.viewFieldGroups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.layoutColumns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+
+.fieldListEditor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.subheading {
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  margin: 0;
+}
+
+.fieldList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.fieldListRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.fieldListRow:last-child {
+  border-bottom: 0;
+}
+
+.fieldListActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.addFieldSelect {
+  width: 100%;
+}
+
+.checkList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+@media (max-width: 899px) {
+  .title {
+    font-size: 26px;
+  }
+
+  .viewFieldsBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-4);
+}
+
+.viewFieldGroups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.layoutColumns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mappingRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .memberRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .memberSelect {
+    width: 100%;
+  }
+}

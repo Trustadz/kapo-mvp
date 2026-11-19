@@ -20,6 +20,7 @@ import {
   rejectCrossOrigin,
 } from '@/server/http';
 import { normalizeUsername } from '@/lib/validation';
+import { resolveLandingHref } from '@/server/domain/users';
 
 export const dynamic = 'force-dynamic';
 
@@ -83,6 +84,8 @@ export async function POST(request: Request) {
       appRole: record.appRole,
       appearance: record.appearance,
     },
+    // Honour the account's landing page (build-spec §4 / profile settings).
+    landingHref: resolveLandingHref(db, record),
   });
 }
 

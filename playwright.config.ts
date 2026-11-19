@@ -1,0 +1,83 @@
+import { defineConfig, devices } from '@playwright/test';
+import fs from 'node:fs';
+
+/**
+ * Playwright end-to-end configuration.
+ *
+ * The suite runs against a real `next start` build on port 3301 with an
+ * isolated SQLite file (./data/test-e2e.db) and an isolated dist directory
+ * (.next-tests). The dev database ./data/kapo.db is never opened.
+ *
+ * Chromium is installed into a writable cache inside the workspace:
+ *   PLAYWRIGHT_BROWSERS_PATH=./data/pw-browsers npx playwright install chromium
+ * `PLAYWRIGHT_BROWSERS_PATH` is defaulted below (workspace cache first, then the
+ * /tmp cache used by CI) so `npm run test:e2e` works after that install. If no
+ * browser can be installed, the suite cannot run in this environment; the
+ * config still loads so `npx playwright test --list` works.
+ */
+
+const WORKSPACE_BROWSERS_PATH = './data/pw-browsers';
+const TMP_BROWSERS_PATH = '/tmp/pw-browsers';
+if (!process.env.PLAYWRIGHT_BROWSERS_PATH) {
+  process.env.PLAYWRIGHT_BROWSERS_PATH = fs.existsSync(WORKSPACE_BROWSERS_PATH)
+    ? WORKSPACE_BROWSERS_PATH
+    : TMP_BROWSERS_PATH;
+}
+
+export const TEST_PORT = 3301;
+export const TEST_DATABASE_PATH = './data/test-e2e.db';
+export const TEST_DIST_DIR = '.next-tests';
+
+export default defineConfig({
+  testDir: './tests/e2e',
+  timeout: 90_000,
+  expect: { timeout: 10_000 },
+  fullyParallel: false,
+  workers: 1,
+  retries: process.env.CI ? 1 : 0,
+  forbidOnly: Boolean(process.env.CI),
+  reporter: [['list']],
+  use: {
+    baseURL: `http://127.0.0.1:${TEST_PORT}`,
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+    video: 'off',
+    actionTimeout: 15_000,
+    navigationTimeout: 30_000,
+  },
+  webServer: {
+    command: 'node tests/e2e/start-server.mjs',
+    url: `http://127.0.0.1:${TEST_PORT}/healthz`,
+    timeout: 300_000,
+    reuseExistingServer: false,
+    stdout: 'pipe',
+    stderr: 'pipe',
+    env: {
+      DATABASE_PATH: TEST_DATABASE_PATH,
+      UPLOAD_DIR: './data/test-e2e-uploads',
+      NEXT_DIST_DIR: TEST_DIST_DIR,
+      PORT: String(TEST_PORT),
+      KAPO_E2E_RESET_DB: '1',
+      KAPO_E2E_BUILD: process.env.KAPO_E2E_BUILD ?? 'auto',
+    },
+  },
+  projects: [
+    {
+      name: 'first-install',
+      testMatch: /first-install\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'desktop',
+      testMatch: /(app|login)\.spec\.ts/,
+      dependencies: ['first-install'],
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'mobile',
+      testMatch: /mobile\.spec\.ts/,
+      dependencies: ['first-install'],
+      use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 } },
+    },
+  ],
+});

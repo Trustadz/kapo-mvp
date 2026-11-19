@@ -29,6 +29,9 @@ ENV NODE_ENV=production \
     UPLOAD_DIR=/app/data/uploads \
     KAPO_MIGRATIONS_DIR=/app/migrations
 
+# The runtime user must own /app/data: SQLite needs to create the database,
+# WAL/SHM sidecars and uploads there. Docker initialises an empty named volume
+# from this directory (and its ownership), so kapo can write to the mount.
 RUN groupadd --system --gid 1001 kapo \
   && useradd --system --uid 1001 --gid kapo --create-home kapo \
   && mkdir -p /app/data/uploads \
@@ -37,12 +40,22 @@ RUN groupadd --system --gid 1001 kapo \
 WORKDIR /app
 
 # Next.js standalone server + static assets + public files.
+# The build compiles src/instrumentation.ts into .next/server and the
+# standalone output ships it, so the startup + 6-hourly trash purge runs inside
+# this image without scripts/ or npm scripts being present.
 COPY --from=builder --chown=kapo:kapo /app/.next/standalone ./
 COPY --from=builder --chown=kapo:kapo /app/.next/static ./.next/static
 COPY --from=builder --chown=kapo:kapo /app/public ./public
 
 # SQL migrations are read at runtime, not bundled by Next.js.
 COPY --from=builder --chown=kapo:kapo /app/src/server/db/migrations ./migrations
+
+# Never ship a build-time database snapshot: even though .dockerignore keeps
+# data/ out of the build context, output tracing could otherwise carry a local
+# SQLite file into the image. The runtime volume provides the real data dir.
+RUN rm -rf /app/data \
+  && mkdir -p /app/data/uploads \
+  && chown -R kapo:kapo /app/data
 
 USER kapo
 VOLUME ["/app/data"]

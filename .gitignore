@@ -28,3 +28,6 @@ blob-report/
 
 # per-agent build outputs
 .next-*/
+
+# Playwright browsers (local cache)
+data/pw-browsers/

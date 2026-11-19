@@ -24,7 +24,7 @@
 
 .warning {
   background: var(--color-warning-bg);
-  color: var(--color-warning);
+  color: var(--color-warning-strong);
 }
 
 .success {

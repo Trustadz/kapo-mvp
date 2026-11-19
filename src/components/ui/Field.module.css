@@ -42,11 +42,16 @@
   font-size: var(--font-size-small);
 }
 
-.fieldset {
-  align-items: start;
+/* Fieldsets cannot lay their <legend> out on the grid, so the semantic legend
+ * is visually hidden and the visible label lives in the normal field row. */
+.fieldsetRoot {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
 }
 
-.fieldset .label {
+.fieldsetRoot .label {
   padding-top: 0;
 }
 

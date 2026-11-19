@@ -11,6 +11,8 @@ import styles from './MobileNav.module.css';
 
 export interface MobileNavProps {
   rootProjectId: string | null;
+  /** Application Viewers are read-only; the Add capture action is hidden. */
+  canCapture: boolean;
 }
 
 function isActive(pathname: string, href: string): boolean {
@@ -19,7 +21,7 @@ function isActive(pathname: string, href: string): boolean {
 }
 
 /** Mobile bottom bar: Home / Root / Add / Inbox / Search (build-spec §8). */
-export function MobileNav({ rootProjectId }: MobileNavProps) {
+export function MobileNav({ rootProjectId, canCapture }: MobileNavProps) {
   const pathname = usePathname();
   const [addOpen, setAddOpen] = useState(false);
 
@@ -46,16 +48,18 @@ export function MobileNav({ rootProjectId }: MobileNavProps) {
             <span className={styles.label}>Root</span>
           </Link>
         ) : null}
-        <button
-          type="button"
-          className={cn(styles.tab, styles.addTab)}
-          onClick={() => setAddOpen(true)}
-          aria-label="Add a project to Root"
-          aria-haspopup="dialog"
-        >
-          <Icon name="add" size={24} />
-          <span className={styles.label}>Add</span>
-        </button>
+        {canCapture ? (
+          <button
+            type="button"
+            className={cn(styles.tab, styles.addTab)}
+            onClick={() => setAddOpen(true)}
+            aria-label="Add a project to Root"
+            aria-haspopup="dialog"
+          >
+            <Icon name="add" size={24} />
+            <span className={styles.label}>Add</span>
+          </button>
+        ) : null}
         <Link
           href="/inbox"
           className={cn(styles.tab, isActive(pathname, '/inbox') && styles.active)}
@@ -74,21 +78,23 @@ export function MobileNav({ rootProjectId }: MobileNavProps) {
         </Link>
       </nav>
 
-      <Dialog
-        open={addOpen}
-        onClose={close}
-        title="Add a project"
-        description="Creates a Root child in Inbox."
-        size="sm"
-      >
-        <CaptureForm
-          rootProjectId={rootProjectId}
-          variant="mobile"
-          autoFocus
-          onSuccess={close}
-          onCancel={close}
-        />
-      </Dialog>
+      {canCapture ? (
+        <Dialog
+          open={addOpen}
+          onClose={close}
+          title="Add a project"
+          description="Creates a Root child in Inbox."
+          size="sm"
+        >
+          <CaptureForm
+            rootProjectId={rootProjectId}
+            variant="mobile"
+            autoFocus
+            onSuccess={close}
+            onCancel={close}
+          />
+        </Dialog>
+      ) : null}
     </>
   );
 }

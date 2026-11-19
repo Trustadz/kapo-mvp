@@ -1,0 +1,178 @@
+import { afterEach, describe, expect, it } from 'vitest';
+import type { AddonDefinition, AddonFieldDefinition } from '@/server/addons';
+import {
+  clearAddonsForTests,
+  getAddon,
+  listAddons,
+  registerAddon,
+} from '@/server/addons';
+
+/** Add-on registry validation (build-spec §12, product.md §7). */
+
+afterEach(() => {
+  clearAddonsForTests();
+});
+
+function addon(overrides: Partial<AddonDefinition> = {}): AddonDefinition {
+  return {
+    identifier: 'assignee',
+    name: 'Assignee',
+    version: '1.0.0',
+    fields: [{ key: 'owner', label: 'Assignee', type: 'user' }],
+    ...overrides,
+  };
+}
+
+function field(overrides: Partial<AddonFieldDefinition> = {}): AddonFieldDefinition {
+  return { key: 'notes', label: 'Notes', type: 'text', ...overrides };
+}
+
+describe('empty registry', () => {
+  it('ships empty', () => {
+    expect(listAddons()).toEqual([]);
+    expect(getAddon('assignee')).toBeUndefined();
+  });
+});
+
+describe('valid definitions', () => {
+  it('registers a valid add-on and lists it', () => {
+    const definition = addon();
+    registerAddon(definition);
+    expect(listAddons()).toEqual([definition]);
+    expect(getAddon('assignee')).toBe(definition);
+  });
+
+  it('accepts identifier shapes allowed by /^[a-z][a-z0-9-]*$/', () => {
+    for (const [index, identifier] of ['a', 'assignee', 'my-addon-2', 'a1-b2-c3'].entries()) {
+      registerAddon(
+        addon({ identifier, fields: [{ key: `field${index}`, label: 'F', type: 'text' }] }),
+      );
+      expect(getAddon(identifier)?.identifier).toBe(identifier);
+    }
+    expect(listAddons()).toHaveLength(4);
+  });
+
+  it('accepts select fields with static options', () => {
+    registerAddon(
+      addon({
+        fields: [
+          {
+            key: 'priority',
+            label: 'Priority',
+            type: 'select',
+            options: [
+              { value: 'low', label: 'Low' },
+              { value: 'high', label: 'High' },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(listAddons()).toHaveLength(1);
+  });
+
+  it('accepts select fields with the users optionsSource', () => {
+    registerAddon(
+      addon({
+        fields: [
+          { key: 'assignee', label: 'Assignee', type: 'select', optionsSource: 'users' },
+        ],
+      }),
+    );
+    expect(listAddons()).toHaveLength(1);
+  });
+
+  it('accepts searchFields that reference known field keys', () => {
+    registerAddon(addon({ fields: [field({ key: 'notes' })], searchFields: ['notes'] }));
+    expect(getAddon('assignee')?.searchFields).toEqual(['notes']);
+  });
+});
+
+describe('identifier validation', () => {
+  it.each(['Assignee', '1assignee', 'assignee_1', '-assignee', 'add on', ''])(
+    'rejects invalid identifier %p',
+    (identifier) => {
+      expect(() => registerAddon(addon({ identifier }))).toThrow(/identifier/);
+      expect(listAddons()).toEqual([]);
+    },
+  );
+
+  it('rejects a duplicate add-on identifier', () => {
+    registerAddon(addon());
+    expect(() => registerAddon(addon({ name: 'Second' }))).toThrow(/already registered/);
+    expect(listAddons()).toHaveLength(1);
+  });
+
+  it('rejects an empty name or version', () => {
+    expect(() => registerAddon(addon({ name: '   ' }))).toThrow(/name/);
+    expect(() => registerAddon(addon({ version: '' }))).toThrow(/version/);
+    expect(listAddons()).toEqual([]);
+  });
+});
+
+describe('field validation', () => {
+  it('rejects duplicate field keys', () => {
+    expect(() =>
+      registerAddon(
+        addon({
+          fields: [field({ key: 'owner' }), field({ key: 'owner', label: 'Owner again' })],
+        }),
+      ),
+    ).toThrow(/more than once/);
+    expect(listAddons()).toEqual([]);
+  });
+
+  it('rejects an empty field key', () => {
+    expect(() => registerAddon(addon({ fields: [field({ key: '  ' })] }))).toThrow(/key/);
+  });
+
+  it('rejects a select field with neither options nor optionsSource', () => {
+    expect(() =>
+      registerAddon(addon({ fields: [field({ type: 'select' })] })),
+    ).toThrow(/neither options nor optionsSource/);
+  });
+
+  it('rejects a select field with an empty options array', () => {
+    expect(() =>
+      registerAddon(addon({ fields: [field({ type: 'select', options: [] })] })),
+    ).toThrow(/neither options nor optionsSource/);
+  });
+
+  it('rejects a user field that defines static options', () => {
+    expect(() =>
+      registerAddon(
+        addon({
+          fields: [
+            field({
+              type: 'user',
+              options: [{ value: 'u1', label: 'User One' }],
+            }),
+          ],
+        }),
+      ),
+    ).toThrow(/must not define options or optionsSource/);
+  });
+
+  it('rejects a user field that defines an optionsSource (build-spec §12: user fields have neither)', () => {
+    expect(() =>
+      registerAddon(addon({ fields: [field({ type: 'user', optionsSource: 'users' })] })),
+    ).toThrow(/must not define options or optionsSource/);
+  });
+
+  it('rejects searchFields that reference unknown fields', () => {
+    expect(() =>
+      registerAddon(addon({ fields: [field({ key: 'notes' })], searchFields: ['notes', 'ghost'] })),
+    ).toThrow(/unknown search field "ghost"/);
+    expect(listAddons()).toEqual([]);
+  });
+});
+
+describe('registry lifecycle', () => {
+  it('clearAddonsForTests empties the registry', () => {
+    registerAddon(addon());
+    expect(listAddons()).toHaveLength(1);
+    clearAddonsForTests();
+    expect(listAddons()).toEqual([]);
+    expect(getAddon('assignee')).toBeUndefined();
+  });
+});

@@ -10,6 +10,14 @@
  *
  * Themes are selected with [data-theme="light"] / [data-theme="dark"] on <html>.
  * "System" resolves to one of the two before first paint (see ThemeScript).
+ *
+ * WCAG AA additions (small text only; the Penpot brand tokens are unchanged):
+ *   --color-muted-strong   light #5B6D61 (4.97:1 on canvas, 5.52:1 on surface)
+ *                          dark  #C2CDC4 (10.5:1 on canvas, 8.95:1 on surface)
+ *   --color-warning-strong light #94562A (5.27:1 on warningBg #FFF2E5)
+ *                          dark  #F5C08B (7.23:1 on warningBg #453424)
+ * Use muted-strong for 14px copy placed on the cream/dark canvas and
+ * warning-strong for warning badge/tag text.
  */
 
 :root,
@@ -36,6 +44,7 @@
   /* text */
   --color-text: #173629;
   --color-muted: #65786b;
+  --color-muted-strong: #5b6d61;
   --color-soft: #9aaba0;
 
   /* actions / feedback */
@@ -45,6 +54,7 @@
   --color-accent: #28614a;
   --color-focus: #28614a;
   --color-warning: #aa6736;
+  --color-warning-strong: #94562a;
   --color-warning-bg: #fff2e5;
   --color-danger: #a33a2f;
   --color-danger-bg: #fbeae7;
@@ -127,6 +137,7 @@
   /* text */
   --color-text: #e9eee7;
   --color-muted: #afbbaf;
+  --color-muted-strong: #c2cdc4;
   --color-soft: #88978b;
 
   /* actions / feedback */
@@ -136,6 +147,7 @@
   --color-accent: #9bd6b3;
   --color-focus: #9bd6b3;
   --color-warning: #f0b77d;
+  --color-warning-strong: #f5c08b;
   --color-warning-bg: #453424;
   --color-danger: #f0a497;
   --color-danger-bg: #452a26;

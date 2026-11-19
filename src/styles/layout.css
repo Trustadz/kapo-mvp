@@ -44,7 +44,7 @@
 }
 
 .page-subtitle {
-  color: var(--color-muted);
+  color: var(--color-muted-strong);
   font-size: var(--font-size-body);
 }
 
@@ -92,6 +92,11 @@
 
 .muted {
   color: var(--color-muted);
+}
+
+/* Muted copy placed directly on the canvas (subtitle, breadcrumb, helper). */
+.muted-strong {
+  color: var(--color-muted-strong);
 }
 
 .soft {

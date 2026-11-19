@@ -14,7 +14,8 @@
 }
 
 .input::placeholder {
-  color: var(--color-soft);
+  color: var(--color-muted);
+  opacity: 1;
 }
 
 .input:hover:not(:disabled) {

@@ -61,6 +61,7 @@ interface SeedProject {
   seq: number;
   createdAt: string;
   updatedAt: string;
+  settings?: Record<string, unknown>;
 }
 
 interface SeedEvent {
@@ -304,13 +305,14 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
         seq: 114,
         createdAt: daysAgo(3, 8, 45),
         updatedAt: daysAgo(2, 8, 30),
+        settings: { access: 'custom' },
       },
       {
         key: 'weekend',
         title: 'Plan weekend trip',
         parentKey: 'personal',
-        reporterKey: 'jules',
-        createdByKey: 'jules',
+        reporterKey: 'tristan',
+        createdByKey: 'tristan',
         statusIndex: 0,
         inbox: true,
         priority: 0,
@@ -353,7 +355,7 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
         status ? status.id : null,
         project.priority,
         project.inbox ? 1 : 0,
-        JSON.stringify(DEFAULT_PROJECT_SETTINGS),
+        JSON.stringify({ ...DEFAULT_PROJECT_SETTINGS, ...(project.settings ?? {}) }),
         userId(project.createdByKey),
         project.createdAt,
         project.updatedAt,
@@ -555,7 +557,7 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
       },
       {
         projectKey: 'weekend',
-        actorKey: 'jules',
+        actorKey: 'tristan',
         action: AUDIT_ACTIONS.projectCreated,
         detail: 'Project created under Personal',
         createdAt: daysAgo(2, 8, 25),

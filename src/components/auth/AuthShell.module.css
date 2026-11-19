@@ -51,9 +51,7 @@
 }
 
 .footer {
-  width: 100%;
-  max-width: 558px;
-  margin-top: var(--space-3);
+  margin-top: var(--space-4);
   color: var(--color-muted);
   font-size: var(--font-size-body);
 }

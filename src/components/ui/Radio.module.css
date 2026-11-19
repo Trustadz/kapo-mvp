@@ -5,12 +5,33 @@
 }
 
 .input {
-  width: 16px;
-  height: 16px;
-  margin: 3px 0 0;
-  accent-color: var(--color-action);
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  padding: 0;
+  border: 1.5px solid var(--color-input-border);
+  border-radius: 50%;
+  background-color: var(--color-surface);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 8px 8px;
   flex: none;
   cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+}
+
+.input:hover:not(:disabled) {
+  border-color: var(--color-action);
+}
+
+.input:checked {
+  border-color: var(--color-action);
+  background-image: radial-gradient(circle, var(--color-action) 0 4px, transparent 4.5px);
 }
 
 .input:focus-visible {
@@ -20,6 +41,12 @@
 
 .input:disabled {
   cursor: not-allowed;
+  border-color: var(--color-border);
+  background-color: var(--color-disabled);
+}
+
+.input:checked:disabled {
+  background-image: radial-gradient(circle, var(--color-disabled-text) 0 4px, transparent 4.5px);
 }
 
 .label {

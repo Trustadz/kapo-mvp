@@ -17,11 +17,20 @@ export interface TopBarProps {
  * mobile header with search and the account avatar (build-spec §8).
  */
 export function TopBar({ user, rootProjectId }: TopBarProps) {
+  const canCapture = user.appRole !== 'viewer';
+
   return (
     <>
       <header className={styles.desktopBar}>
         <div className={styles.capture}>
-          <CaptureForm rootProjectId={rootProjectId} />
+          {canCapture ? (
+            <CaptureForm rootProjectId={rootProjectId} />
+          ) : (
+            <p className={styles.readOnlyHint}>
+              <Icon name="visibility" size={18} />
+              <span>Viewers can browse only.</span>
+            </p>
+          )}
         </div>
         <Link href="/search" className={styles.searchLink}>
           <Icon name="search" size={20} />

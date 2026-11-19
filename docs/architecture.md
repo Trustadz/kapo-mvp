@@ -22,9 +22,10 @@ assume exclusive ownership of the database file.
 browser / PWA
    │  HTTPS (terminated by reverse proxy in production)
    ▼
-Next.js 16 process ─┬─ React 19 server components  (reads)
+Next.js 16 process ─┬─ React 19 server components  (reads; migrations run on first DB access)
                     ├─ /api/* route handlers        (all mutations + client reads)
-                    ├─ instrumentation startup      (migrate, sync add-ons, purge sweep, interval)
+                    ├─ instrumentation startup      (purge sweep at boot, then every 6 hours;
+                    │                                registry→addons sync still FORWARD)
                     └─ better-sqlite3 (WAL) ── ./data/kapo.db
                                                  ./data/uploads/*
 ```
@@ -97,30 +98,36 @@ route handler → assertSameOrigin(req) → requireUser()/requireRole() → pars
               → JSON response; client calls router.refresh()
 ```
 
-One helper owns the common prologue (`src/app/api/_lib/route.ts`): auth, same-origin, content-type,
-JSON body parse, `DomainError` → HTTP error body, unexpected error → 500 with a logged stack and a
-generic message. Handlers stay thin; no handler contains rule logic.
+Route handlers share helpers, currently in two stacks (consolidation pending, AR-041):
+`src/server/http.ts` (`isSameOrigin`, `jsonOk`/`jsonError`, `readJsonBody`),
+`src/app/api/projects/_shared.ts` (`requireApiUser`, `guardMutation`, `handleDomainError`) and
+`src/server/api-session.ts` / `api-errors.ts` (`apiSession`/`apiAdminSession`, `sameOriginGuard`,
+`domainErrorResponse`). The prologue is: same-origin (mutations only), auth, JSON body parse, domain
+call, map `DomainError`/`AccountError`/`SettingsError` to the error envelope; unexpected errors
+bubble to a Next 500. Handlers stay thin; no handler contains rule logic.
 
 ### 2.2 Errors
 
-`src/server/domain/errors.ts`:
+There is no shared `domain/errors.ts` yet; `DomainError` lives in
+`src/server/domain/permissions.ts` and the account/settings domains add `AccountError` and
+`SettingsError` with the same shape (consolidation recommended, AR-041):
 
 ```ts
-export type ErrorCode =
-  | 'TITLE_REQUIRED' | 'NOT_FOUND' | 'FORBIDDEN' | 'INVALID_INPUT' | 'CONFLICT'
-  | 'CYCLE_REJECTED' | 'STATUS_MAPPING_REQUIRED' | 'LAST_ADMIN_REQUIRED'
-  | 'WORKFLOW_IN_USE' | 'ADDON_VALIDATION_FAILED' | 'READ_ONLY_TRASHED' | 'UNKNOWN';
-
+// src/server/domain/permissions.ts (actual)
 export class DomainError extends Error {
-  constructor(readonly code: ErrorCode, readonly status: number,
-              message: string, readonly fields?: Record<string, string>) { … }
-}
+  readonly status: number;   // HTTP status the route should return
+  readonly code: string;     // machine code: not_found, forbidden, validation_failed,
+  readonly fields?: Record<string, string>; // mapping_required, last_admin, acknowledgement_required,
+}                            // trashed_read_only, already_trashed, not_trashed, parent_trashed, …
 ```
 
-API error contract (build-spec §7): `{ "error": { "code", "message", "fields?" } }`. Validation
-failures use 422; missing/invalid auth 401; authorization 403 for known projects and **404 for
-projects the caller may not read** (never confirm existence). Domain mutations never return
-`null` on failure, they throw `DomainError`; route handlers map it.
+API error contract (build-spec §7): `{ "error": { "code", "message", "fields?" } }`. Observed codes
+include `unauthenticated`, `forbidden`, `not_found`, `validation_failed`, `mapping_required`,
+`last_admin`, `acknowledgement_required`, `trashed_read_only`, `already_trashed`,
+`username_taken`, `csrf_rejected`, `rate_limited`. Validation failures use 422; missing/invalid
+auth 401; project authorization uses **404 for projects the caller may not read** (never confirm
+existence); 403 is used for a known project where the caller lacks the capability. Domain mutations
+never return `null` on failure; they throw and route handlers map the error.
 
 ## 3. Data model rationale
 
@@ -183,80 +190,91 @@ Notes (verified against `001_init.sql`):
 
 ## 4. Module contracts
 
-`src/server/domain/` is the only place business rules live. Signatures below are the contract the
-builders implement; parameter names are stable enough for tests and add-on hooks to depend on.
+`src/server/domain/` is the only place business rules live. Signatures below are the implemented
+contract (verified against the code at review round R3); parameter names are stable enough for
+tests to depend on.
 
 ```ts
-// projects.ts
-createProject(db, { actorId, parentId, title, reporterId? }): Project;
-getProject(db, viewerId, projectId): ProjectDetail | throws DomainError('NOT_FOUND');
-listChildren(db, viewerId, parentId, opts: { includeArchived: boolean }): ProjectSummary[];
-updateProject(db, actorId, projectId, patch: { title?, statusId?, archived?, favorite? }): Project;
-moveProject(db, actorId, projectId, destinationId, mapping: Record<StatusId, StatusId>): void;
-reorderProject(db, actorId, projectId, targetStatusId, beforeId: ProjectId | null): void;
-listAncestors(db, projectId): ProjectBreadcrumb[];
+// projects.ts (1184 lines; owns create/update/move/reorder/settings/page data)
+createProject(db, user: AccessUser, { parentId, title }): ProjectCard;
+updateProject(db, user, projectId, { title?, statusId?, archived? }): { project };
+moveProject(db, user, projectId, { destinationId, mapping }): ProjectCard;
+reorderProject(db, user, projectId, { statusId?, beforeId? }): ProjectCard;
+getProjectPageData(db, user, projectId): ProjectPageData | null;
+getMoveInfo(db, user, projectId): MoveInfo;
+getProjectSettings(db, user, projectId): ProjectSettingsData;
+updateProjectSettings(db, user, projectId, input): ProjectSettingsData;
+setProjectFavorite(db, user, projectId, favorite: boolean | null): { favorite };
 ```
 
 ```ts
-// permissions.ts
-getEffectiveRole(db, userId, projectId): ProjectRole | null;       // admin | user | viewer
-requireRole(db, userId, projectId, min: ProjectRole): ProjectRole;  // throws FORBIDDEN/NOT_FOUND
-listMembers(db, actorId, projectId): MemberView[];
-setMemberRole(db, actorId, projectId, userId, role: ProjectRole | null): void;
-validateSubtreeAdmins(db, projectId, change): { ok: true } | { ok: false; projects: ProjectRef[] };
-// every read helper uses accessibleProjectIds(db, viewerId) (recursive CTE), never JS filtering
-accessibleProjectIds(db, viewerId): Set<ProjectId> | SQL view/CTE;
+// permissions.ts (735 lines; owns authz, visibility, member changes)
+loadAccessContext(db, user: AccessUser): AccessContext;  // full tree + grants once per request
+getRole(ctx, projectId): ProjectRole | null;
+canReadProject / canEditProject / canAdminProject(ctx, projectId): boolean;
+isActiveProject / isTrashVisibleProject / isArchivedHidden(ctx, projectId): boolean;
+visibleProjectIds(ctx): Set<string>;                     // permission-filtered active set
+applyMemberChanges(db, projectId, changes: MemberChange[], { acknowledged, actor }): result;
+planMemberUpdate(...): MemberUpdatePlan;                 // pure simulation for previews/tests
+listProjectMembers(db, projectId): ProjectMember[];
 ```
 
 ```ts
-// workflow.ts
-getWorkflow(db, parentId): Status[];                               // ordered by position
-replaceWorkflow(db, actorId, parentId, next: WorkflowInput): void; // validates in-use remapping
-validateWorkflow(next: WorkflowInput): WorkflowIssue[];
-assertStatusBelongsToWorkflow(db, projectId, statusId): void;
+// workflow.ts (523 lines; owns parent-owned child workflows + remapping)
+listWorkflow(db, parentId): Status[];
+ensureWorkflow(db, parentId): Status[];                  // mutating commands only (create/move); read paths use listWorkflow
+replaceWorkflow(db, actor, parentId, rawStatuses, rawMapping): ReplaceWorkflowResult;
+getWorkflowData(db, parentId): { statuses, usage, retired };
+pruneRetiredStatuses(db, parentId): number;
 ```
 
 ```ts
-// trash.ts
-trashProjects(db, actorId, projectIds: ProjectId[]): { actionId: TrashActionId; affected: ProjectId[] };
-restoreAction(db, actorId, projectId, mapping?: Record<StatusId, StatusId>): { restored: ProjectId[] };
-purgeExpired(db, now = new Date()): { purged: ProjectId[] };        // scheduler entry point
-listTrash(db, viewerId, opts): TrashPage;                            // action-grouped
-assertWritable(db, projectId): void;                                 // READ_ONLY_TRASHED
+// trash.ts (420 lines; owns the 30-day lifecycle)
+trashProjects(db, actor, projectIds, requestedActionId?): { actionId, trashed };
+restoreProject(db, actor, projectId, rawMapping?): { project, restored };
+getRestoreInfo(db, actor, projectId): RestoreInfo;       // deferred mapping preview
+listTrash(db, actor): TrashItem[];
 ```
 
 ```ts
-// audit.ts
-logEvent(tx: Db, e: AuditInput): void;   // called inside the mutating transaction only
-listActivity(db, viewerId, projectId, cursor?): { events: AuditEvent[]; nextCursor: string | null };
+// audit.ts (179 lines; append-only writes + paginated reads)
+recordAuditEvent(db, event: AuditEventInput): void;      // inside the mutating transaction
+listActivity(db, projectId, { limit?, cursor? }): ActivityPage;
 ```
 
 ```ts
-// search.ts
-search(db, viewerId, query: string, opts: { includeArchived: boolean }): SearchHit[];
-reindexProject(tx: Db, projectId: ProjectId): void;
-rebuildSearchIndex(db): void;            // scripts/repair.ts and tests
+// search.ts (158 lines; FTS + permission filtering)
+searchProjects(db, actor, rawQuery, { limit? }): SearchResultItem[];
+searchTrash(db, actor, rawQuery): TrashItem[];
 ```
 
 ```ts
-// inbox.ts
-listInbox(db, viewerId): InboxItem[];
-releaseFromInbox(db, actorId, projectId): Project;   // clears flag, keeps status, runs add-on gate
+// inbox.ts (82 lines)
+listInbox(db, actor): InboxItem[];
+releaseInboxProject(db, actor, projectId): ProjectCard;   // clears inbox, keeps status
 ```
 
 ```ts
-// users.ts / settings.ts / dashboard.ts
-createUser(db, actorId, input): User;      updateUser(db, actorId, userId, patch): User;
-getAppSettings(db): AppSettings;           updateAppSettings(db, actorId, patch): AppSettings;
-getDashboard(db, viewerId): DashboardPayload;   // built-ins only; permission filtered
+// users.ts (724 lines; includes avatar storage + profile)
+createUser(db, { username, email, password, appRole? }): Promise<AccountUser>;
+updateUser(db, { id, ...patch }): Promise<AccountUser>;
+updateOwnProfile(db, userId, input): AuthUser;
+changeOwnPassword(db, userId, currentSessionId, input): Promise<void>;
+saveAvatar(db, userId, buffer, declaredMime): string;     // magic-byte checked, safe filename
+listUsers / getUserAccount / resolveLandingHref(db, user): string;
 ```
 
-All mutating functions own their transaction boundary. The foundation's
-`src/server/db/connection.ts` does not export a transaction helper yet; the domain layer must own a
-single `withTransaction(db, fn)` (wrapping better-sqlite3's `db.transaction(...)` in `BEGIN
-IMMEDIATE` semantics, or an explicit `db.exec('BEGIN IMMEDIATE')`/commit/rollback) and use it
-everywhere. Nested calls reuse the transaction via a tx-scoped `Db` argument; nothing reads
-settings, permissions or the clock outside the transaction it mutates with.
+`settings.ts` owns application settings/clients (`getApplicationSettings`,
+`updateApplicationSettings`). `dashboard.ts` did not exist at R3; dashboard payloads are still
+pending (owner: builder-settings).
+
+Transaction boundaries: the code uses better-sqlite3's synchronous `db.transaction(() => …)`
+directly in each command instead of a shared `BEGIN IMMEDIATE` helper. That is atomic, but
+`db.transaction` defaults to deferred locking; a read-then-write inside the callback can contend
+under concurrency. Household scale makes this acceptable for the MVP; a shared immediate-transaction
+helper is the recommended hardening (review AR-030). Domain functions never import React/Next; they
+do import view-model types from `src/components/projects/types.ts` today, a layering inversion the
+review flags (AR-028).
 
 ## 5. Domain rules and where they are enforced (build-spec §6)
 
@@ -265,23 +283,25 @@ files are owned by the tester per build-spec §11; names are the required minimu
 
 | # | Rule | Module / function | Enforced in | Required test expectation |
 |---|---|---|---|---|
-| 1 | Create: title required; id/status/priority/server fields derived; parent start status; appended last sibling; Inbox unless parent `skip_inbox`; reporter defaults to creator | `domain/projects.createProject`, `domain/permissions` | single `BEGIN IMMEDIATE` transaction; `TITLE_REQUIRED` before insert; priority computed inside lock | `tests/domain/capture.test.ts`: title → project with parent start status, last priority, `inbox=1`; skip_inbox parent → `inbox=0`; reporter defaults to actor; empty title 422 |
+| 1 | Create: title required; id/status/priority/server fields derived; parent start status; appended last sibling; Inbox unless parent `skip_inbox`; reporter defaults to creator | `domain/projects.createProject`, `domain/permissions` | one transaction; title validated by `src/lib/validation` (`422 validation_failed` for empty/too-long) before insert; priority computed inside the transaction | `tests/domain/capture.test.ts`: title → project with parent start status, last priority, `inbox=1`; skip_inbox parent → `inbox=0`; reporter defaults to actor; empty title 422 |
 | 2 | Effective role walking up; app admin→admin on Root only; app user no implicit project access; app Viewer read-only; child creation needs `user` on parent; project must retain one Admin; Root retains one app Admin | `domain/permissions.getEffectiveRole` / `requireRole` / `assertLastAdmin` | every read path in SQL/CTE or `requireRole`; member changes validate whole subtree before write; user-role change validates Root admin count | `tests/domain/permissions.test.ts`: nearest grant wins; grant on descendant without ancestor access; app viewer cannot write anywhere; last project admin removal rejected naming project; last app admin demotion rejected |
 | 3 | Reduction/removal cascades to descendants overriding existing grants; increases never propagate; validate whole subtree and reject naming losers | `domain/permissions.setMemberRole`, `validateSubtreeAdmins` | transaction: compute subtree, simulate, reject with `LAST_ADMIN_REQUIRED` + `fields.projects`; then rewrite grants | `tests/domain/cascade.test.ts`: parent user→viewer rewrites descendant admin row; increasing parent leaves descendant row; losing last admin rejected and DB unchanged (rollback) |
 | 4 | Move: explicit mapping for every old status in use (even equal names); reject cycles; reject destination without permission; descendants keep statuses; add-on data preserved | `domain/projects.moveProject`, `domain/workflow` | transaction validates mapping keys = distinct statuses of moved roots, destination role, `destination ∉ subtree`; only moved roots get new status; `addon_data` untouched | `tests/domain/move.test.ts`: missing mapping key rejected; same-name status still requires mapping; cycle rejected; destination forbidden rejected; add-on JSON unchanged after move |
 | 5 | Workflow edits: removing/replacing in-use status requires explicit remapping; trashed children defer mapping to restore | `domain/workflow.replaceWorkflow`, `domain/trash.restoreAction` | transaction counts children in workflow by status; rejects with mapping requirement; restore accepts mapping for now-invalid statuses | `tests/domain/workflow.test.ts`: delete in-use status without mapping rejected; with mapping children updated; trashed child skipped; restore without mapping rejected, with mapping succeeds |
-| 6 | Inbox: release clears flag, keeps status; any status change clears it; flag not status; add-on required gate before exit | `domain/inbox.releaseFromInbox`, `domain/projects.updateProject` | both commands share one helper `exitInbox(tx, project, nextStatus?)`; add-on validation runs inside the transaction before commit | `tests/domain/inbox.test.ts`: release keeps status, clears inbox; status change clears inbox; gate blocks release with `ADDON_VALIDATION_FAILED`; skip_inbox project unaffected by Required add-on |
+| 6 | Inbox: release clears flag, keeps status; any status change clears it; flag not status; add-on required gate before exit | `domain/inbox.releaseInboxProject`, `domain/projects.updateProject` (`statusChanged ? inbox=0`), `domain/projects.reorderProject`, `domain/addon-hooks.assertInboxExitAllowed` | release/status-change/reorder/move/bulk-move/workflow-remap call `assertInboxExitAllowed` before writing; it runs every registered add-on's `beforeLeaveInbox` then `validate` and throws `422 addon_validation`. Empty MVP registry → no-op; mode resolves to `'optional'` until registry→`addons` sync exists (AR-054) | `tests/domain/projects.test.ts` (inbox cases) + add-on tests: release keeps status, clears inbox; status change clears inbox; skip_inbox project has no Inbox; gate invocation order/issue aggregation; no partial write on gate rejection |
 | 7 | Kanban: cross-column = status only; within-column rewrite sibling priority; priority shared across statuses | `domain/projects.reorderProject` / `updateProject` | reorder only touches `priority` of siblings; status update never touches priority | `tests/domain/priority.test.ts`: cross-column leaves priority vector unchanged; within-column creates contiguous order; all-status sibling order preserved |
 | 8 | Archive: parent hides subtree; descendants' flags untouched; `show_archived` per user app-wide | `domain/projects.setArchived`, read queries | no subtree writes; visibility joins on `users.show_archived` and effective ancestor archive state | `tests/domain/archive.test.ts`: archive parent leaves child flag; hidden by default; child visible after unarchive according to own flag; toggle shows subtree |
 | 9 | Trash: batch action id + own deadline; already-trashed keeps deadline; restore only same action; read-only; purge only scheduled | `domain/trash.*` | `trashProjects` one transaction sets `trash_action_id`/`purge_deadline` per row; `assertWritable` on every mutating domain function; only `purgeExpired` deletes | `tests/domain/trash.test.ts`: action id shared by newly trashed; existing trash keeps action and deadline; restore same-action only; trashed edit rejected; restore re-trasha gets new deadline |
 | 10 | Audit: own field changes, creation, archive, trash; parent logs child create + child trash only; no purging event | `domain/audit.logEvent` called by each command | writes bundled in same transaction; no event for purge; append-only trigger/table policy | `tests/domain/audit.test.ts`: title change logs old+new in own log; create logs in own and parent log; child edit not in parent; child trash logged in parent; purge leaves no purge event |
-| 11 | Search: FTS titles (+future add-on text), permission filtered, prefixes, archived per visibility, trash excluded | `domain/search.search`, `reindexProject` | FTS query joined to `projects` + access CTE; `title:*` prefix tokens; `trashed_at IS NULL`; archived filter | `tests/domain/search.test.ts`: prefix match; inaccessible title absent; trashed absent; archived only when toggled; reindex after title edit |
-| 12 | Every read path permission filtered server-side; never leak titles or counts | all read helpers in `domain/*`, `domain/permissions.accessibleProjectIds` | each list/count query joins the access CTE; inaccessible single item returns 404 | `tests/domain/privacy.test.ts`: list/inbox/search/dashboard/activity never include inaccessible titles; 404 not 403; counts match visible set only |
+| 11 | Search: FTS titles (+future add-on text), permission filtered, prefixes, archived per visibility, trash excluded | `domain/search.searchProjects`, `db/search.indexProject` | FTS5 query with quoted prefix tokens; results filtered through `AccessContext` (`isActiveProject`) in the domain; `body` is currently always empty (no add-ons); trash excluded, archived follows `show_archived` | `tests/unit/search-fts.test.ts` + future `tests/domain/search.test.ts`: prefix match; inaccessible title absent; trashed absent; archived only when toggled; reindex after title edit |
+| 12 | Every read path permission filtered server-side; never leak titles or counts | `domain/permissions.loadAccessContext` + every read helper; route handlers return 404 for unreadable ids | the whole tree+grants are loaded once per request into `AccessContext`; helpers filter in the domain process (not SQL) before serialising; inaccessible single item → 404, never 403; `listActivity` relies on its caller to have checked access (review AR-029) | `tests/domain/permissions.test.ts` (privacy cases) + future `tests/domain/privacy.test.ts`: list/inbox/search/dashboard/activity never include inaccessible titles; 404 not 403; counts match visible set only |
 
 Cross-cutting expectations that are not a single §6 rule but are release-blocking:
 
 - The transaction is rolled back on any thrown `DomainError`; no partial audit/FTS/priority write.
-- `GET` handlers never mutate.
+- `GET` handlers never mutate. `ensureWorkflow` (the lazy To do/Done seed) is called only from
+  mutating commands (`createProject`, `moveProject`/`moveProjects`); read paths use `listWorkflow`
+  and are read-only (AR-032/AR-052 resolved).
 - All mutations validate server-side even when the UI disables the control.
 
 ### 5.1 Why this shape
@@ -311,8 +331,10 @@ Verified against `src/server/auth/*`:
   24 hours, slides `expires_at` to `now + 30d`. This writes on nearly every request after the first
   day (the condition compares `created_at`, not remaining lifetime) — correct sliding behaviour,
   avoidable write amplification, tracked in the review log.
-- Logout deletes the row and clears the cookie. Password change deletes all sessions for that user;
-  user role/disable changes are expected to delete sessions (owners: settings domain).
+- Logout deletes the row and clears the cookie. A self-service password change deletes the user's
+  other sessions and keeps the current one; an Admin password reset deletes all of the target
+  user's sessions. There is no account-disable/delete feature in the MVP, so no other session
+  revocation path exists.
 - `/setup` is enabled only while `users` is empty and creates the first admin and a session.
 - Auth helpers (`src/server/auth/current-user.ts`): `getSessionUser(): Promise<AuthUser | null>`,
   `requireUser()` / `requireAdmin()` / `requireAppRole()` (redirect for server components), plus
@@ -324,44 +346,68 @@ Verified against `src/server/auth/*`:
   `username|ip`, cleared on success. It is per process (fine for one container), resets on restart,
   and trusts `X-Forwarded-For` (only safe behind a proxy that overwrites the header).
 
-### 6.2 Authorization algorithm
+### 6.2 Authorization algorithm (verified against `src/server/domain/permissions.ts`)
+
+The engine loads the whole project tree plus the viewer's explicit grants once per request
+(`loadAccessContext`) and walks Depth-first from each Root:
 
 ```
-effectiveRole(user, project):
-  if app_role == 'viewer':                       # read-only everywhere, never elevated
-      role = explicitWalk(user, project)         # nearest explicit grant up the tree
-      return role ? 'viewer' : role              # clamp any grant down to viewer
-  role = explicitWalk(user, project)
-  if role: return role
-  if project == ROOT and app_role == 'admin': return 'admin'   # Root only, never inherited
-  return null
-
-explicitWalk(user, project):
-  p = project
-  while p is not null:
-      if row exists project_roles(p, user): return row.role
-      p = parent(p)
-  return null
+role(project) =
+    explicit grant at project                       -> that role
+  | parent != null and an ancestor has a grant      -> nearest ancestor grant (walk continues down)
+  | project is Root                                 -> appRole == 'admin' ? 'admin' : null
+  | otherwise                                       -> null
 ```
 
-Consequences that the implementation and tests must preserve:
+Consequences that the implementation and tests preserve (and that `tests/domain/permissions.test.ts`
+asserts):
 
-- App Admin is **not** a superuser. With no grant, the app-role fallback applies only when the
-  queried project *is* Root; it does not walk down to Root's descendants. A private project
-  therefore stays private from an app Admin.
-- App User has no implicit project access. The product sentence "all other accounts receive Root's
-  User project role" is implemented by writing an explicit Root `project_roles` row when an account
-  is created or its application role changes (admin accounts rely on the implicit Root mapping;
-  user/viewer accounts get Root `user`/`viewer`). Root's member list is therefore a normal member
-  list for non-admins.
-- Creating a child requires effective role ≥ `user` on the parent; the creator is additionally
-  written as project Admin of the new child (explicit row) so "at least one project Admin" holds at
-  creation.
-- "A project must retain one project Admin" is checked against **effective** roles (inherited grants
-  count), simulating the proposed change over the affected subtree before writing anything.
-- Viewer writes: every mutating domain command starts with `requireRole(..., 'user')`, and app Viewer
-  is clamped to `viewer`, so Viewers can only change their own profile/password/appearance/dashboard
-  (those commands check `actorId === userId`, not project roles).
+- App Admin is **not** a superuser. The Root fallback applies only to the Root project itself and is
+  never passed down; a project with no grant stays private from an app Admin. The seed grants Root
+  `project_roles` to non-admin accounts explicitly, and grants shared projects explicitly.
+- App User and app Viewer have no implicit project access. The product sentence "all other accounts
+  receive Root's User project role" is implemented as an **explicit Root grant synced on account
+  creation/role change**: `users.createUser` and `users.updateUser` call `syncRootProjectRole`, which
+  writes the Root `project_roles` row for an application User (`user`) or Viewer (`viewer`), and for
+  an application Admin deletes any stale explicit Root row so the implicit Root Admin fallback
+  applies. Account create/update is therefore the single owner of Root membership (AR-021 resolved).
+  The setup path only creates the first admin, covered by the Root fallback.
+- Creating a child requires edit capability (`user` or `admin`) on the parent. `createProject` copies
+  the parent's explicit grants onto the new child and then upserts the creator as project Admin. That
+  materialisation is what makes "increases never propagate" true for already-created children and
+  makes the reduction cascade auditable.
+- Application Viewers are read-only everywhere: the walk may find an explicit `admin` grant, but
+  `canEditProject`/`canAdminProject` return false when `isReadOnlyViewer(user)`. `Viewer` is a
+  capability clamp, not a role rewrite; the member list may still display the grant.
+- "A project must retain one project Admin" and "Root must retain one application Admin" are checked
+  by simulating the whole affected subtree (`planMemberUpdate` → `effectiveRolesByUser`) before the
+  write; the rejection names the losing projects.
+- Member reductions cascade over descendant explicit grants that are higher than the new effective
+  role; lower descendant grants are left alone (no accidental increase). Increases only write the
+  target project's row.
+- Root's member list is explicit-grants-only (`listProjectMembers`); an app Admin's implicit Root
+  admin is not a row, so the UI must treat it separately (review AR-031).
+
+### 6.3 Query filtering (actual model)
+
+The implementation filters **in the domain process**, not in SQL: `loadAccessContext` computes an
+`AccessContext` with per-project effective roles and archive visibility; every read helper
+(`isActiveProject`, `isTrashVisibleProject`, `readableChildIds`, `visibleProjectIds`, search, inbox,
+trash, page data) consults it before serialising. Inaccessible single items return 404 (never 403).
+This satisfies build-spec §6.12 (server-side, no title/count leak) with a simpler tree walk than a
+recursive SQL CTE; the tradeoff is loading the full project table per authenticated request, which is
+acceptable at household scale (≤ a few thousand projects) but is the first thing to move into SQL if
+that assumption changes.
+
+Rules that still hold:
+
+- Trashed projects never appear in ordinary reads; `listTrash` is the only reader and still applies
+  access + `show_archived`.
+- Archived visibility is `users.show_archived`, applied to the whole visible set (parent archived
+  hides its subtree).
+- Read helpers that sit close to the data (`listActivity`) require the caller to have checked access;
+  the API route and page do so, but the function itself is a misuse trap (review AR-029).
+- Counts/limits are computed over the filtered set, not the raw table.
 
 ### 6.4 CSRF / same-origin (verified against `src/server/http.ts`)
 
@@ -378,45 +424,31 @@ Consequences that the implementation and tests must preserve:
 4. `rejectCrossOrigin` returns 403 `csrf_rejected`. `readJsonBody` enforces a JSON object body;
    content-type is not sniffed (the JSON parser fails on non-JSON anyway).
 
-### 6.3 Query filtering (no leak by construction)
-
-No read helper fetches rows and filters in TypeScript. Access is a SQL fragment that is joined into
-every list/count:
-
-```sql
-WITH RECURSIVE access(project_id) AS (
-  SELECT id FROM projects WHERE id = :rootId
-  UNION
-  SELECT p.id FROM projects p JOIN access a ON p.parent_id = a.project_id
-)
--- actual predicate: project is readable when it is in the subtree of any project where
--- effective_role(viewer, project) resolves to a role, or has its own explicit grant.
-```
-
-In practice `accessibleProjectIds(db, viewerId)` is materialised as a temporary view/CTE used by
-`listChildren`, `listInbox`, `search`, `listActivity`, `dashboard` and trash. Trashed projects are
-excluded from ordinary reads and only listed through `listTrash` (which still applies the access
-CTE). Archived visibility is `users.show_archived` applied to the whole visible set.
-
-Counting rules: a widget or collection's total is computed from the same filtered query as its rows
-(`SELECT COUNT(*)` over the filtered set), never from `projects` and then filtered in JS.
-
 ## 7. Route handlers and UI boundary
 
 `src/app/api/**` implements build-spec §7 exactly. Handler shape:
 
 ```ts
-export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
-  return handle(req, async ({ db, user }) => {
-    const body = await parseJson<CreateProjectBody>(req, createProjectSchema);
-    const project = createProject(db, { actorId: user.id, ...body });
-    return json({ project });
-  });
+// actual shape (src/app/api/projects/[id]/move/route.ts)
+export async function POST(request: Request, context: RouteContext) {
+  const guard = guardMutation(request);            // same-origin, mutations only
+  if (guard) return guard;
+  const auth = await requireApiUser();             // JSON 401, never a redirect
+  if (!auth.ok) return auth.response;
+  const { id } = await context.params;
+  const body = await readJsonBody(request);
+  if (!body.ok) return body.response;
+  try {
+    const project = moveProject(getDb(), toAccessUser(auth.user), id, body.data);
+    return jsonOk({ project });
+  } catch (error) {
+    return handleDomainError(error);
+  }
 }
 ```
 
-`handle` = same-origin check for non-GET → auth → parse → run → map errors. No handler imports
-`fs`, `child_process`, or SQL directly.
+No handler imports `fs`, `child_process`, or SQL directly; validation of field types is in the
+domain/`src/lib/validation.ts` (there is no zod/schema dependency).
 
 Server components read through domain functions; client components mutate by `fetch` and then
 `router.refresh()` (or `revalidatePath` equivalent) so RSC data is re-rendered. The project page and
@@ -425,7 +457,9 @@ view components receive serialisable view models (`ProjectDetail`, `children`, `
 
 The add-on UI surface is contract-only in MVP: `src/server/addons/` ships `types.ts`, `registry.ts`
 and `index.ts` with an **empty registry**, no add-ons registered, no endpoints and no UI slot
-renderers. Add-on rules in this document are therefore verified by construction and by registry /
+renderers. The **Inbox-exit hook gate is wired** (`src/server/domain/addon-hooks.ts`) and is a no-op
+while the registry is empty; modes default to `'optional'` until registry→`addons` sync exists
+(§8.3, R20). Add-on rules in this document are therefore verified by construction and by registry /
 contract tests, not by an end-to-end add-on flow. One forward contract worth stating here: the
 `AddonWidgetContext` dashboard loader receives `{ viewerId, visibleProjectIds, query(sql, params) }`
 and `query` must stay a **read-only** helper — no raw writable `Db`, no transaction object, no
@@ -446,35 +480,49 @@ narrow it, never expand it. Future implementations must not weaken this invarian
   purge is expected to delete a project's own history (product.md §4) that is exactly the cascade.
 - Parent events for child create/trash store the child title in `detail` (JSON snapshot) because
   `target_id` may point at a project that is later purged; rendering never depends on a live join.
-- `listActivity` is permission-filtered and cursor-paginated newest-first. Purged projects have no
-  log; events in a surviving parent log that reference the purged child remain and render from the
-  snapshot.
+- `listActivity` is cursor-paginated newest-first but does **not** take a viewer: the route/page must
+  check project access first (they do). It joins `target_id` to `projects` for the target title and
+  falls back to the stored `new_value`; for a child event whose target is no longer readable (or is
+  purged), the live join can expose the target's current title to a reader of the parent log — a
+  privacy edge to fix by snapshotting/validating the target (review AR-029).
+- **Status events store names and ids:** `old_value`/`new_value` keep the display names and `detail`
+  JSON carries `{"fromId": <old status id>, "toId": <new status id>}` from every status-changing path
+  (update, reorder, move, bulk move, workflow remap). That is what makes the deferred "Completed last
+  week" widget countable without an event-schema change (AR-033 resolved; see `add-ons.md` §13).
+- The audit vocabulary includes `project.inbox_released` and `workflow.updated`; unknown actions are
+  no longer expected, though activity rendering should still degrade gracefully.
 
 ### 8.2 Purge
 
-`purgeExpired(db, now)` selects projects with `trashed_at IS NOT NULL AND purge_deadline <= now`,
-then for each subtree root: delete its `project_search` rows (no FK), run registered add-on
-`onProjectPurge` hooks for namespaced tables, then delete the `projects` row. Foreign keys do the
-rest, in one transaction: `audit_events` (own history), `statuses` where the project owns a workflow,
-`project_roles`, `favorites`, `trash_actions` references, and descendants through
-`projects.parent_id ON DELETE CASCADE`. A child whose deadline has not passed is purged anyway when
-its ancestor is purged: otherwise it is orphaned/unreachable. Each purge runs in its own
-transaction; a failure leaves the batch retryable on the next sweep. Nothing writes an audit event
-for purge, and the parent's own audit events referencing the purged child survive (they belong to the
-parent log).
+`src/server/domain/purge.ts#purgeExpired(now)` (the only purge implementation) runs in one
+transaction: select projects with `trashed_at IS NOT NULL AND purge_deadline <= now` (never Root),
+expand to the complete subtree (a descendant may have a later deadline than an expired ancestor and
+must still go), sort leaf-first to respect `projects.status_id ON DELETE RESTRICT` against statuses
+owned by parents, delete `project_search` rows for the whole set (no FK), then delete the project
+rows. Foreign keys cascade the rest: `audit_events` (the project's own history),
+`statuses` where the project owns a workflow, `project_roles`, `favorites`, `trash_actions`
+references, and descendants through `projects.parent_id ON DELETE CASCADE`. Result counts are
+returned for logging. A failure rolls the whole batch back and the next sweep retries. Nothing writes
+an audit event for purge; parent-log events referencing the purged child survive. Add-on
+`onProjectPurge` does not exist yet (FORWARD); add-on JSON is deleted with the project row and
+add-on tables must declare `ON DELETE CASCADE`.
 
-### 8.3 Scheduler
+### 8.3 Scheduler (implemented)
 
-- `instrumentation.ts` (`register()`) runs once per process start, in order: run migrations → sync
-  add-on registry rows → purge sweep → set an interval (default hourly, env override for tests) →
-  start serving. It must not run during `next build`.
-- `scripts/purge.ts` exposes the same `purgeExpired` for operators/cron; it opens the DB, runs one
-  sweep, prints counts, exits. `npm run` alias documented in README.
-- The scheduler is a plain `setInterval` guarded by a re-entrancy flag. It is intentionally not a
-  job queue; one instance, one process, lost intervals are recovered by the next sweep because
-  purge is idempotent and deadline-based.
-- Startup also runs `PRAGMA integrity_check`? No — too slow for boot; a separate `npm run db:check`
-  is deferred.
+- `src/instrumentation.ts` (`register()`) is the Next.js entry. It skips during
+  `NEXT_PHASE === 'phase-production-build'`, when `KAPO_DISABLE_PURGE=1`, and on non-Node runtimes,
+  then dynamically imports `src/instrumentation-node.ts` (keeps `better-sqlite3` out of the Edge
+  trace).
+- `startPurgeScheduler()` runs one sweep immediately, then sets a 6-hour `setInterval` (timer
+  `unref`'d, re-entrancy-guarded by a module-level `started` flag). Errors are logged, never fatal;
+  maintenance must not take the server down.
+- `scripts/purge.ts` is a thin CLI wrapper around the same `purgeExpired()` for operators/cron
+  (`npm run db:purge`) and closes the DB handle; the container does not need it.
+- Migrations run on first database access (`openDatabase`), which the scheduler's first sweep
+  triggers at boot in the container. Registry→`addons` table sync (FORWARD) will join this startup
+  sequence when the first add-on ships.
+- Idempotent by construction: a second sweep finds nothing; missed intervals are recovered by the
+  next sweep because purge is deadline-based. AR-020 is resolved.
 
 ## 9. Deployment, volumes, backups, migrations, upgrades
 
@@ -540,21 +588,31 @@ downgrade with a newer schema is unsupported.
 | `KAPO_MIGRATIONS_DIR` | resolved from candidates | migration directory in the standalone image |
 | `KAPO_FORCE_SECURE_COOKIES` | unset | force `Secure` cookies when TLS termination is not visible as `X-Forwarded-Proto: https` |
 | `SESSION_SECRET` | unset | reserved; sessions are DB-backed random tokens and need no signing key |
+| `KAPO_PUBLIC_URL` | `http://localhost:3000` | metadata base URL / deployment guidance |
+| `KAPO_DISABLE_PURGE` | unset | `1` disables the in-process 6-hourly purge scheduler (external cron then owns purge) |
 | `PORT` | `3000` | Next.js port |
 
 HTTPS is terminated by the operator's reverse proxy (Caddy/nginx/Traefik). The app sets `Secure`
 cookies only when `NODE_ENV=production` and it sees an HTTPS signal, so plain-HTTP localhost
-development still works. The scheduler interval is a code constant/env added by the maintenance
-owner; it does not exist yet.
+development still works. The purge scheduler runs at boot and every 6 hours (code constant); set
+`KAPO_DISABLE_PURGE=1` to disable it in environments that run `npm run db:purge` externally.
 
 ## 10. Testing strategy
 
 | Level | Tool / location | What it proves | What it must not do |
 |---|---|---|---|
-| Domain unit/integration | `tests/domain/*.test.ts`, vitest node env, temp SQLite file per suite (`tests/helpers/db.ts`) | every §6 rule, transactions/rollback, audit + FTS + trash semantics | touch the dev database; mock `better-sqlite3` |
-| API integration | `tests/api/*.test.ts`, call the exported route handlers with a `Request` and a session cookie | auth/CSRF, error shape, status codes, permission filtering at the boundary | start a real server for every test |
-| E2E | `tests/e2e/*.spec.ts`, Playwright chromium if installable | first install, login, capture → Inbox → release, Kanban status vs priority, viewer read-only, dashboard edit persistence, trash/restore | depend on network assets or a pre-seeded dev DB |
-| Static | `npm run typecheck` | TypeScript strict (`noUncheckedIndexedAccess`), no `any` leaks, domain layer has no React/Next imports; enforced by review + import graph inspection (there is no ESLint script in `package.json`) | — |
+| Unit | `tests/unit/*.test.ts` (vitest): schema/constraints, FTS, password/session/rate-limit/HTTP helpers, add-on registry, first-run | foundation + contract invariants that do not need the full domain | mock `better-sqlite3`; touch the dev DB |
+| Domain integration | `tests/domain/*.test.ts` with a temp SQLite file per suite (`tests/helpers/db.ts`): permissions/cascade/last-admin, project create/move/reorder/inbox/audit/search/trash as they land | every §6 rule, transactions/rollback, audit + FTS + trash semantics | depend on the seeded `data/kapo.db` |
+| API integration | `tests/integration/*.test.ts`: call route handlers with a `Request` + session context helper | auth/CSRF, error envelope, status codes, permission filtering at the boundary | start a real server for every test |
+| E2E | `tests/e2e/*.spec.ts` + `start-server.mjs`, Playwright chromium if installable | first install, login, capture → Inbox → release, Kanban status vs priority, viewer read-only, dashboard persistence, trash/restore | require network assets or a seeded dev DB checked into git |
+| Static | `npm run typecheck` | strict TS (`noUncheckedIndexedAccess`), no `any` leaks; domain must not import React/Next (review + import inspection; no ESLint script exists) | — |
+
+Snapshot at review round R4: `npm test` is green (`19 files / 245 passing / 1 expected-fail`) and
+`npm run typecheck` is clean. The suite is not "done" until:
+every §5 row has a failing-on-regression test, `npm test` is green from a clean checkout, typecheck
+is clean, and at least one deliberate-regression check has been demonstrated. Test evidence at R3
+covered schema, FTS, auth, HTTP, registry, rate limit, setup/login, permissions/cascade, and project
+ABI/API integration; audit/trash/search/inbox/workflow domain tests were still pending.
 
 Each rule in §5 maps to at least one named test expectation. A test suite is "done" for a rule only
 when it fails on a deliberate regression (e.g. removing the permission join) — the tester verifies
@@ -569,8 +627,10 @@ at least one such mutation manually.
 - Backup/restore automation (deferred feature).
 - Email, password recovery delivery (not a feature), OAuth/SSO (not a feature).
 - Browser matrix beyond Chromium; Safari/iOS PWA install is manual.
-- Add-on behaviours: no add-on ships, so only the contract compiles; `tests/addons/contract.test.ts`
-  (deferred until an add-on exists) covers hooks/isolation.
+- End-to-end add-on behaviour: no add-on ships. The registry contract and the Inbox-exit hook gate
+  are covered by unit/contract tests (registration validation, hook order, issue aggregation), but
+  there is no real add-on flow, settings surface, renderer or widget consumer to exercise; that
+  coverage arrives with the first add-on (AR-054/055/056).
 
 ## 11. Risks, open questions, deferred work
 
@@ -579,12 +639,12 @@ Severity = impact if it goes wrong in the MVP. Code-level findings are tracked i
 
 | # | Risk / question | Severity | Position / mitigation |
 |---|---|---|---|
-| R1 | Add-on registry is contract-only; the generic plumbing (settings tab, field slots, add-on write endpoint, addon-data validation on transitions) must exist for "ship without touching core" to be true | Blocker for the add-on story, not for MVP flows | Contracts are in `add-ons.md`; the registry exists and is empty; core must preserve `addon_data`/`settings.addons` JSON and build the Inbox-exit hook point (`hooks.beforeLeaveInbox`). |
+| R1 | Add-on registry is contract-only and the generic plumbing (settings tab, field slots, add-on value endpoint, search indexing, widget bridge, registry→`addons` sync) does not exist; only the Inbox-exit hook gate is wired | Major for the add-on story, not for MVP flows | Contracts are in `add-ons.md`; the registry is empty; core preserves `addon_data`/`settings.addons` JSON. The first add-on delivers the generic plumbing once (AR-054/055/056). |
 | R2 | Single SQLite writer + in-process scheduler: no horizontal scaling, long transactions block the event loop | Major (accepted MVP constraint) | Keep transactions short; no network I/O inside a transaction; document unsupported multi-replica deployment. |
 | R3 | CSRF relies on Origin/Host match plus SameSite, not a per-form token; a request with neither `Origin` nor `Sec-Fetch-Site` passes | Major residual | §6.4 is the implemented rule; no CORS headers; never weaken the header check. |
 | R4 | Login brute force is throttled in memory only (10 failures / 15 min per username+IP), resets on restart, and trusts `X-Forwarded-For` | Minor (mitigated) | Fine for one household/one process; deploy behind a proxy that overwrites `X-Forwarded-For`; documented as defence-in-depth, not a guarantee. |
 | R5 | Priority/status writes under concurrent tabs: last write wins, no optimistic version check | Major (data correctness) | All writes `BEGIN IMMEDIATE` and recompute from current state; reorder is idempotent by target position. No `updated_at` precondition in MVP; accepted risk. |
-| R6 | Purge must remove audit, FTS, add-on tables and uploads without leaving orphans | Major | `project_search` rows have no FK and need explicit deletion; add-on tables must declare `ON DELETE CASCADE`; avatar files of deleted users need a cleanup decision. Tested on a subtree. |
+| R6 | Purge orphan cleanup | Major → **largely resolved** | `domain/purge.ts#purgeExpired` deletes FTS rows for the whole subtree, expands descendant subtrees, deletes leaf-first, and relies on FKs for audit/roles/favorites/statuses; tested by the purge suite. Remaining: add-on tables must declare `ON DELETE CASCADE` (no add-on ships), and avatar files of deleted users still need a cleanup decision. |
 | R7 | Audit append-only is enforced by an UPDATE trigger only; DELETE is possible through the project cascade (intended for purge) and must not be reachable elsewhere | Major | No domain delete API; review every raw `DELETE FROM audit_events`; purge relies on cascade, not on manual audit deletes. |
 | R8 | Avatar upload: content-type spoofing, path traversal, SVG/HTML XSS via served files | Major | Accept png/jpeg/webp magic bytes only, ≤2 MB, random filename, serve with `Content-Disposition`/`nosniff`, never as `text/html`. |
 | R9 | App Admin/Viewer semantics (Root-only implicit admin, explicit Root role rows for non-admins) are inferred from the spec; ambiguity could cause privacy bugs | Major | Algorithm in §6.2 is normative; tests must cover "private from app admin" and "viewer gets no write" explicitly. Product owner should confirm. |
@@ -592,12 +652,16 @@ Severity = impact if it goes wrong in the MVP. Code-level findings are tracked i
 | R11 | Audit coverage beyond "create, field change, archive, trash": move, restore, unarchive, membership change, workflow change | Minor open question | Default: log them in the affected project's log (and old/new parent for move) as field events; no parent duplication except child create/trash. |
 | R12 | Search snippets for future add-on text fields and visibility of disabled add-on values | Minor (no add-ons ship) | Add-on values are indexed only while effectively available; availability change triggers reindex; disabled values are never searchable. Contract in `add-ons.md`. |
 | R13 | Trashed project restore requires explicit mapping when its status left the parent workflow; UI must surface it | Minor (edge case) | `restoreAction` accepts mapping and raises `STATUS_MAPPING_REQUIRED`; test covers it. |
-| R14 | No manual purge UI; a stalled scheduler means trash grows indefinitely | Minor | Startup sweep plus hourly interval recover automatically; README documents `scripts/purge.ts`. |
+| R14 | No manual purge UI; purge depends on the in-process scheduler firing | Minor | Startup sweep plus 6-hourly interval recover automatically (runs at boot); `npm run db:purge` is the operator fallback when `KAPO_DISABLE_PURGE=1`. |
 | R15 | `show_archived` is stored per user and applies app-wide; toggling from a project menu affects dashboard/search/views | Minor UX | Single user preference read in every visibility query; toggle writes `users.show_archived`, no per-view override. |
-| R16 | Dashboard preference JSON is parsed against a hard-coded two-widget whitelist (`parseDashboard` / `DASHBOARD_WIDGETS`); unknown ids (future add-on widgets, reinstated Completed last week) are dropped when the preference is round-tripped | Major for forward compatibility | Relax the parser to preserve unknown ids/order and filter for rendering instead of parsing; required before the deferred widget returns. Tracked in the review log. |
+| R16 | Dashboard preference forward compatibility — **resolved:** `parseDashboard` preserves unknown ids/order, the write path keeps them and appends missing known widgets as hidden, and the editor keeps unknown entries in their slots (only Restore defaults drops them) | Formerly major, now closed | Rendering/editor still filter to known ids; when the widget bridge lands, add the "unavailable widget" editor row. No schema change. |
 | R17 | Session sliding renewal compares `created_at` and writes on most requests after day one | Minor (write amplification) | Change the condition to remaining lifetime (e.g. renew when < 1 day remains) or accept; correctness is fine. |
 | R18 | `MAX(seq)+1` display-id allocation reuses ids after purging the newest project | Minor (audit references) | Prefer a persistent counter allocated in the same transaction; otherwise document and test monotonicity expectations. |
 | R19 | Priority uniqueness includes trashed siblings; a reorder that ignores trashed rows can collide | Major (data correctness) | Reorder must account for trashed siblings or the unique constraint must become partial; test trash + reorder. Tracked in the review log. |
+| R20 | Add-on gate is **wired** (`domain/addon-hooks.assertInboxExitAllowed` on release/status-change/reorder/move/bulk-move/workflow-remap; both hooks run) but **inert**: registry empty, no registry→`addons` sync (mode defaults to `'optional'`), no project enablement, no value write endpoint / settings surface / renderer or widget consumer | Major for the add-on story (accepted MVP scope) | Fine while the registry is empty; the first add-on needs the generic sync/enablement/value-endpoint/settings/renderer/bridge work once, not per add-on. `add-ons.md` §3–§9 and `architecture-review.md` AR-054/055/056 record the gaps. |
+| R21 | Audit status transitions — **resolved:** status events carry `detail {fromId,toId}` in addition to names, and `project.inbox_released` / `workflow.updated` are in the vocabulary, so the deferred Completed-last-week widget can count finish-status transitions | Formerly major, now closed | Keep the ids authoritative (names may be edited); add the renamed-status counting test when the widget returns. |
+| R22 | GET reads mutating — **resolved:** `ensureWorkflow` (the lazy To do/Done seed) is now called only from mutating commands (`createProject`, `moveProject`/`moveProjects`); page/workflow/move-info reads use `listWorkflow` and are read-only | Formerly major, now closed | Keep new read paths on `listWorkflow`; the only lazy write left is the first `ensureWorkflow` during create/move, inside their transaction. |
+| R23 | New-account Root access — **resolved:** `users.createUser`/`updateUser` call `syncRootProjectRole`, which writes the explicit Root `project_roles` row for app Users (`user`) and Viewers (`viewer`) and removes any stale explicit row on promotion to app Admin (implicit Root Admin fallback); last-app-Admin demotion is still guarded | Formerly major, now closed | Keep account create/update as the single owner of Root membership; test that promotion removes the stale row and demotion is rejected when it is the last Admin. |
 
 Deferred (explicitly out of scope, do not build): Assignee and its dashboard widget, descriptions,
 tags/custom fields, additional collection views (Portfolio), rolling backup management, freeform

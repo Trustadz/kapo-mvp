@@ -53,6 +53,8 @@ export interface MenuProps {
   trigger: (props: MenuTriggerProps) => ReactNode;
   items: MenuItem[];
   label: string;
+  /** Optional identity/header block rendered above the items. */
+  header?: ReactNode;
   align?: 'start' | 'end';
   side?: 'top' | 'bottom';
   className?: string;
@@ -76,6 +78,7 @@ export function Menu({
   trigger,
   items,
   label,
+  header,
   align = 'start',
   side = 'bottom',
   className,
@@ -235,6 +238,7 @@ export function Menu({
           className={cn(styles.panel, side === 'top' ? styles.sideTop : styles.sideBottom, align === 'end' ? styles.alignEnd : styles.alignStart)}
           onKeyDown={handlePanelKeyDown}
         >
+          {header ? <div className={styles.menuHeader}>{header}</div> : null}
           {items.map((item) => {
             if (isSeparator(item)) {
               return <div key={item.id} role="separator" className={styles.separator} />;

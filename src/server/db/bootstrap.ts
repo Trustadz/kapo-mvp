@@ -20,6 +20,7 @@ export const DEFAULT_APP_SETTINGS: AppSettingDefault[] = [
 ];
 
 export interface ProjectSettingsDefaults {
+  access: 'inherit' | 'custom';
   inherit_layout: boolean;
   child_position: 'below' | 'above';
   default_view: 'kanban' | 'card' | 'tree' | 'list';
@@ -30,6 +31,7 @@ export interface ProjectSettingsDefaults {
 }
 
 export const DEFAULT_PROJECT_SETTINGS: ProjectSettingsDefaults = {
+  access: 'inherit',
   inherit_layout: true,
   child_position: 'below',
   default_view: 'kanban',
@@ -145,7 +147,7 @@ export function createRootProject(
     rootId,
     lastSeq.seq + 1,
     createdBy,
-    JSON.stringify(DEFAULT_PROJECT_SETTINGS),
+    JSON.stringify({ ...DEFAULT_PROJECT_SETTINGS, access: 'custom' }),
     createdBy,
     createdAt,
     createdAt,

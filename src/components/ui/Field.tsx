@@ -66,16 +66,23 @@ export interface FieldGroupProps {
 /** Fieldset variant for radio/checkbox groups. */
 export function FieldGroup({ legend, hint, error, className, children }: FieldGroupProps) {
   return (
-    <fieldset className={cn(styles.field, styles.fieldset, className)}>
-      <legend className={styles.label}>{legend}</legend>
-      <div className={styles.control}>
-        {children}
-        {hint ? <p className={styles.hint}>{hint}</p> : null}
-        {error ? (
-          <p className={styles.error} role="alert">
-            {error}
-          </p>
-        ) : null}
+    <fieldset className={cn(styles.fieldsetRoot, className)}>
+      {/* The legend names the group for assistive technology; the visible
+       * label below keeps the desktop label-beside-control rhythm. */}
+      <legend className="visually-hidden">{legend}</legend>
+      <div className={styles.field}>
+        <span className={styles.label} aria-hidden="true">
+          {legend}
+        </span>
+        <div className={styles.control}>
+          {children}
+          {hint ? <p className={styles.hint}>{hint}</p> : null}
+          {error ? (
+            <p className={styles.error} role="alert">
+              {error}
+            </p>
+          ) : null}
+        </div>
       </div>
     </fieldset>
   );

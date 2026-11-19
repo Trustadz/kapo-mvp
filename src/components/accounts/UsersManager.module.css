@@ -1,0 +1,113 @@
+.card {
+  max-width: 1100px;
+}
+
+.listError {
+  margin-bottom: var(--space-4);
+}
+
+.userList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+}
+
+.userRow {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) 218px 96px;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-1) 0;
+}
+
+.identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.username {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.roleSelect {
+  width: 218px;
+}
+
+.editButton {
+  justify-content: flex-start;
+  color: var(--color-text);
+  padding: 0 var(--space-2);
+}
+
+.helper {
+  margin-top: var(--space-4);
+  color: var(--color-muted);
+  font-size: var(--font-size-body);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.actions > :first-child {
+  min-width: 189px;
+}
+
+.actions > :last-child {
+  min-width: 190px;
+}
+
+.dialogForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.dialogInput {
+  width: 100%;
+  max-width: 300px;
+}
+
+.dialogSelect {
+  width: 100%;
+  max-width: 300px;
+}
+
+@media (max-width: 720px) {
+  .userRow {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+
+  .identity {
+    grid-column: 1 / -1;
+  }
+
+  .roleSelect {
+    width: 100%;
+  }
+
+  .editButton {
+    justify-content: center;
+  }
+
+  .actions > * {
+    flex: 1;
+  }
+
+  .dialogInput,
+  .dialogSelect {
+    max-width: none;
+  }
+}

@@ -91,9 +91,9 @@ Cookie `kapo_session`, httpOnly, sameSite lax, secure when `NODE_ENV=production`
 `projects` id (uuid), seq (integer, `KAP-<seq>` display id), title, reporter_id, parent_id
 (null only for Root), status_id (null only for Root), priority (integer, unique per parent,
 0-based), inbox (0/1), archived (0/1), trashed_at, trash_action_id, purge_deadline,
-addon_data (JSON), settings (JSON: inherit_layout, child_position `below|above`,
-default_view, enabled_views, hidden_statuses, skip_inbox, layout_template), created_by,
-created_at, updated_at.
+addon_data (JSON), settings (JSON: `access` `inherit|custom`, inherit_layout, child_position
+`below|above`, default_view, enabled_views, hidden_statuses, skip_inbox, layout_template),
+created_by, created_at, updated_at.
 
 `statuses` id, parent_id (the project that owns the workflow for its children), name,
 position, is_start, is_finish. Exactly one start and one finish per parent (enforced in a
@@ -122,10 +122,14 @@ IDs are UUID v4 strings. Timestamps are ISO-8601 UTC strings.
 1. Creating a project requires a title; id/status/priority/server fields are derived. New
    projects get the parent's start status, are appended last among siblings, and enter Inbox
    unless the parent sets `skip_inbox`. Reporter defaults to creator.
-2. Permissions: effective role = nearest explicit grant walking up the tree, else the user's
-   app role mapped (admin→admin on Root only, user→none). App Viewer is read-only everywhere.
-   Creating a child requires at least `user` on the parent. A project must retain at least one
-   project Admin; Root must retain at least one application Admin.
+2. Permissions: each project has `settings.access` = `inherit` (default) or `custom`.
+   `inherit`: effective role = explicit `project_roles` row if present, else the parent's
+   effective role, recursively. `custom`: explicit `project_roles` rows only, no walk-up, so a
+   project can be private even from application Admins. Root is `custom` with explicit grants
+   plus the implicit Admin for application Admins. App Viewer is read-only everywhere. Creating
+   a child requires at least `user` on the parent. A project must retain at least one effective
+   project Admin; Root must retain at least one application Admin. Private = `custom` with only
+   the chosen users.
 3. Permission reduction/removal on a project cascades to descendants, overriding existing
    grants. Increases never propagate. Validate the whole subtree before writing; reject the
    operation if any project would lose its last Admin, naming them.

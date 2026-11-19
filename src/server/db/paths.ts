@@ -14,7 +14,7 @@ export function databasePath(): string {
   if (configured) {
     return path.isAbsolute(configured) ? configured : path.resolve(/* turbopackIgnore: true */ process.cwd(), configured);
   }
-  return path.resolve(process.cwd(), 'data', 'kapo.db');
+  return path.resolve(/* turbopackIgnore: true */ process.cwd(), 'data', 'kapo.db');
 }
 
 export function uploadDir(): string {
@@ -22,7 +22,7 @@ export function uploadDir(): string {
   if (configured) {
     return path.isAbsolute(configured) ? configured : path.resolve(/* turbopackIgnore: true */ process.cwd(), configured);
   }
-  return path.resolve(process.cwd(), 'data', 'uploads');
+  return path.resolve(/* turbopackIgnore: true */ process.cwd(), 'data', 'uploads');
 }
 
 function hasSqlFiles(dir: string): boolean {

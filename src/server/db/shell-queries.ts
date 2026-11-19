@@ -1,14 +1,20 @@
 import type { Database as BetterSqliteDatabase } from 'better-sqlite3';
-import type { FavoriteProject } from '@/lib/types';
+import type { AppRole, FavoriteProject } from '@/lib/types';
 import { getDb } from './connection';
+import {
+  canReadProject,
+  isActiveProject,
+  loadAccessContext,
+  type AccessUser,
+} from '../domain/permissions';
 
 /**
  * Read-only queries the application shell needs on every authenticated page.
  *
- * Permission filtering for project content lives in src/server/domain (owned by
- * builder-projects). Favorites never grant access; once the permission engine
- * lands, extend `getFavoriteProjects` so favorites the viewer can no longer see
- * disappear from navigation without leaking their titles.
+ * Every project-shaped result is permission filtered through the project
+ * permission engine (build-spec §6 rule 12): favorites never grant access, and
+ * favorites the viewer can no longer see disappear from navigation without
+ * leaking their titles.
  */
 
 export interface ShellData {
@@ -17,21 +23,40 @@ export interface ShellData {
   installationName: string;
 }
 
+function loadShellUser(
+  db: BetterSqliteDatabase,
+  userId: string,
+): AccessUser | null {
+  const row = db
+    .prepare('SELECT app_role, show_archived FROM users WHERE id = ?')
+    .get(userId) as { app_role: AppRole; show_archived: number } | undefined;
+  if (!row) return null;
+  return {
+    id: userId,
+    appRole: row.app_role,
+    showArchived: row.show_archived === 1,
+  };
+}
+
 export function getFavoriteProjects(
   userId: string,
   db: BetterSqliteDatabase = getDb(),
 ): FavoriteProject[] {
+  const user = loadShellUser(db, userId);
+  if (!user) return [];
+  const ctx = loadAccessContext(db, user);
   const rows = db
     .prepare(
       `SELECT p.id AS id, p.title AS title
          FROM favorites f
          JOIN projects p ON p.id = f.project_id
         WHERE f.user_id = ?
-          AND p.trashed_at IS NULL
         ORDER BY p.title COLLATE NOCASE ASC`,
     )
     .all(userId) as Array<{ id: string; title: string }>;
-  return rows.map((row) => ({ id: row.id, title: row.title }));
+  return rows
+    .filter((row) => isActiveProject(ctx, row.id))
+    .map((row) => ({ id: row.id, title: row.title }));
 }
 
 export function getRootProjectId(db: BetterSqliteDatabase = getDb()): string | null {
@@ -52,9 +77,16 @@ export function getShellData(
   userId: string,
   db: BetterSqliteDatabase = getDb(),
 ): ShellData {
+  const user = loadShellUser(db, userId);
+  const rootProjectId = getRootProjectId(db);
+  let visibleRootId: string | null = null;
+  if (user && rootProjectId) {
+    const ctx = loadAccessContext(db, user);
+    visibleRootId = canReadProject(ctx, rootProjectId) ? rootProjectId : null;
+  }
   return {
     favorites: getFavoriteProjects(userId, db),
-    rootProjectId: getRootProjectId(db),
+    rootProjectId: visibleRootId,
     installationName: getInstallationName(db),
   };
 }

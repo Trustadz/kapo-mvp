@@ -102,6 +102,11 @@ docker compose up --build -d
 - Persistent state is the `kapo-data` volume mounted at `/app/data`
   (database + uploads). Back up this volume together with the container.
 - The container healthcheck calls `GET /healthz` (unauthenticated, no details).
+- Trash retention is automatic: the app sweeps expired trash when it starts and
+  every six hours via `src/instrumentation.ts`, so no cron job, `scripts/` copy
+  or npm command is needed in the container. Set `KAPO_DISABLE_PURGE=1` to
+  disable the sweep (for example while restoring a database snapshot). It runs
+  the same `purgeExpired()` implementation as `npm run db:purge`.
 - Demo data is a development convenience: seed locally (or point
   `DATABASE_PATH` at a seeded volume) rather than shipping seed tooling in the
   production image.
@@ -258,6 +263,27 @@ curl -i http://localhost:3100/login        # 200 sign-in card
   foundation only defines `UPLOAD_DIR`.
 - There is no email delivery or recovery flow: password resets are performed by
   an application Admin, matching the product specification.
+
+## Project documentation
+
+| Document | Purpose |
+|---|---|
+| [product.md](product.md) | Product & architecture specification (the product source of truth) |
+| [dashboard.md](dashboard.md) | Dashboard MVP value review and decisions |
+| [design-handoff.md](design-handoff.md) | Penpot page map, interactions and shared patterns |
+| [docs/build-spec.md](docs/build-spec.md) | Engineering contract: routes, schema, domain rules, tokens, scopes |
+| [docs/architecture.md](docs/architecture.md) | Implemented architecture, invariants, deployment, testing |
+| [docs/add-ons.md](docs/add-ons.md) | **Developer guide for building add-ons** (registry contract, modes, fields, hooks, search, widgets, worked Assignee example) |
+| [docs/architecture-review.md](docs/architecture-review.md) | Architecture review log (findings, resolutions, forward work) |
+| [docs/design-review-app.md](docs/design-review-app.md) | Design fidelity review against Penpot |
+| [docs/product-review.md](docs/product-review.md) | Product-owner acceptance review and scope compliance |
+| [docs/build-log.md](docs/build-log.md) | Build log: decisions, phases, verification, review rounds |
+
+Mock data is optional. `npm run db:reset` seeds four accounts (password
+`kapo1234`): `tristan` (application Admin), `maya` and `jules` (Users) and
+`alex` (Viewer), a Root workflow, a project tree with Inbox items, favorites,
+project roles, a private project and activity history. `npm run db:seed` seeds
+without dropping an existing database.
 
 ## Licence
 

@@ -49,10 +49,13 @@ function assertValidDefinition(definition: AddonDefinition): void {
       }
     }
 
-    if (field.type === 'user' && Array.isArray(field.options) && field.options.length > 0) {
-      throw new Error(
-        `Add-on "${definition.identifier}" field "${field.key}" is a user field and must not define static options.`,
-      );
+    if (field.type === 'user') {
+      const hasStaticOptions = Array.isArray(field.options) && field.options.length > 0;
+      if (hasStaticOptions || field.optionsSource !== undefined) {
+        throw new Error(
+          `Add-on "${definition.identifier}" field "${field.key}" is a user field and must not define options or optionsSource.`,
+        );
+      }
     }
   }
 

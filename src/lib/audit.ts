@@ -15,8 +15,10 @@ export const AUDIT_ACTIONS = {
   projectRestored: 'project.restored',
   projectMoved: 'project.moved',
   projectPriorityChanged: 'project.priority_changed',
+  projectInboxReleased: 'project.inbox_released',
   childCreated: 'project.child_created',
   childTrashed: 'project.child_trashed',
+  workflowUpdated: 'workflow.updated',
 } as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[keyof typeof AUDIT_ACTIONS];

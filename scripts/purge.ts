@@ -1,50 +1,31 @@
-import { getDb } from '../src/server/db/connection';
-import { removeProjectFromSearch } from '../src/server/db/search';
-import { nowIso } from '../src/server/db/util';
+import { closeDb } from '../src/server/db/connection';
+import { purgeExpired } from '../src/server/domain/purge';
 
 /**
- * `npm run db:purge` — removes projects whose 30-day trash deadline has passed.
- *
- * The schema cascades descendants, audit events and projections. Search rows are
- * not foreign keys, so they are removed explicitly in the same transaction.
- * In production this runs from the scheduled maintenance job and the app
- * startup sweep; it is never exposed as a manual UI action (build-spec §6).
+ * `npm run db:purge` — thin CLI wrapper around the same `purgeExpired()`
+ * implementation the app runs from instrumentation at startup and every six
+ * hours. In a Docker deployment this command is optional; the container
+ * sweeps expired trash by itself.
  */
-function main(): Promise<void> {
-  const db = getDb();
-  const now = nowIso();
-  // Deepest first so status cascades never hit a sibling that still exists.
-  const expired = db
-    .prepare(
-      `WITH RECURSIVE depths(id, depth) AS (
-         SELECT id, 1 FROM projects WHERE parent_id IS NULL
-         UNION ALL
-         SELECT p.id, d.depth + 1 FROM projects p JOIN depths d ON p.parent_id = d.id
-       )
-       SELECT d.id FROM depths d
-       JOIN projects p ON p.id = d.id
-       WHERE p.purge_deadline IS NOT NULL AND p.purge_deadline <= ?
-       ORDER BY d.depth DESC`,
-    )
-    .all(now) as Array<{ id: string }>;
-
-  if (expired.length === 0) {
+function main(): void {
+  const result = purgeExpired();
+  if (result.projects === 0) {
     console.log('Purge: nothing to remove.');
-    return Promise.resolve();
+    return;
   }
-
-  const removeSearchRow = db.transaction(() => {
-    for (const project of expired) removeProjectFromSearch(db, project.id);
-    const deleteProject = db.prepare('DELETE FROM projects WHERE id = ?');
-    for (const project of expired) deleteProject.run(project.id);
-  });
-  removeSearchRow();
-
-  console.log(`Purge: removed ${expired.length} expired project(s).`);
-  return Promise.resolve();
+  console.log(
+    `Purge: removed ${result.projects} project(s), ${result.searchEntries} search entr${
+      result.searchEntries === 1 ? 'y' : 'ies'
+    }, ${result.auditEvents} audit event(s).`,
+  );
 }
 
-main().catch((error: unknown) => {
+try {
+  main();
+} catch (error) {
   console.error('Purge failed:', error);
   process.exitCode = 1;
-});
+} finally {
+  // Release the SQLite handle so the CLI exits promptly.
+  closeDb();
+}
