@@ -278,6 +278,7 @@ curl -i http://localhost:3100/login        # 200 sign-in card
 | [docs/design-review-app.md](docs/design-review-app.md) | Design fidelity review against Penpot |
 | [docs/product-review.md](docs/product-review.md) | Product-owner acceptance review and scope compliance |
 | [docs/build-log.md](docs/build-log.md) | Build log: decisions, phases, verification, review rounds |
+| [docs/backlog.md](docs/backlog.md) | **Feedback & backlog register**: bugs, improvements, feature requests, deferred items and triage |
 
 Mock data is optional. `npm run db:reset` seeds four accounts (password
 `kapo1234`): `tristan` (application Admin), `maya` and `jules` (Users) and
