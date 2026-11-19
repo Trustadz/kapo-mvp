@@ -1,0 +1,133 @@
+.root {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+}
+
+.panel {
+  position: absolute;
+  z-index: 60;
+  min-width: 224px;
+  max-width: min(320px, calc(100vw - 24px));
+  padding: var(--space-1);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-none);
+}
+
+.sideTop {
+  bottom: calc(100% + var(--space-2));
+}
+
+.sideBottom {
+  top: calc(100% + var(--space-2));
+}
+
+.alignStart {
+  left: 0;
+}
+
+.alignEnd {
+  right: 0;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 36px;
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--font-size-body);
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.item:hover:not(:disabled),
+.item:focus-visible {
+  background: var(--color-surface-alt);
+  text-decoration: none;
+}
+
+.item:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: -2px;
+}
+
+.item:disabled {
+  color: var(--color-disabled-text);
+  cursor: not-allowed;
+}
+
+.itemIcon {
+  color: var(--color-muted);
+  flex: none;
+}
+
+.itemLabel {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemCheck {
+  color: var(--color-accent);
+  flex: none;
+}
+
+.itemChevron {
+  color: var(--color-muted);
+  flex: none;
+}
+
+.danger {
+  color: var(--color-danger);
+}
+
+.danger .itemIcon {
+  color: var(--color-danger);
+}
+
+.separator {
+  height: 1px;
+  margin: var(--space-1) var(--space-2);
+  background: var(--color-border);
+}
+
+.submenuRoot {
+  position: relative;
+}
+
+.submenuPanel {
+  position: absolute;
+  top: calc(-1 * var(--space-1));
+  left: calc(100% + var(--space-1));
+  z-index: 61;
+  min-width: 180px;
+  padding: var(--space-1);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.submenuItem {
+  min-height: 34px;
+}
+
+@media (max-width: 899px) {
+  .submenuPanel {
+    left: auto;
+    right: calc(100% + var(--space-1));
+  }
+}

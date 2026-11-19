@@ -1,0 +1,5 @@
+.shell {
+  display: flex;
+  min-height: 100dvh;
+  background: var(--color-canvas);
+}

@@ -1,0 +1,113 @@
+/* Application layout: shell grid, section containers and page headings.
+ * Component-specific layout lives in CSS Modules. */
+
+.app-shell {
+  display: flex;
+  min-height: 100dvh;
+  background: var(--color-canvas);
+}
+
+.app-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 100dvh;
+}
+
+.app-content {
+  flex: 1;
+  width: 100%;
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: var(--content-padding) 36px 64px 32px;
+}
+
+.page-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.page-heading-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.page-heading h1 {
+  font-size: var(--font-size-display);
+}
+
+.page-subtitle {
+  color: var(--color-muted);
+  font-size: var(--font-size-body);
+}
+
+.section-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.stack-2 {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.stack-3 {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.stack-4 {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.row-2 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.row-3 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.row-4 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.muted {
+  color: var(--color-muted);
+}
+
+.soft {
+  color: var(--color-soft);
+}
+
+@media (max-width: 899px) {
+  .app-content {
+    padding: var(--space-4) var(--space-4) calc(var(--mobile-bar-height) + 48px);
+  }
+
+  .page-heading {
+    margin-bottom: var(--space-4);
+  }
+
+  .page-heading h1 {
+    font-size: 26px;
+  }
+}

@@ -1,0 +1,12 @@
+.textarea {
+  composes: input from './Input.module.css';
+  height: auto;
+  min-height: 96px;
+  padding: 10px var(--space-3);
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.invalid {
+  composes: invalid from './Input.module.css';
+}

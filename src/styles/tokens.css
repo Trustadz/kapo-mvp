@@ -1,0 +1,159 @@
+/*
+ * Kapo design tokens.
+ *
+ * Source of truth: Penpot "Kapo" library token sets
+ *   - Kapo (foundation)        -> light base values
+ *   - Kapo-Dark (foundation)   -> dark base values
+ *   - Kapo-Theme-Light         -> semantic mapping for light
+ *   - Kapo-Theme-Dark          -> semantic mapping for dark
+ * The semantic (theme.*) values below mirror those sets exactly.
+ *
+ * Themes are selected with [data-theme="light"] / [data-theme="dark"] on <html>.
+ * "System" resolves to one of the two before first paint (see ThemeScript).
+ */
+
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+
+  /* brand */
+  --color-brand: #28614a;
+  --color-brand-dark: #1d4a38;
+  --color-brand-light: #e8f2ec;
+
+  /* surfaces */
+  --color-canvas: #f5f3ec;
+  --color-surface: #ffffff;
+  --color-surface-alt: #f7f6f2;
+  --color-pulled: #f3f1ec;
+  --color-inverse: #ffffff;
+  --color-logo-plate: #ffffff;
+
+  /* lines */
+  --color-border: #dddcd5;
+  --color-input-border: #dddcd5;
+
+  /* text */
+  --color-text: #173629;
+  --color-muted: #65786b;
+  --color-soft: #9aaba0;
+
+  /* actions / feedback */
+  --color-action: #28614a;
+  --color-action-hover: #1d4a38;
+  --color-action-text: #ffffff;
+  --color-accent: #28614a;
+  --color-focus: #28614a;
+  --color-warning: #aa6736;
+  --color-warning-bg: #fff2e5;
+  --color-danger: #a33a2f;
+  --color-danger-bg: #fbeae7;
+  --color-success: #28614a;
+  --color-success-bg: #e8f2ec;
+  --color-overlay: rgba(23, 54, 41, 0.42);
+
+  /* disabled */
+  --color-disabled: #f0efeb;
+  --color-disabled-text: #8b8c85;
+
+  /* actor avatar pairs (see src/lib/avatar.ts) */
+  --avatar-1-bg: #dbe8f1;
+  --avatar-1-text: #305c7b;
+  --avatar-2-bg: #f0dde8;
+  --avatar-2-text: #894f6a;
+  --avatar-3-bg: #f4e4cd;
+  --avatar-3-text: #886338;
+  --avatar-4-bg: #e5dff2;
+  --avatar-4-text: #66508a;
+
+  /* spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* radii */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-pill: 999px;
+
+  /* type */
+  --font-sans: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-size-body: 14px;
+  --font-size-small: 12px;
+  --font-size-title: 20px;
+  --font-size-display: 32px;
+  --line-height-body: 1.5;
+
+  /* controls (build-spec §8) */
+  --control-height: 40px;
+  --input-height: 42px;
+
+  /* shell */
+  --sidebar-width: 244px;
+  --sidebar-collapsed-width: 72px;
+  --topbar-height: 64px;
+  --mobile-bar-height: 64px;
+  --content-max-width: 1440px;
+  --content-padding: 40px;
+
+  /* elevation: Kapo uses borders, never decorative shadows */
+  --shadow-none: none;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* brand */
+  --color-brand: #28614a;
+  --color-brand-dark: #b9e4c9;
+  --color-brand-light: #2b4234;
+
+  /* surfaces */
+  --color-canvas: #181c19;
+  --color-surface: #242a25;
+  --color-surface-alt: #1f2420;
+  --color-pulled: #2b2d27;
+  --color-inverse: #ffffff;
+  --color-logo-plate: #f5f3ec;
+
+  /* lines */
+  --color-border: #48534a;
+  --color-input-border: #75877a;
+
+  /* text */
+  --color-text: #e9eee7;
+  --color-muted: #afbbaf;
+  --color-soft: #88978b;
+
+  /* actions / feedback */
+  --color-action: #28614a;
+  --color-action-hover: #1d4a38;
+  --color-action-text: #ffffff;
+  --color-accent: #9bd6b3;
+  --color-focus: #9bd6b3;
+  --color-warning: #f0b77d;
+  --color-warning-bg: #453424;
+  --color-danger: #f0a497;
+  --color-danger-bg: #452a26;
+  --color-success: #9bd6b3;
+  --color-success-bg: #2b4234;
+  --color-overlay: rgba(0, 0, 0, 0.62);
+
+  /* disabled */
+  --color-disabled: #30352f;
+  --color-disabled-text: #939c91;
+
+  /* actor avatar pairs */
+  --avatar-1-bg: #263f51;
+  --avatar-1-text: #b2d8f4;
+  --avatar-2-bg: #493142;
+  --avatar-2-text: #f1bcd6;
+  --avatar-3-bg: #473a27;
+  --avatar-3-text: #f1d0a1;
+  --avatar-4-bg: #39314a;
+  --avatar-4-text: #d7c5f4;
+}

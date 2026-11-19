@@ -1,0 +1,276 @@
+'use client';
+
+import Link from 'next/link';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+} from 'react';
+import { cn } from '@/lib/cn';
+import { Icon } from './Icon';
+import styles from './Menu.module.css';
+
+export interface MenuActionItem {
+  id: string;
+  label: string;
+  icon?: string;
+  href?: string;
+  onSelect?: () => void;
+  selected?: boolean;
+  danger?: boolean;
+  disabled?: boolean;
+}
+
+export interface MenuSubmenuItem {
+  id: string;
+  label: string;
+  icon?: string;
+  items: MenuActionItem[];
+}
+
+export interface MenuSeparator {
+  id: string;
+  separator: true;
+}
+
+export type MenuItem = MenuActionItem | MenuSubmenuItem | MenuSeparator;
+
+export interface MenuTriggerProps {
+  onClick: () => void;
+  'aria-expanded': boolean;
+  'aria-haspopup': 'menu';
+  'aria-controls': string;
+  id: string;
+  ref: (node: HTMLButtonElement | null) => void;
+}
+
+export interface MenuProps {
+  /** Render prop so the trigger keeps its own visual identity. */
+  trigger: (props: MenuTriggerProps) => ReactNode;
+  items: MenuItem[];
+  label: string;
+  align?: 'start' | 'end';
+  side?: 'top' | 'bottom';
+  className?: string;
+}
+
+function isSubmenu(item: MenuItem): item is MenuSubmenuItem {
+  return !('separator' in item) && 'items' in item;
+}
+
+function isSeparator(item: MenuItem): item is MenuSeparator {
+  return 'separator' in item;
+}
+
+/**
+ * Keyboard-operable disclosure menu (WAI-ARIA menu pattern).
+ *
+ * Escape closes and returns focus to the trigger; arrow keys move between
+ * items; submenus open with Enter/Space/ArrowRight or pointer hover.
+ */
+export function Menu({
+  trigger,
+  items,
+  label,
+  align = 'start',
+  side = 'bottom',
+  className,
+}: MenuProps) {
+  const [open, setOpen] = useState(false);
+  const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const generatedId = useId();
+  const panelId = `kapo-menu-${generatedId.replace(/[^a-zA-Z0-9-]/g, '')}`;
+  const triggerId = `${panelId}-trigger`;
+
+  const close = useCallback(() => {
+    setOpen(false);
+    setOpenSubmenu(null);
+    triggerRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!(event.target instanceof Node)) return;
+      if (rootRef.current && !rootRef.current.contains(event.target)) {
+        setOpen(false);
+        setOpenSubmenu(null);
+      }
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const frame = requestAnimationFrame(() => {
+      const first = panelRef.current?.querySelector<HTMLElement>(
+        '[data-menu-item="true"]:not([disabled])',
+      );
+      first?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [open]);
+
+  const handlePanelKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      close();
+      return;
+    }
+    if (event.key === 'ArrowRight') {
+      const submenuTrigger = (event.target as HTMLElement).closest<HTMLElement>(
+        '[data-submenu-trigger="true"]',
+      );
+      if (submenuTrigger?.dataset.submenuId) {
+        event.preventDefault();
+        setOpenSubmenu(submenuTrigger.dataset.submenuId);
+      }
+      return;
+    }
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+    const focusable = Array.from(
+      (event.currentTarget as HTMLElement).querySelectorAll<HTMLElement>(
+        '[data-menu-item="true"]:not([disabled])',
+      ),
+    ).filter((element) => element.offsetParent !== null);
+    if (focusable.length === 0) return;
+    event.preventDefault();
+    const active = document.activeElement;
+    const index = focusable.findIndex((element) => element === active);
+    const nextIndex =
+      event.key === 'ArrowDown'
+        ? index < 0
+          ? 0
+          : (index + 1) % focusable.length
+        : index <= 0
+          ? focusable.length - 1
+          : index - 1;
+    focusable[nextIndex]?.focus();
+  };
+
+  const activate = (item: MenuActionItem) => {
+    if (item.disabled) return;
+    if (item.onSelect) item.onSelect();
+    if (!item.href) close();
+    else setOpen(false);
+  };
+
+  const renderAction = (item: MenuActionItem, inSubmenu: boolean) => {
+    const content = (
+      <>
+        {item.icon ? <Icon name={item.icon} size={18} className={styles.itemIcon} /> : null}
+        <span className={styles.itemLabel}>{item.label}</span>
+        {item.selected ? <Icon name="check" size={18} className={styles.itemCheck} /> : null}
+      </>
+    );
+    const role = item.selected === undefined ? 'menuitem' : 'menuitemradio';
+    const className = cn(styles.item, item.danger && styles.danger, inSubmenu && styles.submenuItem);
+
+    if (item.href && !item.disabled) {
+      return (
+        <Link
+          key={item.id}
+          href={item.href}
+          role={role}
+          className={className}
+          data-menu-item="true"
+          aria-checked={role === 'menuitemradio' ? item.selected === true : undefined}
+          onClick={() => setOpen(false)}
+        >
+          {content}
+        </Link>
+      );
+    }
+
+    return (
+      <button
+        key={item.id}
+        type="button"
+        role={role}
+        className={className}
+        data-menu-item="true"
+        aria-checked={role === 'menuitemradio' ? item.selected === true : undefined}
+        disabled={item.disabled}
+        onClick={() => activate(item)}
+      >
+        {content}
+      </button>
+    );
+  };
+
+  return (
+    <div
+      ref={rootRef}
+      className={cn(styles.root, className)}
+      data-open={open || undefined}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape' && !open) return;
+      }}
+    >
+      {trigger({
+        onClick: () => setOpen((value) => !value),
+        'aria-expanded': open,
+        'aria-haspopup': 'menu',
+        'aria-controls': panelId,
+        id: triggerId,
+        ref: (node) => {
+          triggerRef.current = node;
+        },
+      })}
+
+      {open ? (
+        <div
+          ref={panelRef}
+          id={panelId}
+          role="menu"
+          aria-label={label}
+          className={cn(styles.panel, side === 'top' ? styles.sideTop : styles.sideBottom, align === 'end' ? styles.alignEnd : styles.alignStart)}
+          onKeyDown={handlePanelKeyDown}
+        >
+          {items.map((item) => {
+            if (isSeparator(item)) {
+              return <div key={item.id} role="separator" className={styles.separator} />;
+            }
+            if (isSubmenu(item)) {
+              const expanded = openSubmenu === item.id;
+              return (
+                <div key={item.id} className={styles.submenuRoot}>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    aria-haspopup="menu"
+                    aria-expanded={expanded}
+                    className={styles.item}
+                    data-menu-item="true"
+                    data-submenu-trigger="true"
+                    data-submenu-id={item.id}
+                    onClick={() => setOpenSubmenu(expanded ? null : item.id)}
+                    onMouseEnter={() => setOpenSubmenu(item.id)}
+                  >
+                    {item.icon ? <Icon name={item.icon} size={18} className={styles.itemIcon} /> : null}
+                    <span className={styles.itemLabel}>{item.label}</span>
+                    <Icon name="chevron_right" size={18} className={styles.itemChevron} />
+                  </button>
+                  {expanded ? (
+                    <div role="menu" aria-label={item.label} className={styles.submenuPanel}>
+                      {item.items.map((child) => renderAction(child, true))}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            }
+            return renderAction(item, false);
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}

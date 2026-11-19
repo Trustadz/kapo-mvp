@@ -1,0 +1,101 @@
+.form {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.form:focus-within {
+  z-index: 20;
+}
+
+.field {
+  position: relative;
+  width: 100%;
+}
+
+.plus {
+  position: absolute;
+  left: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-muted);
+  pointer-events: none;
+}
+
+.input {
+  width: 100%;
+  height: var(--input-height);
+  padding: 0 var(--space-3) 0 40px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-input-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: var(--font-size-body);
+}
+
+.input::placeholder {
+  color: var(--color-soft);
+}
+
+.input:hover:not(:disabled) {
+  border-color: var(--color-muted);
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+  border-color: var(--color-focus);
+}
+
+.input:disabled {
+  background: var(--color-disabled);
+  color: var(--color-disabled-text);
+  cursor: not-allowed;
+}
+
+.error {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 30;
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+.status {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 2px;
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--font-size-small);
+  white-space: nowrap;
+}
+
+/* Mobile sheet body */
+.mobile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.mobileLabel {
+  font-size: var(--font-size-body);
+  font-weight: 500;
+}
+
+.mobileInput {
+  padding-left: var(--space-3);
+}
+
+.mobileActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}

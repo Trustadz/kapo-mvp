@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Offline · Kapo</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --canvas: #f5f3ec;
+        --surface: #ffffff;
+        --border: #dddcd5;
+        --text: #173629;
+        --muted: #65786b;
+        --brand: #28614a;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --canvas: #181c19;
+          --surface: #242a25;
+          --border: #48534a;
+          --text: #e9eee7;
+          --muted: #afbbaf;
+        }
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--canvas);
+        color: var(--text);
+        font-family: Inter, system-ui, sans-serif;
+        text-align: center;
+        padding: 24px;
+      }
+      .card {
+        max-width: 420px;
+        padding: 32px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 20px;
+      }
+      p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      button {
+        margin-top: 20px;
+        height: 40px;
+        padding: 0 16px;
+        border: 1px solid var(--brand);
+        border-radius: 8px;
+        background: var(--brand);
+        color: #fff;
+        font: inherit;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>You are offline</h1>
+      <p>Kapo needs a connection to load your projects. Reconnect and try again.</p>
+      <button type="button" onclick="location.reload()">Try again</button>
+    </div>
+  </body>
+</html>
