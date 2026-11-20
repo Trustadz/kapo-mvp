@@ -80,3 +80,50 @@ export function flattenInboxTree(
   return rows;
 }
 
+
+/**
+ * The flat global-order list with `draggedId` moved before/after `targetId`.
+ *
+ * Inbox drag (issue #53) works on the one global project sequence: dropping an
+ * Inbox row or card between two rows plans the new sequence locally so the UI
+ * can stay in step with the server-validated reorder. Returns `null` when the
+ * move is a no-op or either id is missing, so callers can skip the request.
+ */
+export function planSequenceMove(
+  order: readonly string[],
+  draggedId: string,
+  targetId: string,
+  edge: 'before' | 'after',
+): string[] | null {
+  if (draggedId === targetId) return null;
+  const from = order.indexOf(draggedId);
+  const target = order.indexOf(targetId);
+  if (from < 0 || target < 0) return null;
+
+  const next = order.filter((id) => id !== draggedId);
+  const targetIndex = next.indexOf(targetId);
+  if (targetIndex < 0) return null;
+  next.splice(edge === 'before' ? targetIndex : targetIndex + 1, 0, draggedId);
+  if (next.length === order.length && next.every((id, index) => id === order[index])) {
+    return null;
+  }
+  return next;
+}
+
+/**
+ * Inbox items in the order their projects appear in the Tree payload.
+ *
+ * Items missing from the tree (e.g. a locally released capture the server no
+ * longer lists as Inbox) stay at the end in their existing relative order.
+ */
+export function orderInboxItemsByTree<T extends { project: { id: string } }>(
+  items: readonly T[],
+  tree: readonly InboxTreeNode[],
+): T[] {
+  const position = new Map(tree.map((node, index) => [node.id, index]));
+  return [...items].sort(
+    (a, b) =>
+      (position.get(a.project.id) ?? Number.MAX_SAFE_INTEGER) -
+      (position.get(b.project.id) ?? Number.MAX_SAFE_INTEGER),
+  );
+}

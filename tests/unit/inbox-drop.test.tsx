@@ -55,6 +55,9 @@ describe('Inbox release drop area', () => {
     expect(html).toContain('Drag a capture here to release it');
     expect(html).toContain('inbox-drop-hint');
     expect(html).toContain('Use the Release button on a card.');
+    // The rail is explicitly the release target; cards are the reorder targets.
+    expect(html).toContain('data-drop-area="release"');
+    expect(html).toContain('data-drop-area="reorder"');
     expect(html).toContain('Release to To do');
     // No acknowledgement until something has actually been released.
     expect(html).not.toContain('aria-label="Released capture"');

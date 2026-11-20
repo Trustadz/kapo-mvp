@@ -142,6 +142,16 @@
   cursor: grabbing;
 }
 
+/* Reorder insertion line (issue #53). The release rail is a separate target, so
+   this line only ever means "drop here to reorder". */
+.card[data-drop='before'] {
+  box-shadow: 0 -3px 0 0 var(--color-brand);
+}
+
+.card[data-drop='after'] {
+  box-shadow: 0 3px 0 0 var(--color-brand);
+}
+
 .cardHeading {
   display: flex;
   align-items: center;
@@ -380,6 +390,32 @@
 .treeRow[data-context] .treeTitle {
   color: var(--color-muted-strong);
   font-weight: 400;
+}
+
+/* Inbox drag/reparent targets (issue #53). */
+.treeRow[draggable='true'] {
+  cursor: grab;
+}
+
+.treeRow[draggable='true']:active {
+  cursor: grabbing;
+}
+
+.treeRow[data-dragging] td {
+  opacity: 0.6;
+}
+
+.treeRow[data-drop='before'] td {
+  border-top: 2px solid var(--color-brand);
+}
+
+.treeRow[data-drop='after'] td {
+  border-bottom: 2px solid var(--color-brand);
+}
+
+.treeRow[data-drop='inside'] td {
+  background: var(--color-brand-light);
+  box-shadow: inset 0 0 0 1.5px var(--color-brand);
 }
 
 .treeRow[data-pulled] td {
