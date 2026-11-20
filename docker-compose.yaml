@@ -21,8 +21,8 @@ services:
       KAPO_FORCE_SECURE_COOKIES: ${KAPO_FORCE_SECURE_COOKIES:-0}
       KAPO_DISABLE_PURGE: ${KAPO_DISABLE_PURGE:-0}
     volumes:
-      - kapo-data:/app/data
-      - kapo-backup:${KAPO_BACKUP_DIR:-/backup}
+      - ./data:/app/data
+      - ./backup:/backup
     healthcheck:
       test:
         [
@@ -42,7 +42,3 @@ services:
       options:
         max-size: 10m
         max-file: '3'
-
-volumes:
-  kapo-data:
-  kapo-backup:
