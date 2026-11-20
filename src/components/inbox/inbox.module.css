@@ -110,6 +110,72 @@
   margin-bottom: calc(var(--space-2) * -1);
 }
 
+.dialogForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.dialogFooter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.dialogHint {
+  color: var(--color-muted);
+  font-size: var(--font-size-small);
+  margin: 0;
+}
+
+.parentOptions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.parentOption {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.parentOption:hover {
+  background: var(--color-surface-alt);
+}
+
+.parentOptionSelected,
+.parentOptionSelected:hover {
+  border-color: var(--color-accent);
+  background: var(--color-surface-alt);
+}
+
+.parentOptionTitle {
+  font-weight: 600;
+}
+
+.parentOptionPath {
+  color: var(--color-muted);
+  font-size: var(--font-size-small);
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 899px) {
   .title {
     font-size: 26px;

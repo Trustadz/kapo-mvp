@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { Badge, Button, EmptyState, Icon, InlineError } from '@/components/ui';
-import type { InboxItem } from '@/components/projects/types';
+import type { InboxItem, ProjectCard } from '@/components/projects/types';
 import { releaseInboxProject } from '@/components/projects/api';
+import { ChangeParentDialog } from './ChangeParentDialog';
 import styles from './inbox.module.css';
 
 export interface InboxPageProps {
@@ -21,6 +22,7 @@ export function InboxPage({ initialItems }: InboxPageProps) {
   const [pulled, setPulled] = useState<Set<string>>(new Set());
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [changeParentItem, setChangeParentItem] = useState<InboxItem | null>(null);
 
   const release = async (item: InboxItem) => {
     if (pendingId) return;
@@ -41,6 +43,22 @@ export function InboxPage({ initialItems }: InboxPageProps) {
       current.map((entry) =>
         entry.project.id === item.project.id
           ? { ...entry, project: { ...entry.project, inbox: false } }
+          : entry,
+      ),
+    );
+  };
+
+  const applyParentChange = (updated: ProjectCard) => {
+    setItems((current) =>
+      current.map((entry) =>
+        entry.project.id === updated.id
+          ? {
+              ...entry,
+              project: updated,
+              parentTitle: updated.parent?.title ?? entry.parentTitle,
+              startStatusId: updated.statusId,
+              startStatusName: updated.statusName,
+            }
           : entry,
       ),
     );
@@ -110,6 +128,15 @@ export function InboxPage({ initialItems }: InboxPageProps) {
                         Release to {item.startStatusName ?? 'the start status'}
                       </Button>
                     ) : null}
+                    {!isPulled && item.canChangeParent ? (
+                      <Button
+                        variant="quiet"
+                        onClick={() => setChangeParentItem(item)}
+                        disabled={Boolean(pendingId)}
+                      >
+                        Change parent
+                      </Button>
+                    ) : null}
                     <Link
                       href={`/p/${item.project.id}`}
                       className={styles.open}
@@ -125,6 +152,14 @@ export function InboxPage({ initialItems }: InboxPageProps) {
           })}
         </ul>
       )}
+
+      <ChangeParentDialog
+        open={changeParentItem !== null}
+        projectId={changeParentItem?.project.id ?? ''}
+        projectTitle={changeParentItem?.project.title ?? ''}
+        onClose={() => setChangeParentItem(null)}
+        onChanged={applyParentChange}
+      />
     </div>
   );
 }

@@ -55,7 +55,16 @@ describe('db:seed', () => {
 
     expect(count('users')).toBe(4);
     expect(count('projects')).toBe(13);
-    expect(count('statuses')).toBe(12);
+    expect(count('statuses')).toBe(28);
+    // Every project owns a child workflow, including leaves that have no
+    // children yet, so any project can receive a child immediately.
+    const projectsWithoutWorkflow = db
+      .prepare(
+        `SELECT p.title AS title FROM projects p
+          WHERE NOT EXISTS (SELECT 1 FROM statuses s WHERE s.parent_id = p.id)`,
+      )
+      .all() as Array<{ title: string }>;
+    expect(projectsWithoutWorkflow).toEqual([]);
     expect(count('favorites')).toBe(3);
     expect(count('audit_events')).toBe(15);
     expect(count('project_search')).toBe(13);
