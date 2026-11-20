@@ -552,6 +552,10 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkDialog, setBulkDialog] = useState<'move' | 'trash' | null>(null);
 
+  // Filtered Tree rows that are ancestors of matches: they keep the structure
+  // visible but are read-only context (issue #55).
+  const isContext = (projectId: string) => ctx.contextIds?.has(projectId) ?? false;
+
   const resetDrag = () => {
     setDraggingId(null);
     setDropTarget(null);
@@ -569,9 +573,13 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
     return map;
   }, [ctx.descendants, ctx.projectId]);
 
-  const selectable = ctx.descendants.filter((project) => project.canAdmin);
+  const selectable = ctx.descendants.filter(
+    (project) => project.canAdmin && !isContext(project.id),
+  );
   const selectableIds = new Set(selectable.map((project) => project.id));
-  const selectedProjects = ctx.descendants.filter((project) => selected.has(project.id));
+  const selectedProjects = ctx.descendants.filter(
+    (project) => selected.has(project.id) && !isContext(project.id),
+  );
   const allSelected = selectable.length > 0 && selectable.every((project) => selected.has(project.id));
   const someSelected = selectable.some((project) => selected.has(project.id));
 
@@ -612,14 +620,16 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
     for (const project of byParent.get(parentId) ?? []) {
       const hasChildren = (byParent.get(project.id) ?? []).length > 0;
       const isCollapsed = collapsed.has(project.id);
+      const contextRow = isContext(project.id);
       rows.push(
         <tr
           key={project.id}
           className={styles.treeRow}
           data-archived={project.archived || undefined}
-          draggable={ctx.canEdit && project.id !== ctx.projectId}
+          data-context={contextRow || undefined}
+          draggable={ctx.canEdit && project.id !== ctx.projectId && !contextRow}
           onDragStart={(event) => {
-            if ((event.target as HTMLElement).closest('[data-no-drag]')) {
+            if (contextRow || (event.target as HTMLElement).closest('[data-no-drag]')) {
               event.preventDefault();
               return;
             }
@@ -629,7 +639,7 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
           }}
           onDragEnd={resetDrag}
           onDragOver={(event) => {
-            if (!draggingId || draggingId === project.id) return;
+            if (contextRow || !draggingId || draggingId === project.id) return;
             event.preventDefault();
             event.dataTransfer.dropEffect = 'move';
             const zone = dropZoneForEvent(event);
@@ -644,6 +654,10 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
             setDropTarget((current) => (current?.id === project.id ? null : current));
           }}
           onDrop={(event) => {
+            if (contextRow) {
+              resetDrag();
+              return;
+            }
             event.preventDefault();
             const id = event.dataTransfer.getData('text/plain') || draggingId;
             const zone = dropZoneForEvent(event);
@@ -681,8 +695,14 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
                 id={`tree-select-${project.id}`}
                 label={<span className="visually-hidden">Select {project.title}</span>}
                 checked={selected.has(project.id)}
-                disabled={!project.canAdmin}
-                title={project.canAdmin ? undefined : 'Only project Admins can bulk-edit this project'}
+                disabled={!project.canAdmin || contextRow}
+                title={
+                  contextRow
+                    ? 'Shown for context; clear the filters to select it'
+                    : project.canAdmin
+                      ? undefined
+                      : 'Only project Admins can bulk-edit this project'
+                }
                 onChange={(event) => toggleSelection(project.id, event.target.checked)}
               />
             </td>
@@ -712,13 +732,18 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
               >
                 {project.title}
               </Link>
+              {contextRow ? <Badge tone="neutral">Context</Badge> : null}
               <ArchivedBadge project={project} />
               {project.inbox ? <Badge tone="warning">Inbox</Badge> : null}
               <ViewMeta project={project} fields={ctx.settings.view_fields.tree} />
             </div>
           </td>
           <td className={styles.treeStatusCell}>
-            <StatusControl ctx={ctx} project={project} label={`Status for ${project.title}`} />
+            {contextRow ? (
+              <span className={styles.readonlyStatus}>{project.statusName ?? '—'}</span>
+            ) : (
+              <StatusControl ctx={ctx} project={project} label={`Status for ${project.title}`} />
+            )}
           </td>
         </tr>,
       );
@@ -774,6 +799,12 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
         reorder it among siblings of the same parent; dropping between rows of a different parent
         opens the move dialog. Select rows to move or trash several projects together.
       </p>
+      {ctx.contextIds && ctx.contextIds.size > 0 ? (
+        <p className={styles.hint}>
+          Rows marked Context are ancestors kept visible so matching descendants stay connected;
+          they are read-only while filters are active.
+        </p>
+      ) : null}
       <p className="visually-hidden" aria-live="polite">
         {allSiblings.length} direct child project{allSiblings.length === 1 ? '' : 's'}.
         {selectedProjects.length > 0 ? ` ${selectedProjects.length} selected.` : ''}

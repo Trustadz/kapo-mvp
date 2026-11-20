@@ -362,6 +362,19 @@
   background: var(--color-brand-light);
 }
 
+/* Filtered Tree (issue #55): ancestors kept only so matches stay connected are
+   muted and read-only. The visible "Context" badge is the non-colour cue. */
+.treeRow[data-context] td {
+  background: var(--color-surface-alt);
+  color: var(--color-muted-strong);
+}
+
+.treeRow[data-context] .treeTitle,
+.treeRow[data-context] .readonlyStatus {
+  color: var(--color-muted-strong);
+  font-weight: 400;
+}
+
 .treeName {
   display: flex;
   align-items: center;
