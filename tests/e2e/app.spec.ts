@@ -171,12 +171,15 @@ test.describe('seeded application', () => {
 
     await expect(page.getByLabel('Project status')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Add project' })).toHaveCount(0);
-    // The actions menu still offers the per-user Show archived toggle, but no
-    // project-mutating entries.
+    // The actions menu still offers the per-user Show archived toggle plus a
+    // navigation-only Open parent project action, but no project mutations.
     await page.getByRole('button', { name: 'Project actions' }).click();
     const actionsMenu = page.getByRole('menu', { name: 'Project actions' });
     await expect(actionsMenu.getByRole('menuitemradio', { name: 'Show archived' })).toBeVisible();
-    await expect(actionsMenu.getByRole('menuitem')).toHaveCount(0);
+    await expect(
+      actionsMenu.getByRole('menuitem', { name: 'Open parent project' }),
+    ).toBeVisible();
+    await expect(actionsMenu.getByRole('menuitem', { name: 'Project settings' })).toHaveCount(0);
     await page.keyboard.press('Escape');
     // Activity remains visible to a read-only Viewer.
     await expect(page.getByRole('heading', { name: 'Activity' })).toBeVisible();
@@ -262,5 +265,71 @@ test.describe('seeded application', () => {
       await page.request.get(`/api/projects/${projectId}`)
     ).json()) as { project: { trashed: boolean } };
     expect(restored.project.trashed).toBe(false);
+  });
+
+  test('confirms before hiding an archived project and lands on a visible ancestor', async ({
+    page,
+  }) => {
+    await login(page, 'tristan');
+    const title = `E2E archive ${Date.now()}`;
+    await capture(page, title);
+    const projectId = await findProjectId(page, title);
+
+    const before = (await (
+      await page.request.get(`/api/projects/${projectId}`)
+    ).json()) as { project: { fallbackHref: string } };
+    const fallbackHref = before.project.fallbackHref;
+    expect(fallbackHref).toMatch(/^\/p\//);
+
+    // Archive while Show archived is off: the existing archive flow returns to
+    // the parent rather than leaving the now-hidden page.
+    await page.goto(`/p/${projectId}`);
+    await page.getByRole('button', { name: 'Project actions' }).click();
+    await page.getByRole('menuitem', { name: 'Archive…' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Archive project' }).click();
+    await page.waitForURL((url) => url.pathname === fallbackHref);
+
+    // Turn Show archived on so the archived project can be opened again.
+    await page.getByRole('button', { name: 'Project actions' }).click();
+    await page.getByRole('menuitemradio', { name: 'Show archived' }).click();
+    await expect(page.getByText('Archived projects are now shown.')).toBeVisible();
+    await page.goto(`/p/${projectId}`);
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
+    await expect(page.getByText('Archived', { exact: true })).toBeVisible();
+
+    // Turning the preference off confirms first and never refreshes into 404.
+    await page.getByRole('button', { name: 'Project actions' }).click();
+    await page.getByRole('menuitemradio', { name: 'Show archived' }).click();
+    let dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText('will be hidden');
+
+    // Cancelling leaves the preference untouched and keeps the page open.
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    const afterCancel = (await (await page.request.get('/api/me')).json()) as {
+      user: { showArchived: boolean };
+    };
+    expect(afterCancel.user.showArchived).toBe(true);
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Project actions' }).click();
+    await page.getByRole('menuitemradio', { name: 'Show archived' }).click();
+    dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Turn off Show archived' }).click();
+    await page.waitForURL((url) => url.pathname === fallbackHref);
+    await expect(page.getByText('Project not available')).toHaveCount(0);
+
+    const me = (await (await page.request.get('/api/me')).json()) as {
+      user: { showArchived: boolean };
+    };
+    expect(me.user.showArchived).toBe(false);
+
+    // Clean up: unarchive so later suites keep a clean tree.
+    const unarchived = await page.request.patch(`/api/projects/${projectId}`, {
+      data: { archived: false },
+    });
+    expect(unarchived.status()).toBe(200);
   });
 });

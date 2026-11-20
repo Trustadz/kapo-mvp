@@ -198,6 +198,70 @@ describe('GET /api/projects/:id', () => {
     );
     expect(hidden.status).toBe(404);
   });
+
+  it('exposes archived visibility metadata and a visible fallback', async () => {
+    const archiveUser = await createUser(db, {
+      username: 'archive-fallback',
+      appRole: 'admin',
+      showArchived: true,
+    });
+    const archived = createFixtureProject(db, {
+      title: 'Archived parent',
+      parentId: household.root.id,
+      reporterId: household.tristan.id,
+      archived: true,
+    });
+    grantRole(db, archived.id, archiveUser.id, 'admin');
+    createWorkflow(db, archived.id, { names: ['To do', 'Done'] });
+    const child = createFixtureProject(db, {
+      title: 'Archived child',
+      parentId: archived.id,
+      reporterId: household.tristan.id,
+    });
+    grantRole(db, child.id, archiveUser.id, 'admin');
+    const active = createFixtureProject(db, {
+      title: 'Active fallback',
+      parentId: household.root.id,
+      reporterId: household.tristan.id,
+    });
+    grantRole(db, active.id, archiveUser.id, 'admin');
+
+    signIn(db, archiveUser.id);
+
+    const parentResponse = await projectRoute.GET(
+      request(`/api/projects/${archived.id}`),
+      params(archived.id),
+    );
+    expect(parentResponse.status).toBe(200);
+    const parentPayload = await json<{
+      project: { hiddenWhenArchivedOff: boolean; fallbackHref: string };
+    }>(parentResponse);
+    expect(parentPayload.project.hiddenWhenArchivedOff).toBe(true);
+    expect(parentPayload.project.fallbackHref).toBe(`/p/${household.root.id}`);
+
+    const childResponse = await projectRoute.GET(
+      request(`/api/projects/${child.id}`),
+      params(child.id),
+    );
+    expect(childResponse.status).toBe(200);
+    const childPayload = await json<{
+      project: { archived: boolean; hiddenWhenArchivedOff: boolean; fallbackHref: string };
+    }>(childResponse);
+    expect(childPayload.project.archived).toBe(false);
+    expect(childPayload.project.hiddenWhenArchivedOff).toBe(true);
+    expect(childPayload.project.fallbackHref).toBe(`/p/${household.root.id}`);
+
+    const activeResponse = await projectRoute.GET(
+      request(`/api/projects/${active.id}`),
+      params(active.id),
+    );
+    expect(activeResponse.status).toBe(200);
+    const activePayload = await json<{
+      project: { hiddenWhenArchivedOff: boolean; fallbackHref: string };
+    }>(activeResponse);
+    expect(activePayload.project.hiddenWhenArchivedOff).toBe(false);
+    expect(activePayload.project.fallbackHref).toBe(`/p/${household.root.id}`);
+  });
 });
 
 describe('PATCH /api/projects/:id', () => {

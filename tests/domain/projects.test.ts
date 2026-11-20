@@ -848,3 +848,58 @@ describe('getProjectPageData visibility', () => {
     expect(adminPage.project.canMove).toBe(true);
   });
 });
+
+describe('getProjectPageData archived fallbacks', () => {
+  let fixture: Fixture;
+  let underArchivedId: string;
+
+  beforeAll(async () => {
+    fixture = await makeFixture('archived-fallback');
+    createWorkflow(db, fixture.kitchenId, { names: ['To do', 'Done'] });
+    underArchivedId = createFixtureProject(db, {
+      title: 'Under archived',
+      parentId: fixture.kitchenId,
+      reporterId: fixture.tristan.id,
+    }).id;
+  });
+
+  it('flags an archived project and points to the nearest visible ancestor', () => {
+    db.prepare('UPDATE projects SET archived = 1 WHERE id = ?').run(fixture.kitchenId);
+
+    const page = getProjectPageData(db, actor(fixture.maya, true), fixture.kitchenId)!;
+    expect(page.project.archived).toBe(true);
+    expect(page.project.hiddenWhenArchivedOff).toBe(true);
+    expect(page.project.fallbackHref).toBe(`/p/${fixture.homeId}`);
+
+    // The server gate still hides the page when Show archived is off; the
+    // client uses hiddenWhenArchivedOff to navigate before refreshing.
+    expect(getProjectPageData(db, actor(fixture.maya, false), fixture.kitchenId)).toBeNull();
+  });
+
+  it('falls back past an archived ancestor for its descendants', () => {
+    const page = getProjectPageData(db, actor(fixture.maya, true), underArchivedId)!;
+    expect(page.project.archived).toBe(false);
+    expect(page.project.hiddenWhenArchivedOff).toBe(true);
+    expect(page.project.fallbackHref).toBe(`/p/${fixture.homeId}`);
+  });
+
+  it('leaves non-archived projects visible with their parent as the fallback', () => {
+    const active = createFixtureProject(db, {
+      title: 'Active sibling',
+      parentId: fixture.homeId,
+      reporterId: fixture.tristan.id,
+    });
+    const page = getProjectPageData(db, actor(fixture.maya, true), active.id)!;
+    expect(page.project.hiddenWhenArchivedOff).toBe(false);
+    expect(page.project.fallbackHref).toBe(`/p/${fixture.homeId}`);
+  });
+
+  it('uses Root as the fallback for Root children and Root itself', () => {
+    const page = getProjectPageData(db, actor(fixture.maya, true), fixture.homeId)!;
+    expect(page.project.hiddenWhenArchivedOff).toBe(false);
+    expect(page.project.fallbackHref).toBe(`/p/${fixture.rootId}`);
+
+    const rootPage = getProjectPageData(db, actor(fixture.maya, true), fixture.rootId)!;
+    expect(rootPage.project.fallbackHref).toBe(`/p/${fixture.rootId}`);
+  });
+});

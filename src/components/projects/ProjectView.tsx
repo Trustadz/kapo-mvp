@@ -11,6 +11,7 @@ import { ChildProjects } from './ChildProjects';
 import {
   ArchiveDialog,
   AddProjectDialog,
+  HideArchivedDialog,
   MoveDialog,
   RestoreDialog,
   TrashDialog,
@@ -33,6 +34,7 @@ type DialogState =
   | { kind: 'move'; projectId: string; projectTitle: string; destinationId?: string }
   | { kind: 'trash'; projectId: string; projectTitle: string }
   | { kind: 'archive'; projectId: string; projectTitle: string; mode: 'archive' | 'unarchive' }
+  | { kind: 'hideArchived' }
   | { kind: 'restore'; projectId: string; projectTitle: string }
   | null;
 
@@ -159,8 +161,15 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
   };
 
   const toggleShowArchived = async () => {
-    setShowArchivedSaving(true);
     const next = !data.showArchived;
+    if (!next && project.hiddenWhenArchivedOff) {
+      // Turning the setting off would hide this page (the project or one of
+      // its ancestors is archived). Confirm and navigate to a visible ancestor
+      // instead of refreshing into the 404 dead end.
+      setDialog({ kind: 'hideArchived' });
+      return;
+    }
+    setShowArchivedSaving(true);
     const result = await setShowArchived(next);
     setShowArchivedSaving(false);
     if (!result.ok) {
@@ -171,6 +180,10 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
     refresh();
   };
 
+  const fallbackTitle =
+    data.breadcrumb.find((ancestor) => `/p/${ancestor.id}` === project.fallbackHref)?.title ??
+    (project.fallbackHref === '/' ? 'the dashboard' : 'the nearest visible project');
+
   const menuItems: MenuItem[] = [];
   menuItems.push({
     id: 'show-archived',
@@ -180,6 +193,15 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
     disabled: showArchivedSaving,
     onSelect: () => void toggleShowArchived(),
   });
+  if (project.parent) {
+    // Always useful to non-admins, who otherwise only see the per-user toggle.
+    menuItems.push({
+      id: 'open-parent',
+      label: 'Open parent project',
+      icon: 'arrow_upward',
+      href: `/p/${project.parent.id}`,
+    });
+  }
   if (canAdmin && !project.isRoot) {
     menuItems.push({ id: 'sep-project', separator: true });
     menuItems.push({
@@ -495,6 +517,15 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
             notify(mode === 'unarchive' ? 'Project unarchived.' : 'Project archived.');
             refresh();
           }}
+        />
+      ) : null}
+      {dialog?.kind === 'hideArchived' ? (
+        <HideArchivedDialog
+          open
+          projectTitle={project.title}
+          fallbackTitle={fallbackTitle}
+          onClose={() => setDialog(null)}
+          onConfirmed={() => router.push(project.fallbackHref)}
         />
       ) : null}
       {dialog?.kind === 'restore' ? (

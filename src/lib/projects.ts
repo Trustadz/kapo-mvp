@@ -160,6 +160,18 @@ export interface ProjectPageHeader {
   canAdmin: boolean;
   canCreateChild: boolean;
   canMove: boolean;
+  /**
+   * True when this project (or one of its ancestors) is archived, so turning
+   * Show archived off would hide it from the viewer.
+   */
+  hiddenWhenArchivedOff: boolean;
+  /**
+   * Where to send the viewer when this project would become hidden: the
+   * nearest readable ancestor that is not archived-hidden, else Root, or the
+   * dashboard when Root is unreadable. Never points at an ancestor the viewer
+   * cannot read.
+   */
+  fallbackHref: string;
 }
 
 export interface ProjectPageData {

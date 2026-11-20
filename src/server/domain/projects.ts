@@ -537,6 +537,23 @@ export function getProjectPageData(
     ? { id: row.parent_id as string, title: row.parent_title }
     : null;
 
+  // Archived visibility is inherited from ancestors, so turning Show archived
+  // off can hide a project even when it is not archived itself. The fallback
+  // must be a place the viewer can actually land on: an accessible ancestor
+  // that is not archived-hidden, else Root (or the dashboard if Root itself is
+  // unreadable). Only readable ancestors are considered, so no inaccessible
+  // branch of the tree is exposed.
+  const hiddenWhenArchivedOff = isArchivedHidden(ctx, projectId);
+  const ancestors = accessibleAncestors(ctx, projectId);
+  const nearestVisibleAncestor = [...ancestors]
+    .reverse()
+    .find((ancestor) => !isArchivedHidden(ctx, ancestor.id));
+  const fallbackHref = nearestVisibleAncestor
+    ? `/p/${nearestVisibleAncestor.id}`
+    : ctx.rootId && canReadProject(ctx, ctx.rootId) && !isArchivedHidden(ctx, ctx.rootId)
+      ? `/p/${ctx.rootId}`
+      : '/';
+
   const settings = parseProjectSettings(row.settings);
   // Read-only page path (AR-032/AR-052): never seeds a workflow here.
   const statuses = listWorkflow(db, projectId);
@@ -602,9 +619,11 @@ export function getProjectPageData(
       canAdmin,
       canCreateChild: canEdit,
       canMove: canAdmin && !isRoot && !trashed,
+      hiddenWhenArchivedOff,
+      fallbackHref,
     },
     rootId: ctx.rootId,
-    breadcrumb: accessibleAncestors(ctx, projectId).map((ancestor) => ({
+    breadcrumb: ancestors.map((ancestor) => ({
       id: ancestor.id,
       title: ancestor.title,
     })),

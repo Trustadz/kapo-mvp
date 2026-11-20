@@ -12,6 +12,7 @@ import {
   fetchRestoreInfo,
   moveProjectRequest,
   restoreProjectRequest,
+  setShowArchived,
   trashProjectRequest,
   updateProjectFields,
 } from './api';
@@ -421,8 +422,83 @@ export function ArchiveDialog({
 }
 
 /* ------------------------------------------------------------------------- */
-/* Restore (+ deferred remapping)                                            */
+/* Hide archived (Show archived off on a project that would disappear)       */
 /* ------------------------------------------------------------------------- */
+
+export interface HideArchivedDialogProps {
+  open: boolean;
+  projectTitle: string;
+  /** Human-readable name of the page the viewer will land on. */
+  fallbackTitle: string;
+  onClose: () => void;
+  /** Called after the preference is persisted; the parent navigates away. */
+  onConfirmed: () => void;
+}
+
+/**
+ * Confirmation for turning Show archived off while viewing a project that the
+ * setting would hide (the project itself or an ancestor is archived). Without
+ * it the refreshed page would render the 404 "Project not available" dead end.
+ */
+export function HideArchivedDialog({
+  open,
+  projectTitle,
+  fallbackTitle,
+  onClose,
+  onConfirmed,
+}: HideArchivedDialogProps) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      setSaving(false);
+      setError(null);
+    }
+  }, [open]);
+
+  const submit = async () => {
+    setSaving(true);
+    setError(null);
+    const result = await setShowArchived(false);
+    setSaving(false);
+    if (!result.ok) {
+      setError(result.message);
+      return;
+    }
+    onConfirmed();
+    onClose();
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title="Turn off Show archived?"
+      description={`${projectTitle} will be hidden.`}
+      dismissible={!saving}
+      footer={
+        <div className={styles.dialogFooter}>
+          <Button type="button" onClick={() => void submit()} loading={saving}>
+            Turn off Show archived
+          </Button>
+          <Button type="button" variant="quiet" onClick={onClose} disabled={saving}>
+            Cancel
+          </Button>
+        </div>
+      }
+    >
+      <div className={styles.dialogForm}>
+        {error ? <Notice tone="error">{error}</Notice> : null}
+        <p className={styles.dialogHint}>
+          This project is archived, or is inside an archived project, so it will no longer be
+          visible with Show archived off. You will be taken to {fallbackTitle}. You can turn Show
+          archived back on later.
+        </p>
+      </div>
+    </Dialog>
+  );
+}
 
 export interface RestoreDialogProps {
   open: boolean;
