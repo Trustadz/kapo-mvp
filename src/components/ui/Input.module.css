@@ -28,6 +28,16 @@
   border-color: var(--color-focus);
 }
 
+/* Native time/number inputs move focus into shadow-DOM segments while Tab
+   cycles through them. The host then stops matching :focus-visible even though
+   a segment still has focus, so keep the ring visible via :focus-within. */
+.input[type='time']:focus-within,
+.input[type='number']:focus-within {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+  border-color: var(--color-focus);
+}
+
 .input:disabled {
   background: var(--color-disabled);
   border-color: var(--color-border);
@@ -43,6 +53,8 @@
   border-color: var(--color-danger);
 }
 
-.invalid:focus-visible {
+.invalid:focus-visible,
+.invalid[type='time']:focus-within,
+.invalid[type='number']:focus-within {
   outline-color: var(--color-danger);
 }

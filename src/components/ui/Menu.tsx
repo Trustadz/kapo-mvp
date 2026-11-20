@@ -30,6 +30,35 @@ function viewportSize(): { width: number; height: number } {
   };
 }
 
+/** Enabled, visible items belonging directly to `menu` (not a nested panel). */
+function menuItemsIn(menu: HTMLElement): HTMLElement[] {
+  return Array.from(
+    menu.querySelectorAll<HTMLElement>('[data-menu-item="true"]:not([disabled])'),
+  ).filter(
+    (element) =>
+      element.offsetParent !== null &&
+      element.closest<HTMLElement>('[role="menu"]') === menu,
+  );
+}
+
+/** Document tab order, excluding the open menu panel and its submenus. */
+function tabbablesOutside(panel: HTMLElement | null): HTMLElement[] {
+  const selector = [
+    'a[href]',
+    'button:not([disabled])',
+    'input:not([disabled])',
+    'select:not([disabled])',
+    'textarea:not([disabled])',
+    '[tabindex]:not([tabindex="-1"])',
+  ].join(',');
+  return Array.from(document.querySelectorAll<HTMLElement>(selector)).filter(
+    (element) =>
+      element.offsetParent !== null &&
+      element.getAttribute('aria-hidden') !== 'true' &&
+      !(panel?.contains(element) ?? false),
+  );
+}
+
 export interface MenuActionItem {
   id: string;
   label: string;
@@ -111,6 +140,10 @@ export function Menu({
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
+  /** Which panel edge gets focus after the next open ('first' by default). */
+  const pendingOpenFocusRef = useRef<'first' | 'last'>('first');
+  /** Set when a submenu should take focus once it mounts (keyboard paths). */
+  const pendingSubmenuFocusRef = useRef(false);
   const generatedId = useId();
   const panelId = `kapo-menu-${generatedId.replace(/[^a-zA-Z0-9-]/g, '')}`;
   const triggerId = `${panelId}-trigger`;
@@ -121,6 +154,50 @@ export function Menu({
     setPosition(null);
     triggerRef.current?.focus();
   }, []);
+
+  const openMenu = useCallback((focus: 'first' | 'last' = 'first') => {
+    pendingOpenFocusRef.current = focus;
+    setPosition(null);
+    setOpen(true);
+  }, []);
+
+  /** Open a submenu and move focus to its first item after it renders. */
+  const openSubmenuWithFocus = useCallback((submenuId: string) => {
+    pendingSubmenuFocusRef.current = true;
+    setOpenSubmenu(submenuId);
+  }, []);
+
+  const focusSubmenuTrigger = useCallback((submenuId: string) => {
+    setOpenSubmenu(null);
+    const trigger = Array.from(
+      panelRef.current?.querySelectorAll<HTMLElement>('[data-submenu-trigger="true"]') ?? [],
+    ).find((element) => element.dataset.submenuId === submenuId);
+    trigger?.focus();
+  }, []);
+
+  /**
+   * Tab closes a non-modal menu and continues the document tab order after the
+   * trigger, so focus is never left on a removed item.
+   */
+  const closeAndMoveFocusOut = useCallback(
+    (direction: 1 | -1) => {
+      const trigger = triggerRef.current;
+      const tabbables = tabbablesOutside(panelRef.current);
+      const index = trigger ? tabbables.indexOf(trigger) : -1;
+      const target =
+        index >= 0
+          ? tabbables[index + direction] ?? null
+          : direction > 0
+            ? tabbables[0] ?? null
+            : tabbables[tabbables.length - 1] ?? null;
+      setOpen(false);
+      setOpenSubmenu(null);
+      setPosition(null);
+      if (target) requestAnimationFrame(() => target.focus());
+      else trigger?.focus();
+    },
+    [],
+  );
 
   const updatePosition = useCallback(() => {
     const trigger = triggerRef.current;
@@ -202,49 +279,133 @@ export function Menu({
   useEffect(() => {
     if (!open) return;
     const frame = requestAnimationFrame(() => {
-      const first = panelRef.current?.querySelector<HTMLElement>(
-        '[data-menu-item="true"]:not([disabled])',
-      );
-      first?.focus();
+      const panel = panelRef.current;
+      if (!panel) return;
+      const focusable = menuItemsIn(panel);
+      const target =
+        pendingOpenFocusRef.current === 'last'
+          ? focusable[focusable.length - 1]
+          : focusable[0];
+      pendingOpenFocusRef.current = 'first';
+      target?.focus();
     });
     return () => cancelAnimationFrame(frame);
   }, [open]);
 
+  // Keyboard-opened submenus move focus into the submenu once it mounts.
+  useEffect(() => {
+    if (!open || !openSubmenu || !pendingSubmenuFocusRef.current) return;
+    pendingSubmenuFocusRef.current = false;
+    const frame = requestAnimationFrame(() => {
+      const submenu = Array.from(
+        panelRef.current?.querySelectorAll<HTMLElement>('[data-submenu-panel]') ?? [],
+      ).find((element) => element.dataset.submenuPanel === openSubmenu);
+      if (!submenu) return;
+      menuItemsIn(submenu)[0]?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [open, openSubmenu]);
+
   const handlePanelKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    const currentMenu = target.closest<HTMLElement>('[role="menu"]');
+    const inSubmenu = currentMenu !== null && currentMenu !== event.currentTarget;
+
     if (event.key === 'Escape') {
       event.preventDefault();
+      event.stopPropagation();
+      if (inSubmenu && currentMenu?.dataset.submenuPanel) {
+        focusSubmenuTrigger(currentMenu.dataset.submenuPanel);
+        return;
+      }
+      if (openSubmenu) {
+        // A submenu opened by hover/click is closed first; the next Escape
+        // closes the menu itself.
+        focusSubmenuTrigger(openSubmenu);
+        return;
+      }
       close();
       return;
     }
+
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      event.stopPropagation();
+      closeAndMoveFocusOut(event.shiftKey ? -1 : 1);
+      return;
+    }
+
     if (event.key === 'ArrowRight') {
-      const submenuTrigger = (event.target as HTMLElement).closest<HTMLElement>(
-        '[data-submenu-trigger="true"]',
-      );
-      if (submenuTrigger?.dataset.submenuId) {
+      const submenuTrigger = target.closest<HTMLElement>('[data-submenu-trigger="true"]');
+      const submenuId = submenuTrigger?.dataset.submenuId;
+      if (submenuId) {
         event.preventDefault();
-        setOpenSubmenu(submenuTrigger.dataset.submenuId);
+        openSubmenuWithFocus(submenuId);
       }
       return;
     }
-    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
-    const focusable = Array.from(
-      (event.currentTarget as HTMLElement).querySelectorAll<HTMLElement>(
-        '[data-menu-item="true"]:not([disabled])',
-      ),
-    ).filter((element) => element.offsetParent !== null);
+
+    if (event.key === 'ArrowLeft') {
+      if (inSubmenu && currentMenu?.dataset.submenuPanel) {
+        event.preventDefault();
+        focusSubmenuTrigger(currentMenu.dataset.submenuPanel);
+        return;
+      }
+      if (openSubmenu) {
+        event.preventDefault();
+        focusSubmenuTrigger(openSubmenu);
+      }
+      return;
+    }
+
+    if (
+      event.key !== 'ArrowDown' &&
+      event.key !== 'ArrowUp' &&
+      event.key !== 'Home' &&
+      event.key !== 'End'
+    ) {
+      return;
+    }
+    // Keep arrow roving scoped to the submenu that has focus, not the whole
+    // panel (which also contains the parent items).
+    const menu = inSubmenu && currentMenu ? currentMenu : event.currentTarget;
+    const focusable = menuItemsIn(menu);
     if (focusable.length === 0) return;
     event.preventDefault();
     const active = document.activeElement;
     const index = focusable.findIndex((element) => element === active);
-    const nextIndex =
-      event.key === 'ArrowDown'
-        ? index < 0
-          ? 0
-          : (index + 1) % focusable.length
-        : index <= 0
-          ? focusable.length - 1
-          : index - 1;
+    let nextIndex: number;
+    if (event.key === 'Home') nextIndex = 0;
+    else if (event.key === 'End') nextIndex = focusable.length - 1;
+    else if (event.key === 'ArrowDown') {
+      nextIndex = index < 0 ? 0 : (index + 1) % focusable.length;
+    } else {
+      nextIndex = index <= 0 ? focusable.length - 1 : index - 1;
+    }
     focusable[nextIndex]?.focus();
+  };
+
+  /**
+   * Escape while focus sits on the trigger (after a click-open) still closes;
+   * ArrowDown/ArrowUp on the closed trigger opens the menu at the first/last
+   * item, matching the WAI-ARIA menu button pattern.
+   */
+  const handleRootKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.defaultPrevented) return;
+    if (!open) {
+      if (
+        event.target === triggerRef.current &&
+        (event.key === 'ArrowDown' || event.key === 'ArrowUp')
+      ) {
+        event.preventDefault();
+        openMenu(event.key === 'ArrowUp' ? 'last' : 'first');
+      }
+      return;
+    }
+    if (event.key !== 'Escape') return;
+    if (panelRef.current?.contains(event.target as Node)) return;
+    event.preventDefault();
+    close();
   };
 
   const activate = (item: MenuActionItem) => {
@@ -302,9 +463,7 @@ export function Menu({
       ref={rootRef}
       className={cn(styles.root, className)}
       data-open={open || undefined}
-      onKeyDown={(event) => {
-        if (event.key === 'Escape' && !open) return;
-      }}
+      onKeyDown={handleRootKeyDown}
     >
       {trigger({
         onClick: () => {
@@ -312,8 +471,7 @@ export function Menu({
             setOpen(false);
             setOpenSubmenu(null);
           } else {
-            setPosition(null);
-            setOpen(true);
+            openMenu('first');
           }
         },
         'aria-expanded': open,
@@ -338,12 +496,13 @@ export function Menu({
           onKeyDown={handlePanelKeyDown}
         >
           {header ? <div className={styles.menuHeader}>{header}</div> : null}
-          {items.map((item) => {
+          {items.map((item, index) => {
             if (isSeparator(item)) {
               return <div key={item.id} role="separator" className={styles.separator} />;
             }
             if (isSubmenu(item)) {
               const expanded = openSubmenu === item.id;
+              const submenuId = `${panelId}-submenu-${index}`;
               return (
                 <div key={item.id} className={styles.submenuRoot}>
                   <button
@@ -351,11 +510,14 @@ export function Menu({
                     role="menuitem"
                     aria-haspopup="menu"
                     aria-expanded={expanded}
+                    aria-controls={submenuId}
                     className={styles.item}
                     data-menu-item="true"
                     data-submenu-trigger="true"
                     data-submenu-id={item.id}
-                    onClick={() => setOpenSubmenu(expanded ? null : item.id)}
+                    onClick={() =>
+                      expanded ? setOpenSubmenu(null) : openSubmenuWithFocus(item.id)
+                    }
                     onMouseEnter={() => setOpenSubmenu(item.id)}
                   >
                     {item.icon ? <Icon name={item.icon} size={18} className={styles.itemIcon} /> : null}
@@ -363,7 +525,13 @@ export function Menu({
                     <Icon name="chevron_right" size={18} className={styles.itemChevron} />
                   </button>
                   {expanded ? (
-                    <div role="menu" aria-label={item.label} className={styles.submenuPanel}>
+                    <div
+                      id={submenuId}
+                      role="menu"
+                      aria-label={item.label}
+                      className={styles.submenuPanel}
+                      data-submenu-panel={item.id}
+                    >
                       {item.items.map((child) => renderAction(child, true))}
                     </div>
                   ) : null}

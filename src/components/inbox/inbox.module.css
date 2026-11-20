@@ -339,6 +339,11 @@
   /* The table uses a fixed layout so a long title wraps instead of expanding
      the page. No horizontal scroll is needed even on a 390px phone. */
   overflow-x: hidden;
+  /* overflow clips at the padding box; pad by the focus ring's outer radius
+     (2px outline + 2px offset) and pull back so edge controls (the select-all
+     checkbox) keep a visible ring. */
+  padding: var(--space-1);
+  margin: calc(-1 * var(--space-1));
 }
 
 .treeTable {
