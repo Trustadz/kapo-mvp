@@ -88,7 +88,7 @@ async function beginDrag(source: Locator, to: { x: number; y: number }): Promise
 }
 
 test('reserves the gap at the within-column landing slot', async ({ page }) => {
-  await login(page, 'tristan');
+  await login(page, 'admin');
   await openProject(page, 'Home improvement');
   await ensureInboxVisible(page);
   await chooseView(page, 'Kanban');
@@ -134,7 +134,7 @@ test('reserves the gap at the within-column landing slot', async ({ page }) => {
 });
 
 test('previews a cross-column drop at the priority landing slot', async ({ page }) => {
-  await login(page, 'tristan');
+  await login(page, 'admin');
   await openProject(page, 'Home improvement');
   await ensureInboxVisible(page);
   await chooseView(page, 'Kanban');

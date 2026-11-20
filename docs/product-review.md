@@ -41,7 +41,7 @@ permissions, small footprint) and the deferred scope is genuinely absent rather 
   source with an isolated `./data/review.db`, so destructive scenarios (privacy, cascade, trash,
   purge, workflow edits, induced error states) never touched the demo database. The 167-check
   harness, the P1 repro and the 26-check sign-off suite were re-run against this frozen build.
-- **Accounts:** `tristan` (Admin), `maya` (User), `jules` (User), `alex` (Viewer); password
+- **Accounts:** `admin` (Admin), `maya` (User), `jules` (User), `alex` (Viewer); password
   `kapo1234`.
 - **Evidence:** 167 API/DB acceptance checks (all passing on the frozen tree), 26 sign-off checks
   (P1/P2/F06/minor copy), 12 add-on contract checks, 5 new-account/permission checks, UI flows
@@ -56,8 +56,8 @@ permissions, small footprint) and the deferred scope is genuinely absent rather 
 | # | Scenario | Result | Evidence |
 | --- | --- | --- | --- |
 | 1 | Capture: global quick-add creates a Root child with parent start status + Inbox label; arbitrary nesting | **PASS** | Capture as Maya returns 201, start status `To do`, `inbox=1`, reporter=Maya, appended last; 3-level capture passes; title required (422) |
-| 2 | Refine: release keeps start status and removes Inbox; status change also exits Inbox with no extra confirmation; released item stays visible and Pulled until leaving Inbox | **PASS** | Release clears `inbox`, status unchanged, `project.inbox_released` audited; status change clears `inbox` with only a status event; Pulled badge retained ([08](screenshots/product/08-inbox-tristan.png), [50](screenshots/product/50-inbox-pulled.png)) |
-| 3 | Organize: cross-column Kanban drag changes status only; within-column reorder changes shared sibling order | **PASS** | Cross-column PATCH keeps priority and leaves other sibling priorities byte-identical; reorder produces contiguous 0-based shared order; Kanban UI routes drops to the same endpoints ([03](screenshots/product/03-project-kanban-tristan.png)) |
+| 2 | Refine: release keeps start status and removes Inbox; status change also exits Inbox with no extra confirmation; released item stays visible and Pulled until leaving Inbox | **PASS** | Release clears `inbox`, status unchanged, `project.inbox_released` audited; status change clears `inbox` with only a status event; Pulled badge retained ([08](screenshots/product/08-inbox-admin.png), [50](screenshots/product/50-inbox-pulled.png)) |
+| 3 | Organize: cross-column Kanban drag changes status only; within-column reorder changes shared sibling order | **PASS** | Cross-column PATCH keeps priority and leaves other sibling priorities byte-identical; reorder produces contiguous 0-based shared order; Kanban UI routes drops to the same endpoints ([03](screenshots/product/03-project-kanban-admin.png)) |
 | 4 | Move: always confirmation + explicit status mapping; bulk move maps every old status in use; descendants keep statuses; add-on data preserved; cycles/destination permission rejected | **PASS** | Missing mapping → `mapping_required` even when names match; mapped move keeps descendant statuses and `addon_data`; cycle and unauthorized destination rejected; Tree bulk move of two projects with two distinct statuses finished through the UI ([51](screenshots/product/51-move-dialog.png), [63](screenshots/product/63-tree-multiselect-toolbar.png), [64](screenshots/product/64-bulk-move-dialog.png), [65](screenshots/product/65-after-bulk-move.png)) |
 | 5 | Privacy: private from application Admins; parent reduction cascades over descendant grants after acknowledgement; increases do not propagate; whole-subtree last-Admin validation | **PASS** | App Admin gets 404 on a private project (read, mutate, trash, search, Inbox); reduction without ack → `acknowledgement_required`, with ack rewrites descendant admin rows; re-granting parent leaves descendant at inherited `user`, not `admin`; last-Admin rejection names projects (including a Root-level cascade that would strand two private projects); new accounts receive the Root User/Viewer grant and can open Root |
 | 6 | Remove: subtree hidden; read-only in Trash; each newly trashed project own 30-day deadline; already-trashed keeps its deadline; restore only same action; purge creates no audit event | **PASS** | Parent trash hides subtree; same-action rows share action/deadline; separately trashed grandchild keeps its own; read-only 409; restore returns only same-action rows; re-trash gets a new deadline; search/FTS excludes trash; purge removes project + own history + FTS row with no purge event; Edit appears in immediate parent log only ([53](screenshots/product/53-trash-tab.png), [54](screenshots/product/54-trashed-project-readonly.png)) |
@@ -96,7 +96,7 @@ automatic equivalence.” The operation is valid, and different names succeed; t
 case crashes the server transaction.
 
 **Reproduce (API, current build):**
-1. Sign in as `tristan`; create project `P` under Root and child `C` under `P`; move `C` to `P`’s
+1. Sign in as `admin`; create project `P` under Root and child `C` under `P`; move `C` to `P`’s
    `Done` status.
 2. `PUT /api/projects/<P>/workflow` with
    `{"statuses":[{"id":"<to-do-id>","name":"To do","isStart":true},{"name":"Done","isFinish":true}],"mapping":{"<old-done-id>":"<to-do-id>"}}`
@@ -133,8 +133,8 @@ layouts and view property slots” in the initial deliverable.
 (`main`/`sidebar` field lists, `layout_template`, child position, enabled/default views, hidden
 statuses). The four collection views render a fixed field set — Kanban: title + Inbox/Archived;
 Card: title, status, Open; Tree: select, title, status; List: title, status, Open — with no project
-or view setting to choose/order fields ([13](screenshots/product/13-settings-layout-tristan.png),
-[05](screenshots/product/05-project-list-tristan.png), [06](screenshots/product/06-project-card-tristan.png)).
+or view setting to choose/order fields ([13](screenshots/product/13-settings-layout-admin.png),
+[05](screenshots/product/05-project-list-admin.png), [06](screenshots/product/06-project-card-admin.png)).
 `src/app/api/projects/[id]/settings/route.ts` (`SETTING_KEYS`) has no per-view field key.
 
 **Reproduce:** Project settings → Layout: there is no per-view property configuration; the only
@@ -201,15 +201,15 @@ guide is **signed off** — see §5 and §7.
 
 | ID | Issue | Rule / recommendation | Evidence |
 | --- | --- | --- | --- |
-| m1 | **FIXED** — Inbox release button reads “Move to To do” (status name interpolated into a sentence) | `product.md` §4 says the action is labelled with the parent’s start status; readable copy matters. Use “Release to To do” (quoted status) or “Release”, with the status as subtext. Same for card menus “Move to <status>”. | [08](screenshots/product/08-inbox-tristan.png) |
-| m2 | **FIXED** — Application settings note said “Required properties are checked when projects leave Inbox.” | Misleading in this iteration: there are no add-on fields or add-on modes (`product.md` §4 “no add-on fields to complete”; registry empty). Remove the note until Required add-ons ship, or label it as a future add-on rule. | [16](screenshots/product/16-app-settings-tristan.png) |
+| m1 | **FIXED** — Inbox release button reads “Move to To do” (status name interpolated into a sentence) | `product.md` §4 says the action is labelled with the parent’s start status; readable copy matters. Use “Release to To do” (quoted status) or “Release”, with the status as subtext. Same for card menus “Move to <status>”. | [08](screenshots/product/08-inbox-admin.png) |
+| m2 | **FIXED** — Application settings note said “Required properties are checked when projects leave Inbox.” | Misleading in this iteration: there are no add-on fields or add-on modes (`product.md` §4 “no add-on fields to complete”; registry empty). Remove the note until Required add-ons ship, or label it as a future add-on rule. | [16](screenshots/product/16-app-settings-admin.png) |
 | m3 | **FIXED** — Application Viewer was shown the global capture field/mobile Add button, which always failed | `product.md` §2/§6: Viewer is read-only; offering a dead-end primary action hurts “frictionless” feel. Disable with a one-line reason (“Viewers can browse only”) or hide it for Viewers. | [61](screenshots/product/61-viewer-capture-attempt.png) |
-| m4 | Inbox readiness labels are uniform: dashboard Inbox preview always says “Ready to do”, Inbox page shows no readiness label at all | Accepted for this iteration: `product.md` §4 states there are no add-on fields to complete and build-spec §12 ships no add-ons, so readiness cannot vary. Revisit when Required add-ons land (dashboard.md D1’s ready/missing distinction). | [01](screenshots/product/01-home-tristan.png) |
-| m5 | **FIXED** — Search title match rendered “Match in Title: <full title>”, duplicating the heading | `product.md` §8 asks for a contextual snippet showing where the match occurred; acceptable, but “Title match” or a bounded excerpt reads better. | [09](screenshots/product/09-search-tristan.png) |
-| m6 | **FIXED** — Activity priority copy showed numeric positions | `product.md` §3 defines priority as a calculated relative ordering, not an editable numeric field; the wording is fine for audit but can read like a scored field. Consider “Moved earlier/later”. | [07](screenshots/product/07-project-activity-tristan.png) |
-| m7 | **FIXED** — Members hint read “Changing a parent also restricts descendants…” | Reads as if editing the parent project; intended meaning is “Reducing or removing a role here also restricts descendants…”. Current build’s per-row copy is now clear (“Explicit grant · User”, “Inherit parent permissions”). | [11](screenshots/product/11-settings-members-tristan.png) |
-| m8 | **FIXED** — action label now reads “Add child project” | Keep one label; Penpot/design review decides exact wording. | [03](screenshots/product/03-project-kanban-tristan.png) |
-| m9 | **FIXED** — Card view in a project collection now shows “Release to <status>” for Inbox items | `product.md` §5 Card: “Readiness and release actions appear for Inbox projects.” Clarify whether the global Inbox’s Card presentation satisfies this or wire the same release action into project Card view. | [06](screenshots/product/06-project-card-tristan.png) |
+| m4 | Inbox readiness labels are uniform: dashboard Inbox preview always says “Ready to do”, Inbox page shows no readiness label at all | Accepted for this iteration: `product.md` §4 states there are no add-on fields to complete and build-spec §12 ships no add-ons, so readiness cannot vary. Revisit when Required add-ons land (dashboard.md D1’s ready/missing distinction). | [01](screenshots/product/01-home-admin.png) |
+| m5 | **FIXED** — Search title match rendered “Match in Title: <full title>”, duplicating the heading | `product.md` §8 asks for a contextual snippet showing where the match occurred; acceptable, but “Title match” or a bounded excerpt reads better. | [09](screenshots/product/09-search-admin.png) |
+| m6 | **FIXED** — Activity priority copy showed numeric positions | `product.md` §3 defines priority as a calculated relative ordering, not an editable numeric field; the wording is fine for audit but can read like a scored field. Consider “Moved earlier/later”. | [07](screenshots/product/07-project-activity-admin.png) |
+| m7 | **FIXED** — Members hint read “Changing a parent also restricts descendants…” | Reads as if editing the parent project; intended meaning is “Reducing or removing a role here also restricts descendants…”. Current build’s per-row copy is now clear (“Explicit grant · User”, “Inherit parent permissions”). | [11](screenshots/product/11-settings-members-admin.png) |
+| m8 | **FIXED** — action label now reads “Add child project” | Keep one label; Penpot/design review decides exact wording. | [03](screenshots/product/03-project-kanban-admin.png) |
+| m9 | **FIXED** — Card view in a project collection now shows “Release to <status>” for Inbox items | `product.md` §5 Card: “Readiness and release actions appear for Inbox projects.” Clarify whether the global Inbox’s Card presentation satisfies this or wire the same release action into project Card view. | [06](screenshots/product/06-project-card-admin.png) |
 
 ### Known deviations — acceptance judgement
 
@@ -443,7 +443,7 @@ re-checked on the frozen build:
 
 | Finding | Re-check result |
 | --- | --- |
-| F01 raw lowercase account names | **PASS** — display names are title-cased across sidebar, account menu, Profile, Reporter, Activity, Members and Users; account menu shows “Tristan · Application Admin” ([70](screenshots/product/70-account-menu-display-name.png)) |
+| F01 raw lowercase account names | **PASS** — display names are title-cased across sidebar, account menu, Profile, Reporter, Activity, Members and Users; account menu shows “Admin · Application Admin” ([70](screenshots/product/70-account-menu-display-name.png)) |
 | F02 Kanban columns missing the designed panel | **PASS** — column background computes to `--color-surface-alt` (`rgb(247, 246, 242)`), rounded panel with inset cards ([71](screenshots/product/71-kanban-panel-treatment.png)) |
 | F03 Members copy contradicts access mode / missing private state | **PASS** — “Inherit parent permissions” + explicit-grant rows, “Private — only selected members” state, “Add member” flow, “Save permissions”; “Make private” hidden on already-private projects ([72](screenshots/product/72-members-inherited.png), [73](screenshots/product/73-members-private.png)) |
 | F04 mobile Search/Trash input collapses | **PASS** — mobile input height measures **42px** at 390×844 ([83](screenshots/product/83-mobile-search-input.png)) |

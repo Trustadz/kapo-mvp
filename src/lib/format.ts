@@ -61,7 +61,7 @@ export function formatDayTime(iso: string, now: Date = new Date()): string {
 
 /**
  * Human display name for a username: capitalise the first letter, keep the
- * rest ("tristan" -> "Tristan", "mary.jane" -> "Mary.jane"). Editable username
+ * rest ("admin" -> "Admin", "mary.jane" -> "Mary.jane"). Editable username
  * inputs should still show the stored value.
  */
 export function formatPersonName(username: string): string {

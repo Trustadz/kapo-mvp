@@ -44,7 +44,7 @@ async function findProjectId(
 
 test.describe('Inbox application tree', () => {
   test.beforeEach(async ({ page }) => {
-    await login(page, 'tristan');
+    await login(page, 'admin');
   });
 
   test('nests readable projects and keeps non-Inbox rows read-only', async ({ page }) => {

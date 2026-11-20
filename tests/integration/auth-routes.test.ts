@@ -51,20 +51,20 @@ async function body<T = Record<string, unknown>>(response: Response): Promise<T>
 
 describe('POST /api/auth/login', () => {
   beforeAll(async () => {
-    await createUser(db, { username: 'tristan', appRole: 'admin' });
+    await createUser(db, { username: 'admin', appRole: 'admin' });
     await createUser(db, { username: 'maya', appRole: 'user', password: 'different1' });
   });
 
   it('signs in with valid credentials and sets an httpOnly session cookie', async () => {
     const response = await login(
       jsonRequest('http://localhost/api/auth/login', {
-        username: 'tristan',
+        username: 'admin',
         password: 'kapo1234',
       }),
     );
     expect(response.status).toBe(200);
     const payload = await body<{ user: { username: string; appRole: string } }>(response);
-    expect(payload.user.username).toBe('tristan');
+    expect(payload.user.username).toBe('admin');
     expect(payload.user.appRole).toBe('admin');
 
     const cookie = cookieJar.get(SESSION_COOKIE);
@@ -87,7 +87,7 @@ describe('POST /api/auth/login', () => {
   it('accepts the username case-insensitively', async () => {
     const response = await login(
       jsonRequest('http://localhost/api/auth/login', {
-        username: 'TRISTAN',
+        username: 'ADMIN',
         password: 'kapo1234',
       }),
     );
@@ -97,7 +97,7 @@ describe('POST /api/auth/login', () => {
   it('rejects a wrong password with 401', async () => {
     const response = await login(
       jsonRequest('http://localhost/api/auth/login', {
-        username: 'tristan',
+        username: 'admin',
         password: 'wrong-password',
       }),
     );
@@ -146,7 +146,7 @@ describe('POST /api/auth/login', () => {
     const response = await login(
       jsonRequest(
         'http://localhost/api/auth/login',
-        { username: 'tristan', password: 'kapo1234' },
+        { username: 'admin', password: 'kapo1234' },
         { origin: 'https://evil.example' },
       ),
     );

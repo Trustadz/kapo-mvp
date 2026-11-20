@@ -45,7 +45,7 @@ async function capture(page: import('@playwright/test').Page, title: string): Pr
 
 test.describe('seeded application', () => {
   test('signs in as the seeded Admin and shows the home dashboard', async ({ page }) => {
-    await login(page, 'tristan');
+    await login(page, 'admin');
     await expect(page.getByRole('heading', { level: 1, name: 'Home' })).toBeVisible();
     await expect(page.getByRole('textbox', { name: /add a project to root/i })).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible();
@@ -56,7 +56,7 @@ test.describe('seeded application', () => {
   });
 
   test('captures into the Root Inbox, then releases to the start status', async ({ page }) => {
-    await login(page, 'tristan');
+    await login(page, 'admin');
     const title = `E2E capture ${Date.now()}`;
     await capture(page, title);
 
@@ -87,7 +87,7 @@ test.describe('seeded application', () => {
   });
 
   test('drags an Inbox capture onto the drop area to release it', async ({ page }) => {
-    await login(page, 'tristan');
+    await login(page, 'admin');
     // The seeded Inbox plus the new capture is taller than the default 720px
     // viewport; keep the source card and the drop area on screen together.
     await page.setViewportSize({ width: 1440, height: 1100 });
@@ -133,7 +133,7 @@ test.describe('seeded application', () => {
   });
 
   test('changes a project status from the project page', async ({ page }) => {
-    await login(page, 'tristan');
+    await login(page, 'admin');
     const homeId = await findProjectId(page, 'Home improvement');
     await page.goto(`/p/${homeId}`);
     await expect(page.getByRole('heading', { level: 1, name: 'Home improvement' })).toBeVisible();
@@ -156,7 +156,7 @@ test.describe('seeded application', () => {
   });
 
   test('keeps the last kanban card action menu inside the viewport', async ({ page }) => {
-    await login(page, 'tristan');
+    await login(page, 'admin');
     const homeId = await findProjectId(page, 'Home improvement');
     await page.goto(`/p/${homeId}`);
     await expect(page.getByRole('heading', { level: 1, name: 'Home improvement' })).toBeVisible();
@@ -206,7 +206,7 @@ test.describe('seeded application', () => {
   });
 
   test('hides Inbox children from project collections until Show Inbox items is on', async ({ page }) => {
-    await login(page, 'tristan');
+    await login(page, 'admin');
     const homeId = await findProjectId(page, 'Home improvement');
     await page.goto(`/p/${homeId}`);
     await expect(page.getByRole('heading', { level: 1, name: 'Home improvement' })).toBeVisible();
@@ -270,7 +270,7 @@ test.describe('seeded application', () => {
   });
 
   test('edits the dashboard and persists visibility and order', async ({ page }) => {
-    await login(page, 'tristan');
+    await login(page, 'admin');
     await expect(page.getByRole('heading', { level: 1, name: 'Home' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Edit dashboard' }).click();
@@ -304,7 +304,7 @@ test.describe('seeded application', () => {
   });
 
   test('trashes a project and restores it from Trash', async ({ page }) => {
-    await login(page, 'tristan');
+    await login(page, 'admin');
     const title = `E2E trash ${Date.now()}`;
     await capture(page, title);
     const projectId = await findProjectId(page, title);
@@ -342,7 +342,7 @@ test.describe('seeded application', () => {
   test('confirms before hiding an archived project and lands on a visible ancestor', async ({
     page,
   }) => {
-    await login(page, 'tristan');
+    await login(page, 'admin');
     const title = `E2E archive ${Date.now()}`;
     await capture(page, title);
     const projectId = await findProjectId(page, title);

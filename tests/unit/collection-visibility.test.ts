@@ -25,7 +25,7 @@ function card(id: string, inbox: boolean): ProjectCard {
     inbox,
     archived: false,
     trashed: false,
-    reporter: { id: 'user-1', username: 'tristan', avatar: null },
+    reporter: { id: 'user-1', username: 'admin', avatar: null },
     parentId: null,
     parent: null,
     createdAt: '2026-01-01T00:00:00.000Z',

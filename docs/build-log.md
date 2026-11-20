@@ -59,7 +59,7 @@ Pure walk-up inheritance made private projects impossible (a Root User grant lea
 - Root is `custom` (explicit grants + implicit app-Admin Admin); private = custom with only chosen
   users; reduction cascade still overrides custom descendant grants; increases never propagate.
 
-`Personal` is seeded private to tristan. Spec §5/§6 updated; builder-projects is implementing the
+`Personal` is seeded private to admin. Spec §5/§6 updated; builder-projects is implementing the
 effective-role logic and the Members "Inherited / Custom / Private" controls.
 
 Also fixed the registry xfail: `user` fields now reject both `options` and `optionsSource`; the
@@ -110,5 +110,5 @@ test is a normal pass (22/22 in that file).
 ## Handover
 
 Run `npm ci && npm run db:reset && npm run build && npm start`. Seeded accounts use password
-`kapo1234` (tristan Admin, maya/jules Users, alex Viewer). The add-on developer guide is
+`kapo1234` (admin Admin, maya/jules Users, alex Viewer). The add-on developer guide is
 `docs/add-ons.md`; architecture and review history are in `docs/`.

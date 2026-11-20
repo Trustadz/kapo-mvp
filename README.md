@@ -56,7 +56,7 @@ use the password **`kapo1234`**:
 
 | Username | Application role | Notes |
 | --- | --- | --- |
-| `tristan` | Admin | Owns the seeded Favorites; can manage Settings/Users |
+| `admin` | Admin | Owns the seeded Favorites; can manage Settings/Users |
 | `maya` | User | Shared project access |
 | `jules` | User | Shared project access |
 | `alex` | Viewer | Read-only application-wide |
@@ -517,7 +517,7 @@ curl -i http://localhost:3100/login        # 200 sign-in card
 | [docs/build-log.md](docs/build-log.md) | Build log: decisions, phases, verification, review rounds |
 
 Mock data is optional. `npm run db:reset` seeds four accounts (password
-`kapo1234`): `tristan` (application Admin), `maya` and `jules` (Users) and
+`kapo1234`): `admin` (application Admin), `maya` and `jules` (Users) and
 `alex` (Viewer), a Root workflow, a project tree with Inbox items, favorites,
 project roles, a private project and activity history. `npm run db:seed` seeds
 without dropping an existing database.

@@ -12,7 +12,7 @@ import { createTestDatabase, type TestDatabase } from '../helpers/db';
  * The script runs as a child process with DATABASE_PATH pointed at a throwaway
  * file, so ./data/kapo.db is never touched. Documented mock data: 4 users,
  * 13 projects, Root workflow To do/In progress/Done, Home improvement = KAP-104,
- * three Inbox projects, tristan's three favorites and 15 activity events.
+ * three Inbox projects, admin's three favorites and 15 activity events.
  */
 
 let test: TestDatabase;
@@ -74,10 +74,10 @@ describe('db:seed', () => {
       .prepare('SELECT username, app_role FROM users ORDER BY username')
       .all() as Array<{ username: string; app_role: string }>;
     expect(users).toEqual([
+      { username: 'admin', app_role: 'admin' },
       { username: 'alex', app_role: 'viewer' },
       { username: 'jules', app_role: 'user' },
       { username: 'maya', app_role: 'user' },
-      { username: 'tristan', app_role: 'admin' },
     ]);
 
     // One Root, no parent/status, and its documented workflow.
@@ -168,13 +168,13 @@ describe('db:seed', () => {
       'Renovate basement',
     ]);
 
-    // Favorites: Home improvement, Household, Personal for tristan.
+    // Favorites: Home improvement, Household, Personal for admin.
     const favorites = db
       .prepare(
         `SELECT p.title AS title FROM favorites f
            JOIN projects p ON p.id = f.project_id
            JOIN users u ON u.id = f.user_id
-          WHERE u.username = 'tristan' ORDER BY p.title`,
+          WHERE u.username = 'admin' ORDER BY p.title`,
       )
       .all() as Array<{ title: string }>;
     expect(favorites.map((row) => row.title)).toEqual([

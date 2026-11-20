@@ -94,10 +94,10 @@ describe('effectiveRoleFor (pure)', () => {
 
   it('maps an application Admin to Root only, never downstream implicitly', () => {
     const grants = makeGrants([]);
-    const tristan = makeUser('admin-user', 'admin');
-    expect(effectiveRoleFor(tree, grants, tristan, 'root')).toBe('admin');
-    expect(effectiveRoleFor(tree, grants, tristan, 'home')).toBeNull();
-    expect(effectiveRoleFor(tree, grants, tristan, 'contractor')).toBeNull();
+    const admin = makeUser('admin-user', 'admin');
+    expect(effectiveRoleFor(tree, grants, admin, 'root')).toBe('admin');
+    expect(effectiveRoleFor(tree, grants, admin, 'home')).toBeNull();
+    expect(effectiveRoleFor(tree, grants, admin, 'contractor')).toBeNull();
   });
 
   it('gives application Users no implicit access anywhere', () => {
@@ -136,7 +136,7 @@ describe('planMemberUpdate (pure)', () => {
     ['garden', 'home', 'Garden beds'],
   ]);
   const usernames = new Map([
-    ['admin-user', 'tristan'],
+    ['admin-user', 'admin'],
     ['maya', 'maya'],
     ['jules', 'jules'],
     ['alex', 'alex'],
@@ -311,14 +311,14 @@ describe('permission engine against SQLite', () => {
   }
 
   it('resolves the seeded household grants', () => {
-    const tristan = contextFor(household.tristan.id, 'admin');
-    expect(getRole(tristan, household.root.id)).toBe('admin');
-    expect(getRole(tristan, household.home.id)).toBe('admin');
-    expect(getRole(tristan, household.household.id)).toBeNull();
+    const admin = contextFor(household.admin.id, 'admin');
+    expect(getRole(admin, household.root.id)).toBe('admin');
+    expect(getRole(admin, household.home.id)).toBe('admin');
+    expect(getRole(admin, household.household.id)).toBeNull();
   });
 
   it('lets an application Admin administer Root but not bypass project grants', () => {
-    // The fixture gives tristan admin on Root's own grant too; use a second
+    // The fixture gives admin admin on Root's own grant too; use a second
     // application Admin with no grants to prove the fallback is Root-only.
     const outsider = { id: 'outsider', appRole: 'admin' as const, showArchived: false };
     const ctx = loadAccessContext(db, outsider);
@@ -369,7 +369,7 @@ describe('permission engine against SQLite', () => {
     const archived = createProject(db, {
       title: 'Archived parent',
       parentId: household.root.id,
-      reporterId: household.tristan.id,
+      reporterId: household.admin.id,
       archived: true,
       indexSearch: false,
     });
@@ -377,17 +377,17 @@ describe('permission engine against SQLite', () => {
     const child = createProject(db, {
       title: 'Child of archived',
       parentId: archived.id,
-      reporterId: household.tristan.id,
+      reporterId: household.admin.id,
       indexSearch: false,
     });
-    grantRole(db, archived.id, household.tristan.id, 'admin');
-    grantRole(db, child.id, household.tristan.id, 'admin');
+    grantRole(db, archived.id, household.admin.id, 'admin');
+    grantRole(db, child.id, household.admin.id, 'admin');
 
-    const hidden = contextFor(household.tristan.id, 'admin', false);
+    const hidden = contextFor(household.admin.id, 'admin', false);
     expect(isActiveProject(hidden, archived.id)).toBe(false);
     expect(isActiveProject(hidden, child.id)).toBe(false);
 
-    const shown = contextFor(household.tristan.id, 'admin', true);
+    const shown = contextFor(household.admin.id, 'admin', true);
     expect(isActiveProject(shown, archived.id)).toBe(true);
     expect(isActiveProject(shown, child.id)).toBe(true);
     // The descendant's own archived flag is untouched.
@@ -401,12 +401,12 @@ describe('permission engine against SQLite', () => {
     const trashed = createProject(db, {
       title: 'Trashed project',
       parentId: household.root.id,
-      reporterId: household.tristan.id,
+      reporterId: household.admin.id,
       trashedAt: new Date().toISOString(),
       indexSearch: false,
     });
-    grantRole(db, trashed.id, household.tristan.id, 'admin');
-    const ctx = contextFor(household.tristan.id, 'admin');
+    grantRole(db, trashed.id, household.admin.id, 'admin');
+    const ctx = contextFor(household.admin.id, 'admin');
     expect(canReadProject(ctx, trashed.id)).toBe(true);
     expect(isTrashedProject(ctx, trashed.id)).toBe(true);
     expect(isActiveProject(ctx, trashed.id)).toBe(false);

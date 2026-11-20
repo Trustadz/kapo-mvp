@@ -35,7 +35,7 @@ async function findProjectId(
 
 test.describe('mobile collection view menu', () => {
   test('opens the collection view selector inside the 390px viewport', async ({ page }) => {
-    await login(page, 'tristan');
+    await login(page, 'admin');
     const homeId = await findProjectId(page, 'Home improvement');
     await page.goto(`/p/${homeId}`);
     await expect(
@@ -74,7 +74,7 @@ test.describe('mobile collection view menu', () => {
 
 test.describe('mobile Inbox tree', () => {
   test('shows the application tree without horizontal page scroll', async ({ page }) => {
-    await login(page, 'tristan');
+    await login(page, 'admin');
     await page.goto('/inbox');
     await page.getByRole('button', { name: 'Tree' }).click();
 

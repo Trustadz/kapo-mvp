@@ -45,10 +45,10 @@ describe('searchProjects', () => {
       title: 'Renovate basement',
       body: 'plumber quote from the neighbourhood',
     });
-    const byTitle = searchProjects(db, actor(household.tristan), 'renov');
+    const byTitle = searchProjects(db, actor(household.admin), 'renov');
     expect(byTitle.map((result) => result.title)).toContain('Renovate basement');
 
-    const byBody = searchProjects(db, actor(household.tristan), 'plumber');
+    const byBody = searchProjects(db, actor(household.admin), 'plumber');
     const bodyResult = byBody.find((result) => result.id === household.renovate.id);
     expect(bodyResult).toBeDefined();
     expect(bodyResult?.match.field).toBe('Text');
@@ -57,7 +57,7 @@ describe('searchProjects', () => {
 
   it('returns nothing for empty, blank or punctuation-only queries', () => {
     for (const query of ['', '   ', '""', '!!!']) {
-      expect(searchProjects(db, actor(household.tristan), query)).toEqual([]);
+      expect(searchProjects(db, actor(household.admin), query)).toEqual([]);
     }
   });
 
@@ -69,14 +69,14 @@ describe('searchProjects', () => {
     const parent = createProject(db, {
       title: 'Secret parent',
       parentId: household.root.id,
-      reporterId: household.tristan.id,
+      reporterId: household.admin.id,
     });
-    grantRole(db, parent.id, household.tristan.id, 'admin');
+    grantRole(db, parent.id, household.admin.id, 'admin');
     createWorkflow(db, parent.id, { names: ['To do', 'Done'] });
     const child = createProject(db, {
       title: 'Secret child',
       parentId: parent.id,
-      reporterId: household.tristan.id,
+      reporterId: household.admin.id,
     });
     grantRole(db, child.id, server.id, 'user');
 
@@ -95,14 +95,14 @@ describe('searchProjects', () => {
     const trashed = createProject(db, {
       title: 'Searchable trashed item',
       parentId: household.home.id,
-      reporterId: household.tristan.id,
+      reporterId: household.admin.id,
     });
     expect(
-      searchProjects(db, actor(household.tristan), 'Searchable trashed').map((result) => result.id),
+      searchProjects(db, actor(household.admin), 'Searchable trashed').map((result) => result.id),
     ).toContain(trashed.id);
-    trashProjects(db, actor(household.tristan), [trashed.id]);
+    trashProjects(db, actor(household.admin), [trashed.id]);
     expect(
-      searchProjects(db, actor(household.tristan), 'Searchable trashed').map((result) => result.id),
+      searchProjects(db, actor(household.admin), 'Searchable trashed').map((result) => result.id),
     ).not.toContain(trashed.id);
   });
 
@@ -110,16 +110,16 @@ describe('searchProjects', () => {
     const archived = createProject(db, {
       title: 'Archived searchable item',
       parentId: household.root.id,
-      reporterId: household.tristan.id,
+      reporterId: household.admin.id,
       archived: true,
     });
-    grantRole(db, archived.id, household.tristan.id, 'admin');
+    grantRole(db, archived.id, household.admin.id, 'admin');
     expect(
-      searchProjects(db, actor(household.tristan, false), 'Archived searchable').map(
+      searchProjects(db, actor(household.admin, false), 'Archived searchable').map(
         (result) => result.id,
       ),
     ).not.toContain(archived.id);
-    const visible = searchProjects(db, actor(household.tristan, true), 'Archived searchable');
+    const visible = searchProjects(db, actor(household.admin, true), 'Archived searchable');
     expect(visible.map((result) => result.id)).toContain(archived.id);
     expect(visible.find((result) => result.id === archived.id)?.archived).toBe(true);
   });
@@ -130,21 +130,21 @@ describe('searchTrash', () => {
     const parent = createProject(db, {
       title: 'Trash search parent',
       parentId: household.home.id,
-      reporterId: household.tristan.id,
+      reporterId: household.admin.id,
     });
     createWorkflow(db, parent.id, { names: ['To do', 'Done'] });
     const item = createProject(db, {
       title: 'Boiler service reminder',
       parentId: parent.id,
-      reporterId: household.tristan.id,
+      reporterId: household.admin.id,
     });
-    trashProjects(db, actor(household.tristan), [parent.id]);
+    trashProjects(db, actor(household.admin), [parent.id]);
 
-    const all = searchTrash(db, actor(household.tristan), '');
+    const all = searchTrash(db, actor(household.admin), '');
     expect(all.map((entry) => entry.id)).toContain(item.id);
-    const filtered = searchTrash(db, actor(household.tristan), 'boiler');
+    const filtered = searchTrash(db, actor(household.admin), 'boiler');
     expect(filtered.map((entry) => entry.id)).toEqual([item.id]);
-    expect(searchTrash(db, actor(household.tristan), 'no-such-thing')).toEqual([]);
+    expect(searchTrash(db, actor(household.admin), 'no-such-thing')).toEqual([]);
 
     const outsider = await createUser(db, { username: 'trash-search-outsider' });
     expect(searchTrash(db, actor(outsider), 'boiler')).toEqual([]);

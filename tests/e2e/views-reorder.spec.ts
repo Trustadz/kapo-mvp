@@ -100,7 +100,7 @@ async function dragBetween(
 test('Card view reorders siblings between cards and opens Move on a card body', async ({
   page,
 }) => {
-  await login(page, 'tristan');
+  await login(page, 'admin');
   await openProject(page, 'Home improvement');
   await ensureInboxVisible(page);
   await chooseView(page, 'Card');
@@ -141,7 +141,7 @@ test('Card view reorders siblings between cards and opens Move on a card body', 
 test('Tree view reorders same-parent rows and falls back to Move across parents', async ({
   page,
 }) => {
-  await login(page, 'tristan');
+  await login(page, 'admin');
   await openProject(page, 'Home improvement');
   await ensureInboxVisible(page);
   await chooseView(page, 'Tree');
@@ -174,7 +174,7 @@ test('Tree view reorders same-parent rows and falls back to Move across parents'
 });
 
 test('List view reorders rows', async ({ page }) => {
-  await login(page, 'tristan');
+  await login(page, 'admin');
   await openProject(page, 'Home improvement');
   await ensureInboxVisible(page);
   await chooseView(page, 'List');

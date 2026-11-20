@@ -5,7 +5,7 @@ import { expect, test } from '@playwright/test';
  * redundant Search tab, while Search stays in the mobile top header.
  *
  * Runs at 390×844 in the `mobile` Playwright project, which depends on
- * `first-install` and its seeded mock household (Tristan has favorites, Maya
+ * `first-install` and its seeded mock household (Admin has favorites, Maya
  * has none).
  */
 
@@ -23,7 +23,7 @@ async function login(page: import('@playwright/test').Page, username: string): P
 
 test.describe('mobile favorites', () => {
   test('opens favorites from the bottom bar and navigates to a project', async ({ page }) => {
-    await login(page, 'tristan');
+    await login(page, 'admin');
 
     // Search remains reachable from the mobile top header.
     await expect(page.getByRole('link', { name: 'Search', exact: true })).toBeVisible();

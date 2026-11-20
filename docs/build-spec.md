@@ -218,7 +218,7 @@ Environment: `DATABASE_PATH=./data/kapo.db`, `UPLOAD_DIR=./data/uploads`,
 
 ## 10. Mock data (seed)
 
-Users: `tristan` / `kapo1234` (Admin), `maya` / `kapo1234` (User), `jules` / `kapo1234` (User),
+Users: `admin` / `kapo1234` (Admin), `maya` / `kapo1234` (User), `jules` / `kapo1234` (User),
 `alex` / `kapo1234` (Viewer). Root workflow: To do (start), In progress, Done (finish).
 Projects: Home improvement (Root child, with Renovate basement → Find contractor, Paint hallway,
 Install hall shelf, Garden beds, Fix kitchen tap), Household (Paint porch, Book boiler service),

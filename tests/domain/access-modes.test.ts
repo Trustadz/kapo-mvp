@@ -219,7 +219,7 @@ function getRoleOf(db: BetterSqliteDatabase, userId: string, projectId: string):
 describe('seeded Personal project is custom/private', () => {
   let test: TestDatabase;
   let db: BetterSqliteDatabase;
-  let tristan: FixtureUser;
+  let admin: FixtureUser;
   let maya: FixtureUser;
   let jules: FixtureUser;
   let alex: FixtureUser;
@@ -233,7 +233,7 @@ describe('seeded Personal project is custom/private', () => {
     await seedDatabase(db);
     const userId = (username: string): string =>
       (db.prepare('SELECT id FROM users WHERE username = ?').get(username) as { id: string }).id;
-    tristan = { id: userId('tristan'), username: 'tristan', email: 't@example.com', appRole: 'admin' };
+    admin = { id: userId('admin'), username: 'admin', email: 't@example.com', appRole: 'admin' };
     maya = { id: userId('maya'), username: 'maya', email: 'm@example.com', appRole: 'user' };
     jules = { id: userId('jules'), username: 'jules', email: 'j@example.com', appRole: 'user' };
     alex = { id: userId('alex'), username: 'alex', email: 'a@example.com', appRole: 'viewer' };
@@ -254,7 +254,7 @@ describe('seeded Personal project is custom/private', () => {
 
   it('marks Personal custom and keeps it readable for its project Admin only', () => {
     expect(getProjectAccessMode(db, personalId)).toBe('custom');
-    for (const user of [tristan]) {
+    for (const user of [admin]) {
       expect(canAdminProject(loadAccessContext(db, actor(user)), personalId)).toBe(true);
     }
     for (const user of [maya, jules, alex]) {
@@ -264,8 +264,8 @@ describe('seeded Personal project is custom/private', () => {
   });
 
   it('hides Personal from Root children lists and project pages', () => {
-    const tristanPage = getProjectPageData(db, actor(tristan), homeId)!;
-    expect(tristanPage.project.title).toBe('Home improvement');
+    const adminPage = getProjectPageData(db, actor(admin), homeId)!;
+    expect(adminPage.project.title).toBe('Home improvement');
     for (const user of [maya, jules, alex]) {
       const rootPage = getProjectPageData(db, actor(user), (
         db.prepare('SELECT id FROM projects WHERE parent_id IS NULL').get() as { id: string }
@@ -282,9 +282,9 @@ describe('seeded Personal project is custom/private', () => {
       const inbox = listInbox(db, actor(user));
       expect(inbox.map((item) => item.project.id)).not.toContain(weekendId);
     }
-    // Tristan sees both Personal and its Inbox child.
-    expect(searchProjects(db, actor(tristan), 'weekend').map((r) => r.id)).toContain(weekendId);
-    expect(listInbox(db, actor(tristan)).map((item) => item.project.id)).toContain(weekendId);
+    // Admin sees both Personal and its Inbox child.
+    expect(searchProjects(db, actor(admin), 'weekend').map((r) => r.id)).toContain(weekendId);
+    expect(listInbox(db, actor(admin)).map((item) => item.project.id)).toContain(weekendId);
   });
 
   it('drops lost-access favorites from navigation', () => {
@@ -292,7 +292,7 @@ describe('seeded Personal project is custom/private', () => {
     addFavorite(db, alex.id, weekendId);
     expect(getFavoriteProjects(maya.id, db).map((favorite) => favorite.id)).not.toContain(personalId);
     expect(getFavoriteProjects(alex.id, db).map((favorite) => favorite.id)).not.toContain(weekendId);
-    expect(getFavoriteProjects(tristan.id, db).map((favorite) => favorite.id)).toContain(personalId);
+    expect(getFavoriteProjects(admin.id, db).map((favorite) => favorite.id)).toContain(personalId);
   });
 
   it('hides trashed custom projects from other users Trash lists', () => {
@@ -300,15 +300,15 @@ describe('seeded Personal project is custom/private', () => {
     const errand = createProject(db, {
       title: 'Private errand',
       parentId: personalId,
-      reporterId: tristan.id,
+      reporterId: admin.id,
       settings: { access: 'inherit' },
     });
-    grantRole(db, errand.id, tristan.id, 'admin');
-    trashProjects(db, actor(tristan), [errand.id]);
+    grantRole(db, errand.id, admin.id, 'admin');
+    trashProjects(db, actor(admin), [errand.id]);
     for (const user of [maya, jules, alex]) {
       expect(listTrash(db, actor(user)).map((item) => item.id)).not.toContain(errand.id);
     }
-    expect(listTrash(db, actor(tristan)).map((item) => item.id)).toContain(errand.id);
+    expect(listTrash(db, actor(admin)).map((item) => item.id)).toContain(errand.id);
   });
 
   it('hides Personal from dashboard widgets', () => {
@@ -323,19 +323,19 @@ describe('seeded Personal project is custom/private', () => {
 
   it('hides custom child titles in a readable parent Activity', () => {
     // Home improvement is readable by maya; its custom child is not.
-    const customChild = createDomainProject(db, actor(tristan), {
+    const customChild = createDomainProject(db, actor(admin), {
       parentId: homeId,
       title: 'Maya cannot see this child',
     });
     setAccess(db, customChild.id, 'custom');
     removeGrant(db, customChild.id, maya.id);
 
-    const tristanPage = getProjectPageData(db, actor(tristan), homeId)!;
+    const adminPage = getProjectPageData(db, actor(admin), homeId)!;
     const mayaPage = getProjectPageData(db, actor(maya), homeId)!;
-    const tristanEvent = tristanPage.activity.events.find(
+    const adminEvent = adminPage.activity.events.find(
       (event) => event.target?.id === customChild.id,
     );
-    expect(tristanEvent?.target?.title).toBe('Maya cannot see this child');
+    expect(adminEvent?.target?.title).toBe('Maya cannot see this child');
     const mayaChildEvent = mayaPage.activity.events.find(
       (event) => event.action === 'project.child_created',
     );
