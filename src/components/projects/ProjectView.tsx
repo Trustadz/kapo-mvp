@@ -2,12 +2,16 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Avatar, Badge, Button, Card, Icon, Menu, Notice, Select, Toast } from '@/components/ui';
 import type { MenuItem } from '@/components/ui';
 import { formatDate, formatPersonName } from '@/lib/format';
 import { ActivityPanel } from './ActivityPanel';
 import { ChildProjects } from './ChildProjects';
+import {
+  readShowInboxPreference,
+  writeShowInboxPreference,
+} from './collectionVisibility';
 import {
   ArchiveDialog,
   AddProjectDialog,
@@ -130,9 +134,22 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
   const [toast, setToast] = useState<ToastState | null>(null);
   const [showArchivedSaving, setShowArchivedSaving] = useState(false);
   const [favoriteSaving, setFavoriteSaving] = useState(false);
+  // Default off, matching the server-rendered markup (the saved preference is
+  // read after hydration). The project id is stored alongside the value so
+  // client-side navigation to another project does not briefly reuse it.
+  const [showInboxState, setShowInboxState] = useState({ projectId: data.project.id, show: false });
+  const showInbox =
+    showInboxState.projectId === data.project.id ? showInboxState.show : false;
 
   const project = data.project;
   const refresh = () => router.refresh();
+
+  useEffect(() => {
+    setShowInboxState({
+      projectId: project.id,
+      show: readShowInboxPreference(project.id),
+    });
+  }, [project.id]);
   const notify = (message: string, tone: 'success' | 'error' | 'info' = 'success') =>
     setToast({ message, tone });
 
@@ -184,6 +201,13 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
     data.breadcrumb.find((ancestor) => `/p/${ancestor.id}` === project.fallbackHref)?.title ??
     (project.fallbackHref === '/' ? 'the dashboard' : 'the nearest visible project');
 
+  const toggleShowInbox = () => {
+    const next = !showInbox;
+    writeShowInboxPreference(project.id, next);
+    setShowInboxState({ projectId: project.id, show: next });
+    notify(next ? 'Inbox items are now shown.' : 'Inbox items are now hidden.');
+  };
+
   const menuItems: MenuItem[] = [];
   menuItems.push({
     id: 'show-archived',
@@ -193,8 +217,15 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
     disabled: showArchivedSaving,
     onSelect: () => void toggleShowArchived(),
   });
+  menuItems.push({
+    id: 'show-inbox',
+    label: 'Show Inbox items',
+    icon: 'inbox',
+    selected: showInbox,
+    onSelect: toggleShowInbox,
+  });
   if (project.parent) {
-    // Always useful to non-admins, who otherwise only see the per-user toggle.
+    // Always useful to non-admins, who otherwise only see the per-user toggles.
     menuItems.push({
       id: 'open-parent',
       label: 'Open parent project',
@@ -317,6 +348,7 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
     <ChildProjects
       data={data}
       canCreate={project.canCreateChild && canEdit}
+      showInbox={showInbox}
       onAddProject={() => setDialog({ kind: 'add' })}
       onMoveProject={openMove}
       refresh={refresh}

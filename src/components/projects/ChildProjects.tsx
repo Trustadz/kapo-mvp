@@ -6,6 +6,10 @@ import type { MenuItem } from '@/components/ui';
 import { COLLECTION_VIEW_LABELS, type CollectionView } from '@/lib/types';
 import { CollectionViewSwitch } from '@/components/views/CollectionViews';
 import type { CollectionViewContext } from '@/components/views/types';
+import {
+  filterInboxDescendants,
+  filterInboxItems,
+} from './collectionVisibility';
 import type { ProjectPageData } from './types';
 import styles from './ProjectPage.module.css';
 
@@ -14,6 +18,8 @@ const VIEW_STORAGE_PREFIX = 'kapo:collection-view:';
 export interface ChildProjectsProps {
   data: ProjectPageData;
   canCreate: boolean;
+  /** Viewer's per-project "Show Inbox items" preference (default false). */
+  showInbox: boolean;
   onAddProject: () => void;
   onMoveProject: (projectId: string, destinationId?: string) => void;
   refresh: () => void;
@@ -28,6 +34,7 @@ export interface ChildProjectsProps {
 export function ChildProjects({
   data,
   canCreate,
+  showInbox,
   onAddProject,
   onMoveProject,
   refresh,
@@ -61,7 +68,11 @@ export function ChildProjects({
     }
   };
 
-  const hasChildren = data.children.length > 0;
+  // Inbox children are hidden by default (issue #16); filtering here keeps
+  // Kanban counts, empty states and Tree selection/bulk actions consistent.
+  const children = filterInboxItems(data.children, showInbox);
+  const descendants = filterInboxDescendants(data.descendants, showInbox);
+  const hasChildren = children.length > 0;
 
   const toolItems: MenuItem[] = availableViews.map((option) => ({
     id: option,
@@ -77,8 +88,8 @@ export function ChildProjects({
     settings: data.settings,
     canEdit: data.project.canEdit,
     view,
-    children: data.children,
-    descendants: data.descendants,
+    children,
+    descendants,
     refresh,
     notify,
     openMoveDialog: onMoveProject,

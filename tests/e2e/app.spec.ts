@@ -125,8 +125,6 @@ test.describe('seeded application', () => {
     const title = ((await lastCard.locator('a').first().textContent()) ?? '').trim();
     expect(title).not.toBe('');
 
-    // Put the last card near the bottom edge so the panel would otherwise be
-    // clipped by the Kanban scroll container (issue #20).
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     const actionsButton = lastCard.getByRole('button', { name: `Actions for ${title}` });
     await expect(actionsButton).toBeVisible();
@@ -146,7 +144,6 @@ test.describe('seeded application', () => {
     expect(box.x + box.width).toBeLessThanOrEqual(viewport.width - 8);
     expect(box.y + box.height).toBeLessThanOrEqual(viewport.height - 8);
 
-    // The panel is actually painted where it reports: no ancestor clips it.
     const unclipped = await menu.evaluate((element) => {
       const rect = element.getBoundingClientRect();
       const target = document.elementFromPoint(
@@ -157,10 +154,39 @@ test.describe('seeded application', () => {
     });
     expect(unclipped).toBe(true);
 
-    // Escape still closes and returns focus to the trigger.
     await page.keyboard.press('Escape');
     await expect(menu).toHaveCount(0);
     await expect(actionsButton).toBeFocused();
+  });
+
+  test('hides Inbox children from project collections until Show Inbox items is on', async ({ page }) => {
+    await login(page, 'tristan');
+    const homeId = await findProjectId(page, 'Home improvement');
+    await page.goto(`/p/${homeId}`);
+    await expect(page.getByRole('heading', { level: 1, name: 'Home improvement' })).toBeVisible();
+
+    const inboxChild = page.getByRole('link', { name: 'Renovate basement', exact: true });
+    await expect(inboxChild).toHaveCount(0);
+    await expect(page.getByRole('region', { name: 'To do, 1 project' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Project actions' }).click();
+    const actionsMenu = page.getByRole('menu', { name: 'Project actions' });
+    const showInbox = actionsMenu.getByRole('menuitemradio', { name: 'Show Inbox items' });
+    await expect(showInbox).toHaveAttribute('aria-checked', 'false');
+    await showInbox.click();
+    await expect(page.getByText('Inbox items are now shown.')).toBeVisible();
+    await expect(inboxChild).toBeVisible();
+    await expect(page.getByRole('region', { name: 'To do, 2 projects' })).toBeVisible();
+
+    await page.reload();
+    await expect(inboxChild).toBeVisible();
+
+    await page.getByRole('button', { name: 'Project actions' }).click();
+    await page
+      .getByRole('menu', { name: 'Project actions' })
+      .getByRole('menuitemradio', { name: 'Show Inbox items' })
+      .click();
+    await expect(inboxChild).toHaveCount(0);
   });
 
   test('application Viewer sees a read-only project page and cannot mutate', async ({ page }) => {
