@@ -94,23 +94,19 @@ Copy `.env.example` to `.env.local` if you need to override defaults:
 | `UPLOAD_DIR` | `./data/uploads` | Profile picture uploads |
 | `KAPO_PUBLIC_URL` | `http://localhost:3000` | Absolute URL for metadata |
 | `KAPO_MIGRATIONS_DIR` | `./src/server/db/migrations` | SQL migration directory |
-| `KAPO_FORCE_SECURE_COOKIES` | unset (`0` in Compose) | Force `Secure` cookies behind TLS proxies |
-| `KAPO_DISABLE_PURGE` | unset (`0` in Compose) | `1` disables the automatic trash purge (backups continue) |
-| `KAPO_BACKUP_DIR` | `/backup` (Docker), `./data/backups` (dev fallback) | Internal rolling-backup destination; Compose sets `/backup` |
-| `KAPO_BIND` | `127.0.0.1` (Compose) | Host interface that publishes the app port |
-| `KAPO_PORT` | `3000` (Compose) | Host port that publishes the app |
-| `TZ` | `UTC` (Compose) | IANA timezone for the daily backup schedule and backup names |
+| `KAPO_FORCE_SECURE_COOKIES` | unset | Force `Secure` cookies behind TLS proxies |
+| `KAPO_DISABLE_PURGE` | unset | `1` disables the automatic trash purge (backups continue) |
+| `KAPO_BACKUP_DIR` | `/backup` (Docker), `./data/backups` (dev fallback) | Rolling-backup destination |
 
 Sessions are random, database-backed tokens (`sessions.token_hash` stores only a
 SHA-256 hash), so no session secret is required.
 
 ## Run on a server (Docker Compose)
 
-The repository is public; clone it directly on the server. Compose runs the
-application plus a one-shot init container, using two host folders:
-`./data` (SQLite database and uploads) and `./backup` (rolling backups). The
-folders live next to `docker-compose.yaml`, so they are easy to inspect, copy
-and back up.
+The repository is public; clone it directly on the server. Compose runs one
+application container with two host folders: `./data` (SQLite database and
+uploads) and `./backup` (rolling backups). Both live next to
+`docker-compose.yaml`, so they are easy to inspect, copy and back up.
 
 ### Prerequisites
 
@@ -118,8 +114,7 @@ and back up.
 - A DNS name pointing at the server and a TLS reverse proxy (Caddy, nginx or
   Traefik). Kapo itself serves plain HTTP on port 3000; terminate TLS at the
   proxy.
-- Outbound network access for the first build (Docker pulls
-  `node:24-bookworm-slim` and npm packages), or build/push the image elsewhere.
+- Outbound network access to pull the published image.
 - Disk space for the database, uploads and the configured number of backup
   copies (both the database and uploads are stored per backup). The defaults
   keep 3 backups.
@@ -129,14 +124,9 @@ and back up.
 ```bash
 git clone https://github.com/Trustadz/kapo-mvp.git kapo
 cd kapo
-cp .env.example .env
-# Edit .env and set at least:
-#   KAPO_PUBLIC_URL=https://kapo.example.com
-#   KAPO_PORT=3000
-#   TZ=Europe/Amsterdam
-# Keep KAPO_BIND=127.0.0.1 when a reverse proxy runs on this host;
-# set KAPO_BIND=0.0.0.0 only for direct LAN access without a proxy.
-docker compose pull        # fetch the published image
+# Edit docker-compose.yaml: set KAPO_PUBLIC_URL to your https:// address and
+# TZ to your timezone.
+docker compose pull
 docker compose up -d
 ```
 
@@ -146,21 +136,15 @@ same URL serves the app at `/login`.
 
 What the Compose file provides:
 
-- `restart: unless-stopped`, `init: true`, `stop_grace_period: 30s`, a
-  `/healthz` healthcheck, `no-new-privileges` and rotated JSON logs
-  (10 MB × 3).
-- Non-root runtime user UID/GID **1001** (`kapo`); only `/app/data` and
-  `/backup` are writable.
+- Pulls the published `ghcr.io/trustadz/kapo-mvp:latest` image.
+- `restart: unless-stopped`; the image's `/healthz` healthcheck is inherited.
+- Listens on **`127.0.0.1:3000`**, ready for a Caddy/nginx proxy on the same
+  host. Change the port mapping to `"3000:3000"` for direct LAN access.
 - `./data:/app/data` (database + uploads) and `./backup:/backup` (backups),
-  both bind-mounted host folders.
-- A one-shot `kapo-init` container runs as root first and creates/chowns those
-  folders to 1001, so a fresh `docker compose up` needs no manual `chown`.
-- Publishes `${KAPO_BIND:-127.0.0.1}:${KAPO_PORT:-3000}:3000`: by default it
-  listens on **localhost only**, suitable for a reverse proxy on the same host.
-  Set `KAPO_BIND=0.0.0.0` only when clients reach Kapo directly over the LAN
-  with no proxy and the port is protected by the firewall.
-- `KAPO_PUBLIC_URL`, `KAPO_BIND`, `KAPO_PORT`, `KAPO_IMAGE`, `KAPO_IMAGE_TAG`
-  and `TZ` read from `.env`.
+  both ordinary host folders.
+- The image entrypoint starts as root briefly, creates/chowns those folders,
+  then drops to the non-root `kapo` user (UID/GID 1001). There is no extra init
+  container and no manual `chown`.
 - A single replica: do not run multiple containers or Compose replicas against
   the same `data/` folder.
 
@@ -178,8 +162,14 @@ package page is
 [github.com/Trustadz/kapo-mvp/pkgs/container/kapo-mvp](https://github.com/Trustadz/kapo-mvp/pkgs/container/kapo-mvp).
 
 The image is built for **linux/amd64** (typical VPS). If your server is arm64,
-build on the server with `docker compose build` instead, or ask for an arm64
-publish.
+build on the server instead:
+
+```bash
+docker build -t ghcr.io/trustadz/kapo-mvp:latest .
+docker compose up -d
+```
+
+or ask for an arm64 publish.
 
 `docker compose pull` fetches the GHCR image; `docker compose up -d` starts it.
 If the package is private, authenticate once first:
@@ -191,15 +181,19 @@ echo "$GHCR_TOKEN" | docker login ghcr.io -u <github-username> --password-stdin
 Use a GitHub token with `read:packages` (classic) or the equivalent fine-grained
 permission. No registry login is needed when the package is public.
 
-To build the image locally instead, run `docker compose up -d --build` (or
-`docker compose build`); no registry is involved.
+To build the image locally instead, run:
+
+```bash
+docker build -t ghcr.io/trustadz/kapo-mvp:latest .
+docker compose up -d
+```
 
 ### TLS reverse proxy
 
 Terminate HTTPS at the proxy and forward to the container. Send the original
 `Host` and `X-Forwarded-Proto: https` so session cookies are marked `Secure`.
-If your proxy cannot set that header, add `KAPO_FORCE_SECURE_COOKIES=1` to
-`.env`.
+If your proxy cannot set that header, add `KAPO_FORCE_SECURE_COOKIES: "1"` under
+`environment:` in `docker-compose.yaml`.
 
 Example Caddyfile:
 
@@ -210,10 +204,9 @@ kapo.example.com {
 ```
 
 Only expose SSH and ports 80/443 on the firewall. The Compose default binds the
-app to `127.0.0.1`, so the proxy can reach it but the internet cannot.
-`KAPO_BIND=0.0.0.0` is intended only for direct LAN access without a proxy; in
-that case restrict the port with the firewall and do not expose it to the
-internet.
+app to `127.0.0.1`, so the proxy can reach it but the internet cannot. For
+direct LAN access without a proxy, change the port to `"3000:3000"` and restrict
+it with the firewall; do not expose it to the internet.
 
 ### Host folders and permissions
 
@@ -225,9 +218,9 @@ Data and backups are ordinary host directories next to the Compose file:
 ./backup/kapo-.../    rolling backup folders
 ```
 
-The one-shot `kapo-init` service creates them and sets UID/GID **1001** on every
-`docker compose up`, so root-owned folders from an earlier attempt are repaired
-automatically. No manual `chown` is normally needed.
+The image entrypoint creates them and sets UID/GID **1001** on every start, so
+root-owned folders from an earlier attempt are repaired automatically. No
+manual `chown` and no extra init container are needed.
 
 If you move the folders (for example to `/srv/kapo`), edit both the bind mounts
 and keep the container targets `/app/data` and `/backup`:
@@ -274,10 +267,10 @@ migrations; rolling back to an older image after a schema change is unsupported.
 
 ### Local Docker smoke test
 
-The same file works locally:
+The same file works locally with the published image:
 
 ```bash
-docker compose up --build -d
+docker compose up -d
 # first visit: http://localhost:3000/setup
 ```
 
