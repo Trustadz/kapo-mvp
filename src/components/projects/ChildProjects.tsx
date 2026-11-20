@@ -10,6 +10,14 @@ import {
   filterInboxDescendants,
   filterInboxItems,
 } from './collectionVisibility';
+import { ProjectFilterBar } from './ProjectFilterBar';
+import {
+  EMPTY_PROJECT_FILTERS,
+  filterProjectDescendants,
+  filterProjectItems,
+  reporterFilterOptions,
+  type ProjectFilterState,
+} from './projectFilters';
 import type { ProjectPageData } from './types';
 import styles from './ProjectPage.module.css';
 
@@ -27,9 +35,11 @@ export interface ChildProjectsProps {
 }
 
 /**
- * "Child projects" section: toolbar (view selector + Add project) and the four
- * collection views. When there are no children, collection views and the
- * selector are hidden while the Add project action is retained (product.md §4).
+ * Child-project section: filter bar, toolbar (view selector + Add project) and
+ * the four collection views. When there are no children, the collection views,
+ * filter bar and selector are hidden while the Add project action is retained
+ * (product.md §4). The visible "Child projects" heading is intentionally gone;
+ * the section keeps an accessible name only.
  */
 export function ChildProjects({
   data,
@@ -47,6 +57,17 @@ export function ChildProjects({
     ? data.settings.default_view
     : (availableViews[0] ?? 'kanban');
   const [view, setView] = useState<CollectionView>(fallbackView);
+  // Filters are session-only and scoped to one project: the project id is kept
+  // alongside the state so client-side navigation starts unfiltered instead of
+  // inheriting a query that may hide everything.
+  const [filterState, setFilterState] = useState({
+    projectId: data.project.id,
+    filters: EMPTY_PROJECT_FILTERS,
+  });
+  const filters =
+    filterState.projectId === data.project.id ? filterState.filters : EMPTY_PROJECT_FILTERS;
+  const setFilters = (next: ProjectFilterState) =>
+    setFilterState({ projectId: data.project.id, filters: next });
 
   useEffect(() => {
     try {
@@ -70,9 +91,42 @@ export function ChildProjects({
 
   // Inbox children are hidden by default (issue #16); filtering here keeps
   // Kanban counts, empty states and Tree selection/bulk actions consistent.
-  const children = filterInboxItems(data.children, showInbox);
-  const descendants = filterInboxDescendants(data.descendants, showInbox);
-  const hasChildren = children.length > 0;
+  const visibleChildren = filterInboxItems(data.children, showInbox);
+  const visibleDescendants = filterInboxDescendants(data.descendants, showInbox);
+  const hasChildren = visibleChildren.length > 0;
+
+  // Issue #55: filter before handing the collection to a view so every count,
+  // empty state and bulk action operates on the filtered set. The Tree keeps
+  // the ancestors of matches in `contextIds`; those rows stay read-only.
+  const filteredChildren = filterProjectItems(visibleChildren, filters);
+  const filteredTree = filterProjectDescendants(visibleDescendants, filters);
+  const filteredDescendants = filteredTree.rows;
+  const treeContextIds = filteredTree.contextIds.size > 0 ? filteredTree.contextIds : undefined;
+
+  const isTree = view === 'tree';
+  const collectionSize = isTree ? visibleDescendants.length : visibleChildren.length;
+  const matchingCount = isTree
+    ? filteredDescendants.length - filteredTree.contextIds.size
+    : filteredChildren.length;
+
+  // Reporter options come from the unfiltered visible collection for the active
+  // view (descendants for Tree), so narrowing the query does not remove options.
+  const reporterSource = isTree ? visibleDescendants : visibleChildren;
+  const reporters = reporterFilterOptions(reporterSource);
+  if (
+    filters.reporterId !== null &&
+    !reporters.some((reporter) => reporter.id === filters.reporterId)
+  ) {
+    // Keep the selected reporter selectable after a view switch that no longer
+    // lists them (e.g. a descendant-only reporter in Card view).
+    const known = [...data.children, ...data.descendants].find(
+      (project) => project.reporter.id === filters.reporterId,
+    );
+    if (known) {
+      reporters.push({ id: known.reporter.id, username: known.reporter.username });
+      reporters.sort((a, b) => a.username.localeCompare(b.username) || a.id.localeCompare(b.id));
+    }
+  }
 
   const toolItems: MenuItem[] = availableViews.map((option) => ({
     id: option,
@@ -88,8 +142,9 @@ export function ChildProjects({
     settings: data.settings,
     canEdit: data.project.canEdit,
     view,
-    children,
-    descendants,
+    children: filteredChildren,
+    descendants: filteredDescendants,
+    contextIds: treeContextIds,
     refresh,
     notify,
     openMoveDialog: onMoveProject,
@@ -98,12 +153,21 @@ export function ChildProjects({
 
   if (!hasChildren && !canCreate) return null;
 
+  const clearFilters = () => setFilters(EMPTY_PROJECT_FILTERS);
+
   return (
-    <section aria-labelledby="child-projects-heading">
+    <section aria-label="Child projects">
+      {hasChildren ? (
+        <ProjectFilterBar
+          filters={filters}
+          reporters={reporters}
+          onChange={setFilters}
+          matchingCount={matchingCount}
+          totalCount={collectionSize}
+        />
+      ) : null}
+
       <div className={styles.sectionHeader}>
-        <h2 id="child-projects-heading" className={styles.sectionTitle}>
-          Child projects
-        </h2>
         <div className={styles.sectionActions}>
           {hasChildren ? (
             <Menu
@@ -132,10 +196,21 @@ export function ChildProjects({
         </div>
       </div>
 
-      {/* F12: with no children the collection and its view selector are hidden
-          entirely; the section header keeps the Add project action for editors
+      {/* F12: with no children the collection, filter bar and view selector are
+          hidden entirely; the toolbar keeps the Add project action for editors
           and Activity stays below. */}
-      {hasChildren ? <CollectionViewSwitch ctx={ctx} /> : null}
+      {hasChildren ? (
+        matchingCount > 0 ? (
+          <CollectionViewSwitch ctx={ctx} />
+        ) : (
+          <div className={styles.filterEmpty} role="status">
+            <span className={styles.filterEmptyText}>No projects match these filters</span>
+            <Button size="sm" variant="quiet" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          </div>
+        )
+      ) : null}
     </section>
   );
 }

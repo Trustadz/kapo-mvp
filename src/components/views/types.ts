@@ -15,6 +15,11 @@ export interface CollectionViewContext {
   view: CollectionView;
   children: ProjectCard[];
   descendants: ProjectWithParent[];
+  /**
+   * Tree rows present only as ancestors of filter matches (issue #55). They
+   * keep the hierarchy connected and must render muted and read-only.
+   */
+  contextIds?: ReadonlySet<string>;
   refresh: () => void;
   notify: (message: string, tone?: 'success' | 'error' | 'info') => void;
   openMoveDialog: (projectId: string, destinationId?: string) => void;
