@@ -30,11 +30,12 @@ ENV NODE_ENV=production \
     KAPO_MIGRATIONS_DIR=/app/migrations \
     KAPO_BACKUP_DIR=/backup
 
-# The runtime user must own /app/data: SQLite needs to create the database,
-# WAL/SHM sidecars and uploads there. Docker initialises an empty named volume
-# from this directory (and its ownership), so kapo can write to the mount. The
-# backup volume at /backup is owned the same way for the rolling backups.
-RUN groupadd --system --gid 1001 kapo \
+# The image starts as root only long enough to fix ownership of the bind-mounted
+# data/backup folders, then the entrypoint drops to the unprivileged kapo user.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends gosu \
+  && rm -rf /var/lib/apt/lists/* \
+  && groupadd --system --gid 1001 kapo \
   && useradd --system --uid 1001 --gid kapo --create-home kapo \
   && mkdir -p /app/data/uploads /backup \
   && chown -R kapo:kapo /app /backup
@@ -59,7 +60,11 @@ RUN rm -rf /app/data \
   && mkdir -p /app/data/uploads \
   && chown -R kapo:kapo /app/data
 
-USER kapo
+COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod 0755 /usr/local/bin/docker-entrypoint.sh
+
+# Starts as root, fixes bind-mount ownership, then drops to kapo.
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 VOLUME ["/app/data", "/backup"]
 EXPOSE 3000
 

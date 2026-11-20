@@ -1,66 +1,16 @@
 services:
-  # One-shot root container: bind directories are created by Docker as root on
-  # a fresh checkout, but the app runs as UID/GID 1001. Fix ownership before
-  # the app starts so SQLite/uploads/backups are writable without manual chown.
-  kapo-init:
-    image: ${KAPO_IMAGE:-ghcr.io/trustadz/kapo-mvp}:${KAPO_IMAGE_TAG:-latest}
-    user: '0:0'
-    entrypoint:
-      [
-        'sh',
-        '-c',
-        'mkdir -p /app/data/uploads /backup && chown -R 1001:1001 /app/data /backup',
-      ]
-    restart: 'no'
-    volumes:
-      - ./data:/app/data
-      - ./backup:/backup
-
   kapo:
-    # Published by .github/workflows/publish-image.yaml. Local builds still
-    # work with `docker compose up -d --build`; production should `pull` first.
-    image: ${KAPO_IMAGE:-ghcr.io/trustadz/kapo-mvp}:${KAPO_IMAGE_TAG:-latest}
-    build:
-      context: .
+    image: ghcr.io/trustadz/kapo-mvp:latest
     container_name: kapo
-    depends_on:
-      kapo-init:
-        condition: service_completed_successfully
-    init: true
     restart: unless-stopped
-    stop_grace_period: 30s
     ports:
-      - '${KAPO_BIND:-127.0.0.1}:${KAPO_PORT:-3000}:3000'
+      # Localhost only: put Caddy/nginx in front for HTTPS. Use "3000:3000"
+      # instead if you want direct LAN access.
+      - "127.0.0.1:3000:3000"
     environment:
-      NODE_ENV: production
-      DATABASE_PATH: /app/data/kapo.db
-      UPLOAD_DIR: /app/data/uploads
-      KAPO_MIGRATIONS_DIR: /app/migrations
-      KAPO_PUBLIC_URL: ${KAPO_PUBLIC_URL:-http://localhost:3000}
-      # Daily backup destination and the timezone for its 02:00 schedule.
-      KAPO_BACKUP_DIR: /backup
-      TZ: ${TZ:-UTC}
-      KAPO_FORCE_SECURE_COOKIES: ${KAPO_FORCE_SECURE_COOKIES:-0}
-      KAPO_DISABLE_PURGE: ${KAPO_DISABLE_PURGE:-0}
+      # Change this to the address people type in the browser.
+      KAPO_PUBLIC_URL: https://kapo.example.com
+      TZ: Europe/Amsterdam
     volumes:
       - ./data:/app/data
       - ./backup:/backup
-    healthcheck:
-      test:
-        [
-          'CMD',
-          'node',
-          '-e',
-          "fetch('http://127.0.0.1:3000/healthz').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
-        ]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 20s
-    security_opt:
-      - no-new-privileges:true
-    logging:
-      driver: json-file
-      options:
-        max-size: 10m
-        max-file: '3'
