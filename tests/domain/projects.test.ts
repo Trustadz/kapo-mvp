@@ -903,3 +903,50 @@ describe('getProjectPageData archived fallbacks', () => {
     expect(rootPage.project.fallbackHref).toBe(`/p/${fixture.rootId}`);
   });
 });
+
+describe('layout template defaults (issue #17)', () => {
+  let fixture: Fixture;
+
+  beforeAll(async () => {
+    fixture = await makeFixture('layout');
+  });
+
+  it('defaults to an empty Details card with a status/reporter sidebar', () => {
+    const home = getProjectPageData(db, actor(fixture.tristan), fixture.homeId)!;
+    expect(home.layout).toEqual({ main: [], sidebar: ['status', 'reporter'] });
+
+    // Root inherits the same default: only the Details heading is rendered.
+    const root = getProjectPageData(db, actor(fixture.tristan), fixture.rootId)!;
+    expect(root.layout).toEqual({ main: [], sidebar: ['status', 'reporter'] });
+  });
+
+  it('keeps explicit templates and parent inheritance working', () => {
+    updateProjectSettings(db, actor(fixture.tristan), fixture.homeId, {
+      inherit_layout: false,
+      layout_template: {
+        main: ['projectId', 'parent', 'reporter'],
+        sidebar: ['status', 'reporter'],
+      },
+    });
+    const home = getProjectPageData(db, actor(fixture.tristan), fixture.homeId)!;
+    expect(home.layout).toEqual({
+      main: ['projectId', 'parent', 'reporter'],
+      sidebar: ['status', 'reporter'],
+    });
+
+    // Kitchen still inherits Home's explicit template.
+    const inherited = getProjectPageData(db, actor(fixture.tristan), fixture.kitchenId)!;
+    expect(inherited.layout).toEqual({
+      main: ['projectId', 'parent', 'reporter'],
+      sidebar: ['status', 'reporter'],
+    });
+
+    // A child can opt out and define its own template.
+    updateProjectSettings(db, actor(fixture.tristan), fixture.kitchenId, {
+      inherit_layout: false,
+      layout_template: { main: ['updated'], sidebar: ['parent'] },
+    });
+    const own = getProjectPageData(db, actor(fixture.tristan), fixture.kitchenId)!;
+    expect(own.layout).toEqual({ main: ['updated'], sidebar: ['parent'] });
+  });
+});
