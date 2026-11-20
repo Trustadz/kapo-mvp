@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   dropZoneAt,
+  insertionIndexAt,
+  planIndexReorder,
   planSiblingReorder,
+  priorityInsertionIndex,
   reorderEdgeAt,
 } from '@/lib/reorder';
 
@@ -113,5 +116,74 @@ describe('reorderEdgeAt', () => {
     expect(reorderEdgeAt(39, 0, 40)).toBe('after');
     expect(reorderEdgeAt(305, 300, 40)).toBe('before');
     expect(reorderEdgeAt(321, 300, 40)).toBe('after');
+  });
+});
+
+describe('insertionIndexAt', () => {
+  const cards = [
+    { top: 0, height: 80 },
+    { top: 100, height: 80 },
+    { top: 200, height: 80 },
+  ];
+
+  it('returns the slot before the first card when above its midpoint', () => {
+    expect(insertionIndexAt(-10, cards)).toBe(0);
+    expect(insertionIndexAt(0, cards)).toBe(0);
+    expect(insertionIndexAt(39, cards)).toBe(0);
+  });
+
+  it('uses each card midpoint to choose the slot after it', () => {
+    expect(insertionIndexAt(40, cards)).toBe(1);
+    expect(insertionIndexAt(99, cards)).toBe(1);
+    expect(insertionIndexAt(139, cards)).toBe(1);
+  });
+
+  it('counts gaps between cards as the next slot', () => {
+    expect(insertionIndexAt(90, cards)).toBe(1);
+    expect(insertionIndexAt(190, cards)).toBe(2);
+  });
+
+  it('returns cards.length below the last midpoint', () => {
+    expect(insertionIndexAt(240, cards)).toBe(3);
+    expect(insertionIndexAt(1000, cards)).toBe(3);
+  });
+
+  it('handles an empty column and zero-height measurements', () => {
+    expect(insertionIndexAt(42, [])).toBe(0);
+    expect(insertionIndexAt(42, [{ top: 0, height: 0 }])).toBe(1);
+  });
+});
+
+describe('planIndexReorder', () => {
+  it('plans a move to an explicit insertion slot', () => {
+    expect(planIndexReorder(SIBLINGS, 'd', 0)).toEqual({ beforeId: 'a', index: 0 });
+    expect(planIndexReorder(SIBLINGS, 'a', 2)).toEqual({ beforeId: 'd', index: 2 });
+    expect(planIndexReorder(SIBLINGS, 'a', 4)).toEqual({ beforeId: null, index: 3 });
+  });
+
+  it('returns null for the current slot and unknown cards', () => {
+    expect(planIndexReorder(SIBLINGS, 'b', 1)).toBeNull();
+    expect(planIndexReorder(SIBLINGS, 'zzz', 0)).toBeNull();
+    expect(planIndexReorder([], 'a', 0)).toBeNull();
+  });
+
+  it('clamps out-of-range slots instead of throwing', () => {
+    expect(planIndexReorder(SIBLINGS, 'd', -10)).toEqual({ beforeId: 'a', index: 0 });
+    expect(planIndexReorder(SIBLINGS, 'a', 99)).toEqual({ beforeId: null, index: 3 });
+  });
+});
+
+describe('priorityInsertionIndex', () => {
+  it('places a card between target-column cards by priority', () => {
+    const cards = [{ priority: 2 }, { priority: 5 }, { priority: 9 }];
+    expect(priorityInsertionIndex(cards, 1)).toBe(0);
+    expect(priorityInsertionIndex(cards, 4)).toBe(1);
+    expect(priorityInsertionIndex(cards, 5)).toBe(2);
+    expect(priorityInsertionIndex(cards, 8)).toBe(2);
+    expect(priorityInsertionIndex(cards, 10)).toBe(3);
+  });
+
+  it('returns 0 for an empty target column', () => {
+    expect(priorityInsertionIndex([], 7)).toBe(0);
   });
 });
