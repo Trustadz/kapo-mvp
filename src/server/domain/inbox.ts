@@ -10,6 +10,7 @@ import {
   getProjectCard,
   getProjectRow,
   mapProjectCard,
+  reorderProject,
 } from './projects';
 import { ensureWorkflow, listWorkflow } from './workflow';
 import {
@@ -159,6 +160,101 @@ export function releaseInboxProject(
   const updated = getProjectCard(db, projectId);
   if (!updated) throw new DomainError(500, 'internal', 'Could not release the project.');
   return updated;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Reorder (global priority)                                                 */
+/* ------------------------------------------------------------------------- */
+
+export interface ReorderInboxInput {
+  targetId?: unknown;
+  /** `'before'` or `'after'` the target in the single global sequence. */
+  edge?: unknown;
+}
+
+/**
+ * Reorders an Inbox capture in the application-wide priority sequence (#53).
+ *
+ * There is no Inbox-specific ordering model: `before` maps straight onto the
+ * global `reorderProject` call, and `after` computes the next *visible* project
+ * in the global sequence server-side and reorders before it. Hidden targets
+ * (unreadable, trashed, archived-hidden) are skipped so the API never has to
+ * pass a position the global reorder would reject. The capture keeps its Inbox
+ * flag and status because no status is supplied.
+ */
+export function reorderInboxProject(
+  db: BetterSqliteDatabase,
+  actor: AccessUser,
+  projectId: string,
+  input: ReorderInboxInput,
+): ProjectCard {
+  const ctx = loadAccessContext(db, actor);
+  const row = getProjectRow(db, projectId);
+  if (!row || !canReadProject(ctx, projectId)) {
+    throw new DomainError(404, 'not_found', 'Project not found.');
+  }
+  if (isTrashedProject(ctx, projectId)) {
+    throw new DomainError(409, 'trashed_read_only', 'Restore this project before reordering it.');
+  }
+  if (!canEditProject(ctx, projectId)) {
+    throw new DomainError(403, 'forbidden', 'You need edit access to reorder this project.');
+  }
+  if (row.inbox !== 1) {
+    throw new DomainError(
+      422,
+      'validation_failed',
+      'Only projects in the Inbox can be reordered this way.',
+    );
+  }
+
+  const targetId = typeof input.targetId === 'string' ? input.targetId.trim() : '';
+  if (!targetId) {
+    throw new DomainError(422, 'validation_failed', 'Choose where to place this project.', {
+      targetId: 'Choose a target project.',
+    });
+  }
+  const edge = input.edge === 'before' || input.edge === 'after' ? input.edge : null;
+  if (!edge) {
+    throw new DomainError(422, 'validation_failed', 'Choose before or after the target.', {
+      edge: 'Choose before or after.',
+    });
+  }
+  if (targetId === projectId) {
+    throw new DomainError(422, 'validation_failed', 'A project cannot be reordered against itself.', {
+      targetId: 'Choose a different target.',
+    });
+  }
+  const target = getProjectRow(db, targetId);
+  if (!target || !canReadProject(ctx, targetId)) {
+    throw new DomainError(404, 'not_found', 'Target project not found.');
+  }
+  if (isTrashedProject(ctx, targetId)) {
+    throw new DomainError(409, 'trashed_read_only', 'The target project is in Trash.');
+  }
+
+  let beforeId: string | null = targetId;
+  if (edge === 'after') {
+    // Insert before the next project the viewer can see after the target; when
+    // there is none, append. This keeps the capture immediately after the
+    // target in the visible global order without inventing a second sequence.
+    const order = db
+      .prepare('SELECT id FROM projects ORDER BY priority ASC, seq ASC')
+      .all() as Array<{ id: string }>;
+    const targetIndex = order.findIndex((entry) => entry.id === targetId);
+    if (targetIndex < 0) {
+      throw new DomainError(404, 'not_found', 'Target project not found.');
+    }
+    beforeId = null;
+    for (let index = targetIndex + 1; index < order.length; index += 1) {
+      const candidateId = order[index]!.id;
+      if (isActiveProject(ctx, candidateId)) {
+        beforeId = candidateId;
+        break;
+      }
+    }
+  }
+
+  return reorderProject(db, actor, projectId, { beforeId });
 }
 
 /* ------------------------------------------------------------------------- */

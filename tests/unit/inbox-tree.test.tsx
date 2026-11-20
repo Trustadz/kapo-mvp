@@ -83,6 +83,8 @@ const renderTree = (
       onToggleAll={() => {}}
       onReleaseSelected={() => {}}
       onClearSelection={() => {}}
+      onReorder={() => {}}
+      onReparent={() => {}}
     />,
   );
 
@@ -242,6 +244,34 @@ describe('Inbox Tree — application overview', () => {
     const directRow = html.match(/<tr[^>]*data-inbox="true"[^>]*>[\s\S]*?<\/tr>/)?.[0] ?? '';
     expect(directRow).toContain('Private capture');
     expect(html).toContain('style="padding-inline-start:0"');
+  });
+
+  it('makes only Inbox rows draggable drag sources', () => {
+    const html = renderTree(
+      [
+        item({
+          id: 'capture',
+          title: 'Book boiler service',
+          project: card({ id: 'capture', title: 'Book boiler service', parentId: 'home' }),
+        }),
+      ],
+      [
+        ROOT,
+        HOME,
+        node({
+          id: 'capture',
+          title: 'Book boiler service',
+          parentId: 'home',
+          inbox: true,
+          priority: 3,
+        }),
+      ],
+    );
+    const inboxRow = html.match(/<tr[^>]*data-inbox="true"[^>]*>/)?.[0] ?? '';
+    const contextRow = html.match(/<tr[^>]*data-context="true"[^>]*>/)?.[0] ?? '';
+    expect(inboxRow).toContain('draggable="true"');
+    expect(contextRow).toContain('draggable="false"');
+    expect(html).toContain('Drop one on another row’s middle');
   });
 
   it('reports bulk state and keeps Release selected disabled with no selection', () => {

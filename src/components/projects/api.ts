@@ -212,3 +212,11 @@ export function setShowArchived(showArchived: boolean): Promise<ApiResult<ShowAr
 export function statusOptionsFor(statuses: Status[]): Status[] {
   return [...statuses].sort((a, b) => a.position - b.position);
 }
+
+/** Move an Inbox capture before/after another project in the global order (#53). */
+export function reorderInboxRequest(
+  projectId: string,
+  body: { targetId: string; edge: 'before' | 'after' },
+): Promise<ApiResult<{ project: ProjectCard }>> {
+  return postJson(`/api/inbox/${projectId}/reorder`, body);
+}

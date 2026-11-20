@@ -36,6 +36,7 @@ const restoreRoute = await import('@/app/api/projects/[id]/restore/route');
 const inboxRoute = await import('@/app/api/inbox/route');
 const releaseRoute = await import('@/app/api/inbox/[id]/release/route');
 const changeParentRoute = await import('@/app/api/inbox/[id]/parent/route');
+const reorderInboxRoute = await import('@/app/api/inbox/[id]/reorder/route');
 const searchRoute = await import('@/app/api/search/route');
 
 // apiRoute-wrapped handlers take (request, context); these thin wrappers keep
@@ -646,6 +647,108 @@ describe('GET /api/inbox and release', () => {
       params('nope'),
     );
     expect(missing.status).toBe(404);
+  });
+});
+
+describe('POST /api/inbox/:id/reorder', () => {
+  async function captureInHome(title: string) {
+    const response = await capture(
+      request('/api/projects', {
+        method: 'POST',
+        body: { parentId: household.home.id, title },
+      }),
+    );
+    expect(response.status).toBe(201);
+    return (
+      await json<{ project: { id: string; statusId: string; inbox: boolean } }>(response)
+    ).project;
+  }
+
+  function reorder(projectId: string, body: Record<string, unknown>) {
+    return reorderInboxRoute.POST(
+      request(`/api/inbox/${projectId}/reorder`, { method: 'POST', body }),
+      params(projectId),
+    );
+  }
+
+  async function inboxIndex(projectId: string): Promise<number> {
+    const payload = await json<{ items: Array<{ project: { id: string } }> }>(await inboxGet());
+    return payload.items.findIndex((item) => item.project.id === projectId);
+  }
+
+  it('reorders before and after in the global sequence and keeps the capture in the Inbox', async () => {
+    const first = await captureInHome(`Reorder A ${Date.now()}`);
+    const second = await captureInHome(`Reorder B ${Date.now()}`);
+    const third = await captureInHome(`Reorder C ${Date.now()}`);
+
+    expect(await inboxIndex(first.id)).toBeLessThan(await inboxIndex(second.id));
+    expect(await inboxIndex(second.id)).toBeLessThan(await inboxIndex(third.id));
+
+    const movedAfter = await reorder(first.id, { targetId: third.id, edge: 'after' });
+    expect(movedAfter.status).toBe(200);
+    const afterPayload = await json<{
+      project: { inbox: boolean; statusId: string };
+    }>(movedAfter);
+    expect(afterPayload.project.inbox).toBe(true);
+    expect(afterPayload.project.statusId).toBe(first.statusId);
+    expect(await inboxIndex(third.id)).toBeLessThan(await inboxIndex(first.id));
+    expect(getProjectRow(db, first.id)!.priority).toBeGreaterThan(
+      getProjectRow(db, third.id)!.priority,
+    );
+
+    const movedBefore = await reorder(first.id, { targetId: second.id, edge: 'before' });
+    expect(movedBefore.status).toBe(200);
+    expect(await inboxIndex(first.id)).toBeLessThan(await inboxIndex(second.id));
+    expect(getProjectRow(db, first.id)!.priority).toBeLessThan(
+      getProjectRow(db, second.id)!.priority,
+    );
+    // The capture stayed in the Inbox and kept its status.
+    expect(getProjectRow(db, first.id)!.inbox).toBe(1);
+    expect(getProjectRow(db, first.id)!.status_id).toBe(first.statusId);
+  });
+
+  it('validates permissions, Inbox membership, trash, self and missing targets', async () => {
+    const project = await captureInHome(`Reorder validation ${Date.now()}`);
+
+    const self = await reorder(project.id, { targetId: project.id, edge: 'before' });
+    expect(self.status).toBe(422);
+    expect((await json<{ error: { code: string } }>(self)).error.code).toBe('validation_failed');
+
+    const missing = await reorder(project.id, { targetId: 'missing-project', edge: 'after' });
+    expect(missing.status).toBe(404);
+
+    const noEdge = await reorder(project.id, { targetId: household.home.id });
+    expect(noEdge.status).toBe(422);
+
+    // Only Inbox members can use this endpoint (Find contractor is not Inbox).
+    const nonInbox = await reorder(household.contractor.id, {
+      targetId: project.id,
+      edge: 'before',
+    });
+    expect(nonInbox.status).toBe(422);
+
+    // A Viewer is read-only even when a project grant would allow editing.
+    signIn(db, household.alex.id);
+    const forbidden = await reorder(project.id, { targetId: household.home.id, edge: 'before' });
+    expect(forbidden.status).toBe(403);
+
+    // A trashed target is not a valid drop position.
+    signIn(db, household.tristan.id);
+    const trashedTarget = createFixtureProject(db, {
+      title: `Trashed reorder target ${Date.now()}`,
+      parentId: household.home.id,
+      reporterId: household.tristan.id,
+      inbox: false,
+      trashedAt: new Date().toISOString(),
+    });
+    const trashed = await reorder(project.id, {
+      targetId: trashedTarget.id,
+      edge: 'before',
+    });
+    expect(trashed.status).toBe(409);
+
+    // Failed calls never changed the capture's Inbox membership.
+    expect(getProjectRow(db, project.id)!.inbox).toBe(1);
   });
 });
 

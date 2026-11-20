@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { InboxTreeNode } from '@/lib/projects';
-import { flattenInboxTree, indexInboxTree } from '@/lib/inbox-tree';
+import {
+  flattenInboxTree,
+  indexInboxTree,
+  orderInboxItemsByTree,
+  planSequenceMove,
+} from '@/lib/inbox-tree';
 
 /**
  * Pure hierarchy rules for the application-wide Inbox Tree (issue #54):
@@ -88,5 +93,72 @@ describe('flattenInboxTree', () => {
   it('collapsing the root hides everything below it', () => {
     const rows = flattenInboxTree(indexInboxTree(nodes), new Set(['root']));
     expect(rows.map((row) => row.node.id)).toEqual(['root']);
+  });
+});
+
+
+/**
+ * Insertion planning for Inbox drag (issue #53). The one global sequence is the
+ * authority: dropping before/after a target moves the dragged id exactly there,
+ * and a drop that changes nothing must not reach the API.
+ */
+describe('planSequenceMove', () => {
+  const ORDER = ['a', 'b', 'c', 'd'];
+
+  it('inserts before the target', () => {
+    expect(planSequenceMove(ORDER, 'd', 'b', 'before')).toEqual(['a', 'd', 'b', 'c']);
+    expect(planSequenceMove(ORDER, 'c', 'a', 'before')).toEqual(['c', 'a', 'b', 'd']);
+  });
+
+  it('inserts after the target', () => {
+    expect(planSequenceMove(ORDER, 'a', 'b', 'after')).toEqual(['b', 'a', 'c', 'd']);
+    expect(planSequenceMove(ORDER, 'b', 'd', 'after')).toEqual(['a', 'c', 'd', 'b']);
+  });
+
+  it('returns null for no-op, self and unknown targets', () => {
+    expect(planSequenceMove(ORDER, 'b', 'c', 'before')).toBeNull();
+    expect(planSequenceMove(ORDER, 'b', 'a', 'after')).toBeNull();
+    expect(planSequenceMove(ORDER, 'a', 'a', 'before')).toBeNull();
+    expect(planSequenceMove(ORDER, 'zzz', 'b', 'before')).toBeNull();
+    expect(planSequenceMove(ORDER, 'a', 'zzz', 'after')).toBeNull();
+    expect(planSequenceMove([], 'a', 'b', 'before')).toBeNull();
+  });
+
+  it('does not mutate the input list', () => {
+    const order = [...ORDER];
+    planSequenceMove(order, 'd', 'b', 'before');
+    expect(order).toEqual(ORDER);
+  });
+});
+
+describe('orderInboxItemsByTree', () => {
+  function treeItem(id: string) {
+    return {
+      project: {
+        id,
+      },
+    };
+  }
+
+  it('sorts Inbox items by their project position in the tree payload', () => {
+    const tree = [
+      node({ id: 'root', title: 'Root', priority: 0 }),
+      node({ id: 'a', title: 'A', parentId: 'root', priority: 1 }),
+      node({ id: 'b', title: 'B', parentId: 'root', priority: 2 }),
+    ];
+    const items = [treeItem('b'), treeItem('a')];
+    expect(orderInboxItemsByTree(items, tree).map((entry) => entry.project.id)).toEqual([
+      'a',
+      'b',
+    ]);
+  });
+
+  it('keeps items missing from the tree at the end', () => {
+    const tree = [node({ id: 'root', title: 'Root' })];
+    const items = [treeItem('released'), treeItem('root')];
+    expect(orderInboxItemsByTree(items, tree).map((entry) => entry.project.id)).toEqual([
+      'root',
+      'released',
+    ]);
   });
 });
