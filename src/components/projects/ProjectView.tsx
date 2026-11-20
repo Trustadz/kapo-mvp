@@ -305,7 +305,7 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
   return (
     <div className={styles.page}>
       <div>
-        <nav className={styles.breadcrumb} aria-label="Breadcrumb">
+        <nav className={`${styles.breadcrumb} ${styles.breadcrumbNav}`} aria-label="Breadcrumb">
           {project.isRoot ? (
             <span>Projects</span>
           ) : data.breadcrumb.length === 0 ? (
@@ -313,7 +313,7 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
           ) : (
             <>
               {data.breadcrumb.map((ancestor) => (
-                <span key={ancestor.id} className={styles.breadcrumb}>
+                <span key={ancestor.id} className={styles.breadcrumbItem}>
                   <Link href={`/p/${ancestor.id}`} className={styles.breadcrumbLink}>
                     {ancestor.title}
                   </Link>
