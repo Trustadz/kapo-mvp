@@ -299,7 +299,7 @@ test.describe('keyboard navigation and focus order', () => {
     await expect(titleInput).toBeFocused();
     await expectRingVisibleAndUnclipped(titleInput);
 
-    const above = page.getByLabel('Above the project details');
+    const above = page.getByLabel('Above details and properties');
     await above.focus();
     await page.keyboard.press('Space');
     await expect(above).toBeChecked();
@@ -307,7 +307,7 @@ test.describe('keyboard navigation and focus order', () => {
     const cancel = page.getByRole('button', { name: 'Cancel' });
     await cancel.focus();
     await page.keyboard.press('Enter');
-    await expect(page.getByLabel('Below the project details')).toBeChecked();
+    await expect(page.getByLabel('Below details and properties')).toBeChecked();
   });
 
   test('focus rings are not clipped in Favorites or the Inbox Tree', async ({ page }) => {

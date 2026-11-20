@@ -403,8 +403,8 @@ test.describe('labels, landmarks and announcements', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'General' })).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Project settings sections' })).toBeVisible();
     await expect(page.locator('#settings-title')).toHaveAttribute('required', '');
-    await expect(page.getByRole('group', { name: 'Child projects appear' })).toBeVisible();
-    await expect(page.getByRole('radio', { name: 'Below the project details' })).toBeChecked();
+    await expect(page.getByRole('group', { name: 'Project view appears' })).toBeVisible();
+    await expect(page.getByRole('radio', { name: 'Below details and properties' })).toBeChecked();
     await expectPageAudit(page);
 
     // Field errors are associated and announced (invalid username is a local
