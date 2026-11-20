@@ -11,7 +11,7 @@ import {
   getProjectRow,
   mapProjectCard,
 } from './projects';
-import { listWorkflow } from './workflow';
+import { ensureWorkflow, listWorkflow } from './workflow';
 import {
   DomainError,
   canAdminProject,
@@ -208,7 +208,7 @@ export function changeInboxParent(
 
   // Every project owns a workflow. The destination's Start status is the
   // capture's new status; read-only, so a GET/command never seeds a workflow.
-  const destinationWorkflow = listWorkflow(db, destinationId);
+  const destinationWorkflow = ensureWorkflow(db, destinationId);
   const start =
     destinationWorkflow.find((status) => status.isStart) ?? destinationWorkflow[0] ?? null;
   if (!start) {

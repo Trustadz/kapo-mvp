@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Database as BetterSqliteDatabase } from 'better-sqlite3';
 import { changeInboxParent, listInbox } from '@/server/domain/inbox';
 import { createProject as createDomainProject } from '@/server/domain/projects';
+import { listWorkflow } from '@/server/domain/workflow';
 import { DomainError } from '@/server/domain/permissions';
 import { createTestDatabase, type TestDatabase } from '../helpers/db';
 import {
@@ -151,6 +152,30 @@ describe('changeInboxParent', () => {
       .prepare('SELECT COUNT(*) AS count FROM project_search WHERE project_id = ?')
       .get(created.id) as { count: number };
     expect(indexed.count).toBe(1);
+  });
+
+  it('installs the default workflow when the destination has none yet', () => {
+    // A leaf project created before this fix has no statuses, so it used to be
+    // omitted from the destination picker. Any project must be able to receive
+    // a child immediately, so the mutation installs the default workflow.
+    const destination = createFixtureProject(db, {
+      title: 'Leaf destination',
+      parentId: rootId,
+      reporterId: admin.id,
+    });
+    grantRole(db, destination.id, admin.id, 'admin');
+    expect(listWorkflow(db, destination.id)).toEqual([]);
+
+    const created = capture('Move to a leaf');
+    const updated = changeInboxParent(db, actor(admin), created.id, {
+      destinationId: destination.id,
+    });
+
+    expect(updated.parent).toEqual({ id: destination.id, title: 'Leaf destination' });
+    expect(updated.statusName).toBe('To do');
+    const statuses = listWorkflow(db, destination.id);
+    expect(statuses.map((status) => status.name)).toEqual(['To do', 'Done']);
+    expect(statuses.find((status) => status.isStart)?.id).toBe(updated.statusId);
   });
 
   it('rejects the current parent, the capture itself and its descendants', () => {
