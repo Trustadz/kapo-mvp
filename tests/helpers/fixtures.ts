@@ -293,7 +293,7 @@ export function addFavorite(db: BetterSqliteDatabase, userId: string, projectId:
 }
 
 export interface FixtureHousehold {
-  tristan: FixtureUser;
+  admin: FixtureUser;
   maya: FixtureUser;
   jules: FixtureUser;
   alex: FixtureUser;
@@ -312,25 +312,25 @@ export interface FixtureHousehold {
 /**
  * A small but realistic household tree used by permission/search/inbox tests.
  *
- * Root (tristan admin; maya/jules user; alex viewer)
- * ├── Home improvement (tristan admin; maya/jules user; alex viewer)
+ * Root (admin admin; maya/jules user; alex viewer)
+ * ├── Home improvement (admin admin; maya/jules user; alex viewer)
  * │   ├── Renovate basement (maya admin; inbox)
  * │   │   └── Find contractor
  * │   └── Paint hallway (jules admin — no grant for maya)
  * ├── Household (maya admin)
  * │   └── Paint porch
- * └── Personal (tristan admin, private)
+ * └── Personal (admin admin, private)
  *     └── Plan weekend trip (inbox)
  */
 export async function buildHouseholdFixture(
   db: BetterSqliteDatabase,
 ): Promise<FixtureHousehold> {
-  const tristan = await createUser(db, { username: 'tristan', appRole: 'admin' });
+  const admin = await createUser(db, { username: 'admin', appRole: 'admin' });
   const maya = await createUser(db, { username: 'maya', appRole: 'user' });
   const jules = await createUser(db, { username: 'jules', appRole: 'user' });
   const alex = await createUser(db, { username: 'alex', appRole: 'viewer' });
 
-  const root = createRoot(db, tristan.id);
+  const root = createRoot(db, admin.id);
   grantRole(db, root.id, maya.id, 'user');
   grantRole(db, root.id, jules.id, 'user');
   grantRole(db, root.id, alex.id, 'viewer');
@@ -339,7 +339,7 @@ export async function buildHouseholdFixture(
   const home = createProject(db, {
     title: 'Home improvement',
     parentId: root.id,
-    reporterId: tristan.id,
+    reporterId: admin.id,
   });
   const household = createProject(db, {
     title: 'Household',
@@ -350,15 +350,15 @@ export async function buildHouseholdFixture(
   const personal = createProject(db, {
     title: 'Personal',
     parentId: root.id,
-    reporterId: tristan.id,
+    reporterId: admin.id,
     settings: { access: 'custom' },
   });
-  grantRole(db, home.id, tristan.id, 'admin');
+  grantRole(db, home.id, admin.id, 'admin');
   grantRole(db, home.id, maya.id, 'user');
   grantRole(db, home.id, jules.id, 'user');
   grantRole(db, home.id, alex.id, 'viewer');
   grantRole(db, household.id, maya.id, 'admin');
-  grantRole(db, personal.id, tristan.id, 'admin');
+  grantRole(db, personal.id, admin.id, 'admin');
 
   // Home improvement owns a three-column workflow for its children.
   createWorkflow(db, home.id);
@@ -390,7 +390,7 @@ export async function buildHouseholdFixture(
   const porch = createProject(db, {
     title: 'Paint porch',
     parentId: household.id,
-    reporterId: tristan.id,
+    reporterId: admin.id,
   });
 
   // Personal workflow.
@@ -402,12 +402,12 @@ export async function buildHouseholdFixture(
     inbox: true,
   });
 
-  addFavorite(db, tristan.id, home.id);
-  addFavorite(db, tristan.id, household.id);
-  addFavorite(db, tristan.id, personal.id);
+  addFavorite(db, admin.id, home.id);
+  addFavorite(db, admin.id, household.id);
+  addFavorite(db, admin.id, personal.id);
 
   return {
-    tristan,
+    admin,
     maya,
     jules,
     alex,

@@ -7,7 +7,7 @@ async function main(): Promise<void> {
   try {
     const summary = await seedDatabase(db);
     console.log(`Kapo seed complete: ${seedSummaryLine(summary)}`);
-    console.log('Accounts: tristan (Admin), maya (User), jules (User), alex (Viewer) — password kapo1234');
+    console.log('Accounts: admin (Admin), maya (User), jules (User), alex (Viewer) — password kapo1234');
   } finally {
     db.close();
   }

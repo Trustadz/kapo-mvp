@@ -41,7 +41,7 @@ async function openProject(page: Page, title: string): Promise<void> {
 }
 
 test('flow-over menus animate in and respect reduced motion', async ({ page }) => {
-  await login(page, 'tristan');
+  await login(page, 'admin');
   await openProject(page, 'Home improvement');
   // The shared e2e projects default to reduced motion for stable drag rects;
   // this spec explicitly exercises the animated path.
@@ -77,7 +77,7 @@ test('flow-over menus animate in and respect reduced motion', async ({ page }) =
 });
 
 test('a saved status stays marked until a full page reload', async ({ page }) => {
-  await login(page, 'tristan');
+  await login(page, 'admin');
   await openProject(page, 'Home improvement');
 
   const select = page.getByLabel('Project status');

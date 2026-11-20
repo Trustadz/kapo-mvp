@@ -14,13 +14,13 @@ import { newId } from './db/util';
 /**
  * Mock household data — build-spec §10, exactly.
  *
- * Accounts: tristan (Admin), maya (User), jules (User), alex (Viewer).
+ * Accounts: admin (Admin), maya (User), jules (User), alex (Viewer).
  * Root workflow: To do (start), In progress, Done (finish).
  * Project tree: Home improvement → Renovate basement → Find contractor plus
  * Paint hallway, Install hall shelf, Garden beds, Fix kitchen tap;
  * Household → Paint porch, Book boiler service; Personal → Plan weekend trip.
  * Inbox: Book boiler service, Plan weekend trip, Renovate basement.
- * Favorites (tristan): Home improvement, Household, Personal.
+ * Favorites (admin): Home improvement, Household, Personal.
  */
 
 export const SEED_PASSWORD = 'kapo1234';
@@ -36,14 +36,14 @@ export interface SeedSummary {
 }
 
 interface SeedUser {
-  key: 'tristan' | 'maya' | 'jules' | 'alex';
+  key: 'admin' | 'maya' | 'jules' | 'alex';
   username: string;
   email: string;
   appRole: 'admin' | 'user' | 'viewer';
 }
 
 const SEED_USERS: SeedUser[] = [
-  { key: 'tristan', username: 'tristan', email: 'tristan@example.com', appRole: 'admin' },
+  { key: 'admin', username: 'admin', email: 'admin@example.com', appRole: 'admin' },
   { key: 'maya', username: 'maya', email: 'maya@example.com', appRole: 'user' },
   { key: 'jules', username: 'jules', email: 'jules@example.com', appRole: 'user' },
   { key: 'alex', username: 'alex', email: 'alex@example.com', appRole: 'viewer' },
@@ -163,8 +163,8 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
         key: 'root',
         title: 'Root',
         parentKey: null,
-        reporterKey: 'tristan',
-        createdByKey: 'tristan',
+        reporterKey: 'admin',
+        createdByKey: 'admin',
         statusIndex: null,
         seq: 100,
         createdAt: daysAgo(4, 9, 5),
@@ -174,8 +174,8 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
         key: 'home',
         title: 'Home improvement',
         parentKey: 'root',
-        reporterKey: 'tristan',
-        createdByKey: 'tristan',
+        reporterKey: 'admin',
+        createdByKey: 'admin',
         statusIndex: 0,
         seq: 104,
         createdAt: daysAgo(3, 18, 4),
@@ -230,8 +230,8 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
         key: 'garden',
         title: 'Garden beds',
         parentKey: 'home',
-        reporterKey: 'tristan',
-        createdByKey: 'tristan',
+        reporterKey: 'admin',
+        createdByKey: 'admin',
         statusIndex: 1,
         seq: 109,
         createdAt: daysAgo(3, 11, 30),
@@ -263,8 +263,8 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
         key: 'porch',
         title: 'Paint porch',
         parentKey: 'household',
-        reporterKey: 'tristan',
-        createdByKey: 'tristan',
+        reporterKey: 'admin',
+        createdByKey: 'admin',
         statusIndex: 0,
         seq: 112,
         createdAt: daysAgo(2, 11, 0),
@@ -286,8 +286,8 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
         key: 'personal',
         title: 'Personal',
         parentKey: 'root',
-        reporterKey: 'tristan',
-        createdByKey: 'tristan',
+        reporterKey: 'admin',
+        createdByKey: 'admin',
         statusIndex: 0,
         seq: 114,
         createdAt: daysAgo(3, 8, 45),
@@ -298,8 +298,8 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
         key: 'weekend',
         title: 'Plan weekend trip',
         parentKey: 'personal',
-        reporterKey: 'tristan',
-        createdByKey: 'tristan',
+        reporterKey: 'admin',
+        createdByKey: 'admin',
         statusIndex: 0,
         inbox: true,
         seq: 115,
@@ -400,7 +400,7 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
     };
 
     // Permissions: shared projects have explicit grants; Personal is private
-    // to tristan; creators are explicitly project Admins on their projects.
+    // to admin; creators are explicitly project Admins on their projects.
     const sharedProjectKeys = ['home', 'household'];
     const insertRole = db.prepare(
       'INSERT OR REPLACE INTO project_roles (project_id, user_id, role) VALUES (?, ?, ?)',
@@ -409,12 +409,12 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
     insertRole.run(projectId('root'), userId('jules'), 'user');
     insertRole.run(projectId('root'), userId('alex'), 'viewer');
     for (const key of sharedProjectKeys) {
-      insertRole.run(projectId(key), userId('tristan'), 'admin');
+      insertRole.run(projectId(key), userId('admin'), 'admin');
       insertRole.run(projectId(key), userId('maya'), 'user');
       insertRole.run(projectId(key), userId('jules'), 'user');
       insertRole.run(projectId(key), userId('alex'), 'viewer');
     }
-    insertRole.run(projectId('personal'), userId('tristan'), 'admin');
+    insertRole.run(projectId('personal'), userId('admin'), 'admin');
     for (const project of projects) {
       if (project.key === 'root') continue;
       insertRole.run(projectId(project.key), userId(project.createdByKey), 'admin');
@@ -425,20 +425,20 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
       'INSERT OR IGNORE INTO favorites (user_id, project_id) VALUES (?, ?)',
     );
     for (const key of ['home', 'household', 'personal']) {
-      insertFavorite.run(userId('tristan'), projectId(key));
+      insertFavorite.run(userId('admin'), projectId(key));
     }
 
     const auditEvents: SeedEvent[] = [
       {
         projectKey: 'root',
-        actorKey: 'tristan',
+        actorKey: 'admin',
         action: AUDIT_ACTIONS.projectCreated,
         detail: 'Root project created',
         createdAt: daysAgo(4, 9, 5),
       },
       {
         projectKey: 'home',
-        actorKey: 'tristan',
+        actorKey: 'admin',
         action: AUDIT_ACTIONS.projectCreated,
         detail: 'Project created under Root',
         createdAt: daysAgo(3, 18, 4),
@@ -454,7 +454,7 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
       },
       {
         projectKey: 'home',
-        actorKey: 'tristan',
+        actorKey: 'admin',
         action: AUDIT_ACTIONS.projectStatusChanged,
         field: AUDIT_FIELDS.status,
         oldValue: 'In progress',
@@ -488,7 +488,7 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
       },
       {
         projectKey: 'garden',
-        actorKey: 'tristan',
+        actorKey: 'admin',
         action: AUDIT_ACTIONS.projectStatusChanged,
         field: AUDIT_FIELDS.status,
         oldValue: 'To do',
@@ -522,7 +522,7 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
       },
       {
         projectKey: 'household',
-        actorKey: 'tristan',
+        actorKey: 'admin',
         action: AUDIT_ACTIONS.childCreated,
         targetKey: 'porch',
         newValue: 'Paint porch',
@@ -540,14 +540,14 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
       },
       {
         projectKey: 'personal',
-        actorKey: 'tristan',
+        actorKey: 'admin',
         action: AUDIT_ACTIONS.projectCreated,
         detail: 'Project created under Root',
         createdAt: daysAgo(3, 8, 45),
       },
       {
         projectKey: 'weekend',
-        actorKey: 'tristan',
+        actorKey: 'admin',
         action: AUDIT_ACTIONS.projectCreated,
         detail: 'Project created under Personal',
         createdAt: daysAgo(2, 8, 25),
@@ -585,7 +585,7 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
       favorites: count('favorites'),
       auditEvents: count('audit_events'),
       rootProjectId: projectId('root'),
-      adminId: userId('tristan'),
+      adminId: userId('admin'),
     };
   });
 

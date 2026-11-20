@@ -50,7 +50,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   resetRequestContext();
-  signIn(db, household.tristan.id);
+  signIn(db, household.admin.id);
 });
 
 afterAll(() => {
@@ -163,7 +163,7 @@ describe('GET /api/projects/:id/activity', () => {
     const project = createProject(db, {
       title: 'Activity project',
       parentId: household.home.id,
-      reporterId: household.tristan.id,
+      reporterId: household.admin.id,
     });
     for (let index = 0; index < 3; index += 1) {
       await projectRoute.PATCH(
@@ -209,7 +209,7 @@ describe('GET /api/projects/:id/activity', () => {
     const outsider = await createProject(db, {
       title: 'Activity hidden',
       parentId: household.root.id,
-      reporterId: household.tristan.id,
+      reporterId: household.admin.id,
     });
     const noAccess = await createUser(db, { username: 'activity-outsider' });
     signIn(db, noAccess.id);
@@ -226,10 +226,10 @@ describe('GET/PUT /api/projects/:id/settings', () => {
     const project = createProject(db, {
       title: 'Settings project',
       parentId: household.root.id,
-      reporterId: household.tristan.id,
+      reporterId: household.admin.id,
     });
     createWorkflow(db, project.id, { names: ['To do', 'Done'] });
-    grantRole(db, project.id, household.tristan.id, 'admin');
+    grantRole(db, project.id, household.admin.id, 'admin');
     const workflow = await workflowRoute.GET(
       request(`/api/projects/${project.id}/workflow`),
       params(project.id),
@@ -278,10 +278,10 @@ describe('GET/PUT /api/projects/:id/settings', () => {
     const project = createProject(db, {
       title: 'Invalid settings project',
       parentId: household.root.id,
-      reporterId: household.tristan.id,
+      reporterId: household.admin.id,
     });
     createWorkflow(db, project.id, { names: ['To do', 'Done'] });
-    grantRole(db, project.id, household.tristan.id, 'admin');
+    grantRole(db, project.id, household.admin.id, 'admin');
 
     for (const body of [
       { enabled_views: [] },
@@ -309,17 +309,17 @@ describe('GET/PUT /api/projects/:id/workflow', () => {
     const project = createProject(db, {
       title: 'Workflow API project',
       parentId: household.root.id,
-      reporterId: household.tristan.id,
+      reporterId: household.admin.id,
     });
     const statuses = createWorkflow(db, project.id, { names: ['To do', 'Doing', 'Done'] });
-    grantRole(db, project.id, household.tristan.id, 'admin');
+    grantRole(db, project.id, household.admin.id, 'admin');
     const child = createProject(db, {
       title: 'Workflow API child',
       parentId: project.id,
-      reporterId: household.tristan.id,
+      reporterId: household.admin.id,
       statusId: statuses[1]!.id,
     });
-    grantRole(db, child.id, household.tristan.id, 'admin');
+    grantRole(db, child.id, household.admin.id, 'admin');
 
     const withoutMapping = await workflowRoute.PUT(
       request(`/api/projects/${project.id}/workflow`, {

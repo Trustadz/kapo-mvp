@@ -30,7 +30,7 @@ import {
  */
 
 interface Fixture {
-  tristan: FixtureUser;
+  admin: FixtureUser;
   maya: FixtureUser;
   viewer: FixtureUser;
   rootId: string;
@@ -54,35 +54,35 @@ interface RelationRow {
 }
 
 async function makeFixture(label: string): Promise<Fixture> {
-  const tristan = await createUser(db, { username: `${label}-tristan`, appRole: 'admin' });
+  const admin = await createUser(db, { username: `${label}-admin`, appRole: 'admin' });
   const maya = await createUser(db, { username: `${label}-maya`, appRole: 'user' });
   const viewer = await createUser(db, { username: `${label}-viewer`, appRole: 'viewer' });
-  const root = sharedRoot ?? createRoot(db, tristan.id);
+  const root = sharedRoot ?? createRoot(db, admin.id);
   sharedRoot = root;
   grantRole(db, root.id, maya.id, 'user');
   grantRole(db, root.id, viewer.id, 'viewer');
   const home = createFixtureProject(db, {
     title: 'Home improvement',
     parentId: root.id,
-    reporterId: tristan.id,
+    reporterId: admin.id,
   });
-  grantRole(db, home.id, tristan.id, 'admin');
+  grantRole(db, home.id, admin.id, 'admin');
   grantRole(db, home.id, maya.id, 'user');
   grantRole(db, home.id, viewer.id, 'viewer');
   const homeStatuses = createWorkflow(db, home.id);
   const kitchen = createFixtureProject(db, {
     title: 'Kitchen',
     parentId: home.id,
-    reporterId: tristan.id,
+    reporterId: admin.id,
   });
   const inboxChild = createFixtureProject(db, {
     title: 'Inbox child',
     parentId: home.id,
-    reporterId: tristan.id,
+    reporterId: admin.id,
     inbox: true,
   });
   return {
-    tristan,
+    admin,
     maya,
     viewer,
     rootId: root.id,
@@ -140,7 +140,7 @@ describe('createProject', () => {
   });
 
   it('derives status, priority, reporter and Inbox from the parent', () => {
-    const card = createProject(db, actor(fixture.tristan), {
+    const card = createProject(db, actor(fixture.admin), {
       parentId: fixture.homeId,
       title: '  Paint   the hallway  ',
     });
@@ -150,7 +150,7 @@ describe('createProject', () => {
     expect(card.statusName).toBe('To do');
     expect(card.priority).toBeGreaterThan(fixture.inboxChildId ? 1 : 0);
     expect(card.inbox).toBe(true);
-    expect(card.reporter.id).toBe(fixture.tristan.id);
+    expect(card.reporter.id).toBe(fixture.admin.id);
     expect(card.displayId).toBe(displayId(card.seq));
     expect(card.displayId).toMatch(/^KAP-\d+$/);
   });
@@ -159,7 +159,7 @@ describe('createProject', () => {
     const before = db
       .prepare('SELECT COALESCE(MAX(priority), -1) AS priority FROM projects')
       .get() as { priority: number };
-    const card = createProject(db, actor(fixture.tristan), {
+    const card = createProject(db, actor(fixture.admin), {
       parentId: fixture.homeId,
       title: 'Appended project',
     });
@@ -175,14 +175,14 @@ describe('createProject', () => {
       .prepare('SELECT user_id, role FROM project_roles WHERE project_id = ?')
       .all(child.id) as Array<{ user_id: string; role: string }>;
     const roles = new Map(grants.map((grant) => [grant.user_id, grant.role]));
-    // Parent had tristan admin, maya user, viewer viewer — copied over.
-    expect(roles.get(fixture.tristan.id)).toBe('admin');
+    // Parent had admin admin, maya user, viewer viewer — copied over.
+    expect(roles.get(fixture.admin.id)).toBe('admin');
     expect(roles.get(fixture.maya.id)).toBe('admin');
     expect(roles.get(fixture.viewer.id)).toBe('viewer');
   });
 
   it('writes project.created and parent child_created audit events', () => {
-    const card = createProject(db, actor(fixture.tristan), {
+    const card = createProject(db, actor(fixture.admin), {
       parentId: fixture.homeId,
       title: 'Audited child',
     });
@@ -199,7 +199,7 @@ describe('createProject', () => {
   });
 
   it('indexes the new title for search', () => {
-    const card = createProject(db, actor(fixture.tristan), {
+    const card = createProject(db, actor(fixture.admin), {
       parentId: fixture.homeId,
       title: 'Unique searchable widget',
     });
@@ -213,7 +213,7 @@ describe('createProject', () => {
   it('validates the title', () => {
     const error = (() => {
       try {
-        createProject(db, actor(fixture.tristan), { parentId: fixture.homeId, title: '   ' });
+        createProject(db, actor(fixture.admin), { parentId: fixture.homeId, title: '   ' });
         return null;
       } catch (caught) {
         return caught as DomainError;
@@ -242,9 +242,9 @@ describe('createProject', () => {
     const privateParent = createFixtureProject(db, {
       title: 'Private parent',
       parentId: fixture.rootId,
-      reporterId: fixture.tristan.id,
+      reporterId: fixture.admin.id,
     });
-    grantRole(db, privateParent.id, fixture.tristan.id, 'admin');
+    grantRole(db, privateParent.id, fixture.admin.id, 'admin');
     const outsider = await createUser(db, { username: 'create-outsider' });
     const error = (() => {
       try {
@@ -265,7 +265,7 @@ describe('createProject', () => {
     );
     const error = (() => {
       try {
-        createProject(db, actor(fixture.tristan), { parentId: fixture.kitchenId, title: 'Nope' });
+        createProject(db, actor(fixture.admin), { parentId: fixture.kitchenId, title: 'Nope' });
         return null;
       } catch (caught) {
         return caught as DomainError;
@@ -278,15 +278,15 @@ describe('createProject', () => {
   });
 
   it('honours the parent skip_inbox setting', () => {
-    updateProjectSettings(db, actor(fixture.tristan), fixture.homeId, { skip_inbox: true });
+    updateProjectSettings(db, actor(fixture.admin), fixture.homeId, { skip_inbox: true });
     try {
-      const card = createProject(db, actor(fixture.tristan), {
+      const card = createProject(db, actor(fixture.admin), {
         parentId: fixture.homeId,
         title: 'Skipped inbox',
       });
       expect(card.inbox).toBe(false);
     } finally {
-      updateProjectSettings(db, actor(fixture.tristan), fixture.homeId, { skip_inbox: false });
+      updateProjectSettings(db, actor(fixture.admin), fixture.homeId, { skip_inbox: false });
     }
   });
 });
@@ -299,11 +299,11 @@ describe('updateProject', () => {
   });
 
   it('renames with an audit event and refreshes the search index', () => {
-    const card = createProject(db, actor(fixture.tristan), {
+    const card = createProject(db, actor(fixture.admin), {
       parentId: fixture.homeId,
       title: 'Old name',
     });
-    const result = updateProject(db, actor(fixture.tristan), card.id, { title: '  New   name ' });
+    const result = updateProject(db, actor(fixture.admin), card.id, { title: '  New   name ' });
     expect(result.project.title).toBe('New name');
     const rename = auditRows(card.id).find((event) => event.action === 'project.renamed');
     expect(rename).toMatchObject({
@@ -322,13 +322,13 @@ describe('updateProject', () => {
   });
 
   it('changes status from the parent workflow and clears Inbox', () => {
-    const card = createProject(db, actor(fixture.tristan), {
+    const card = createProject(db, actor(fixture.admin), {
       parentId: fixture.homeId,
       title: 'Status change',
     });
     expect(card.inbox).toBe(true);
     const done = fixture.homeStatuses.find((status) => status.isFinish)!;
-    const result = updateProject(db, actor(fixture.tristan), card.id, { statusId: done.id });
+    const result = updateProject(db, actor(fixture.admin), card.id, { statusId: done.id });
     expect(result.project.statusId).toBe(done.id);
     expect(result.project.inbox).toBe(false);
     const event = auditRows(card.id).find((row) => row.action === 'project.status_changed');
@@ -336,14 +336,14 @@ describe('updateProject', () => {
   });
 
   it('logs only the child\'s own field changes, never the parent\'s', () => {
-    const card = createProject(db, actor(fixture.tristan), {
+    const card = createProject(db, actor(fixture.admin), {
       parentId: fixture.homeId,
       title: 'Quiet child',
     });
     const parentBefore = auditRows(fixture.homeId).length;
-    updateProject(db, actor(fixture.tristan), card.id, { title: 'Quiet child renamed' });
+    updateProject(db, actor(fixture.admin), card.id, { title: 'Quiet child renamed' });
     const finish = fixture.homeStatuses.find((status) => status.isFinish)!;
-    updateProject(db, actor(fixture.tristan), card.id, { statusId: finish.id });
+    updateProject(db, actor(fixture.admin), card.id, { statusId: finish.id });
     // The parent only logs child creation/trashing (build-spec §6 rule 10).
     expect(auditRows(fixture.homeId)).toHaveLength(parentBefore);
   });
@@ -352,17 +352,17 @@ describe('updateProject', () => {
     const other = createFixtureProject(db, {
       title: 'Other workflow owner',
       parentId: fixture.rootId,
-      reporterId: fixture.tristan.id,
+      reporterId: fixture.admin.id,
     });
-    grantRole(db, other.id, fixture.tristan.id, 'admin');
+    grantRole(db, other.id, fixture.admin.id, 'admin');
     const foreignStatuses = createWorkflow(db, other.id, { names: ['A', 'B'] });
-    const card = createProject(db, actor(fixture.tristan), {
+    const card = createProject(db, actor(fixture.admin), {
       parentId: fixture.homeId,
       title: 'Foreign status',
     });
     const error = (() => {
       try {
-        updateProject(db, actor(fixture.tristan), card.id, { statusId: foreignStatuses[0]!.id });
+        updateProject(db, actor(fixture.admin), card.id, { statusId: foreignStatuses[0]!.id });
         return null;
       } catch (caught) {
         return caught as DomainError;
@@ -373,13 +373,13 @@ describe('updateProject', () => {
   });
 
   it('rejects an empty title without writing', () => {
-    const card = createProject(db, actor(fixture.tristan), {
+    const card = createProject(db, actor(fixture.admin), {
       parentId: fixture.homeId,
       title: 'Keep me',
     });
     const error = (() => {
       try {
-        updateProject(db, actor(fixture.tristan), card.id, { title: '  ' });
+        updateProject(db, actor(fixture.admin), card.id, { title: '  ' });
         return null;
       } catch (caught) {
         return caught as DomainError;
@@ -390,16 +390,16 @@ describe('updateProject', () => {
   });
 
   it('archives and unarchives (project Admin only) with audit events', () => {
-    const card = createProject(db, actor(fixture.tristan), {
+    const card = createProject(db, actor(fixture.admin), {
       parentId: fixture.homeId,
       title: 'Archive me',
     });
-    const archived = updateProject(db, actor(fixture.tristan), card.id, { archived: true });
+    const archived = updateProject(db, actor(fixture.admin), card.id, { archived: true });
     expect(archived.project.archived).toBe(true);
     const archiveEvent = auditRows(card.id).find((row) => row.action === 'project.archived');
     expect(archiveEvent?.field).toBe('archived');
 
-    const unarchived = updateProject(db, actor(fixture.tristan), card.id, { archived: false });
+    const unarchived = updateProject(db, actor(fixture.admin), card.id, { archived: false });
     expect(unarchived.project.archived).toBe(false);
     expect(
       auditRows(card.id).some((row) => row.action === 'project.unarchived'),
@@ -419,7 +419,7 @@ describe('updateProject', () => {
   it('never lets Root change status or be archived', () => {
     const statusError = (() => {
       try {
-        updateProject(db, actor(fixture.tristan), fixture.rootId, {
+        updateProject(db, actor(fixture.admin), fixture.rootId, {
           statusId: fixture.homeStatuses[0]!.id,
         });
         return null;
@@ -430,7 +430,7 @@ describe('updateProject', () => {
     expect(statusError?.status).toBe(422);
     const archiveError = (() => {
       try {
-        updateProject(db, actor(fixture.tristan), fixture.rootId, { archived: true });
+        updateProject(db, actor(fixture.admin), fixture.rootId, { archived: true });
         return null;
       } catch (caught) {
         return caught as DomainError;
@@ -440,7 +440,7 @@ describe('updateProject', () => {
   });
 
   it('blocks a Viewer and a trashed project, and hides unreadable projects', async () => {
-    const card = createProject(db, actor(fixture.tristan), {
+    const card = createProject(db, actor(fixture.admin), {
       parentId: fixture.homeId,
       title: 'Restricted',
     });
@@ -459,7 +459,7 @@ describe('updateProject', () => {
     ).run(new Date().toISOString(), new Date(Date.now() + 86_400_000).toISOString(), card.id);
     const trashedError = (() => {
       try {
-        updateProject(db, actor(fixture.tristan), card.id, { title: 'Rename trashed' });
+        updateProject(db, actor(fixture.admin), card.id, { title: 'Rename trashed' });
         return null;
       } catch (caught) {
         return caught as DomainError;
@@ -491,7 +491,7 @@ describe('setProjectFavorite', () => {
   });
 
   it('toggles and sets the favorite flag without granting access', async () => {
-    const card = createProject(db, actor(fixture.tristan), {
+    const card = createProject(db, actor(fixture.admin), {
       parentId: fixture.homeId,
       title: 'Favorite me',
     });
@@ -546,7 +546,7 @@ describe('reorderProject', () => {
     const order = siblingOrder(fixture.homeId);
     const target = order.at(-1)!;
     const first = order[0]!;
-    reorderProject(db, actor(fixture.tristan), target, { beforeId: first });
+    reorderProject(db, actor(fixture.admin), target, { beforeId: first });
     expect(siblingOrder(fixture.homeId)[0]).toBe(target);
     // Issue #53: the whole app shares one contiguous global sequence.
     expect(globalPriorities()).toEqual(globalPriorities().map((_, index) => index));
@@ -555,7 +555,7 @@ describe('reorderProject', () => {
   it('appends at the end of the global sequence when beforeId is null', () => {
     const order = siblingOrder(fixture.homeId);
     const dragged = order[0]!;
-    reorderProject(db, actor(fixture.tristan), dragged, { beforeId: null });
+    reorderProject(db, actor(fixture.admin), dragged, { beforeId: null });
     expect(globalOrder().at(-1)).toBe(dragged);
     expect(siblingOrder(fixture.homeId).at(-1)).toBe(dragged);
     expect(globalPriorities()).toEqual(globalPriorities().map((_, index) => index));
@@ -563,22 +563,22 @@ describe('reorderProject', () => {
 
   it('moves before a project under a different parent in the global sequence', () => {
     // Global order starts as [target, moved, otherChild].
-    const target = createProject(db, actor(fixture.tristan), {
+    const target = createProject(db, actor(fixture.admin), {
       parentId: fixture.rootId,
       title: 'Global target',
     });
-    const moved = createProject(db, actor(fixture.tristan), {
+    const moved = createProject(db, actor(fixture.admin), {
       parentId: fixture.homeId,
       title: 'Global mover',
     });
-    const otherChild = createProject(db, actor(fixture.tristan), {
+    const otherChild = createProject(db, actor(fixture.admin), {
       parentId: fixture.rootId,
       title: 'Another root child',
     });
     const rootBefore = siblingOrder(fixture.rootId);
     expect(rootBefore.indexOf(target.id)).toBeLessThan(rootBefore.indexOf(otherChild.id));
 
-    reorderProject(db, actor(fixture.tristan), moved.id, { beforeId: target.id });
+    reorderProject(db, actor(fixture.admin), moved.id, { beforeId: target.id });
 
     const ids = globalOrder();
     expect(ids.indexOf(moved.id)).toBe(ids.indexOf(target.id) - 1);
@@ -595,7 +595,7 @@ describe('reorderProject', () => {
   });
 
   it('keeps priority shared across statuses when only moving columns', () => {
-    const card = createProject(db, actor(fixture.tristan), {
+    const card = createProject(db, actor(fixture.admin), {
       parentId: fixture.homeId,
       title: 'Column move',
     });
@@ -603,7 +603,7 @@ describe('reorderProject', () => {
       .prepare('SELECT priority FROM projects WHERE id = ?')
       .get(card.id) as { priority: number };
     const inProgress = fixture.homeStatuses[1]!;
-    const result = updateProject(db, actor(fixture.tristan), card.id, {
+    const result = updateProject(db, actor(fixture.admin), card.id, {
       statusId: inProgress.id,
     });
     const after = db
@@ -616,14 +616,14 @@ describe('reorderProject', () => {
   });
 
   it('validates Root, invalid positions and permission preconditions', () => {
-    const card = createProject(db, actor(fixture.tristan), {
+    const card = createProject(db, actor(fixture.admin), {
       parentId: fixture.homeId,
       title: 'Position validation',
     });
 
     const missingTarget = (() => {
       try {
-        reorderProject(db, actor(fixture.tristan), card.id, { beforeId: 'missing-project' });
+        reorderProject(db, actor(fixture.admin), card.id, { beforeId: 'missing-project' });
         return null;
       } catch (caught) {
         return caught as DomainError;
@@ -633,7 +633,7 @@ describe('reorderProject', () => {
 
     const rootError = (() => {
       try {
-        reorderProject(db, actor(fixture.tristan), fixture.rootId, { beforeId: null });
+        reorderProject(db, actor(fixture.admin), fixture.rootId, { beforeId: null });
         return null;
       } catch (caught) {
         return caught as DomainError;
@@ -665,25 +665,25 @@ describe('moveProject', () => {
     const household = createFixtureProject(db, {
       title: 'Household',
       parentId: fixture.rootId,
-      reporterId: fixture.tristan.id,
+      reporterId: fixture.admin.id,
     });
     householdId = household.id;
-    grantRole(db, householdId, fixture.tristan.id, 'admin');
+    grantRole(db, householdId, fixture.admin.id, 'admin');
     grantRole(db, householdId, fixture.maya.id, 'user');
     householdStatuses = createWorkflow(db, householdId, { names: ['Open', 'Closed'] });
     renovateId = createFixtureProject(db, {
       title: 'Renovate basement',
       parentId: fixture.homeId,
-      reporterId: fixture.tristan.id,
+      reporterId: fixture.admin.id,
     }).id;
-    grantRole(db, renovateId, fixture.tristan.id, 'admin');
+    grantRole(db, renovateId, fixture.admin.id, 'admin');
     renovateStatuses = createWorkflow(db, renovateId, { names: ['To do', 'Done'] });
   });
 
   it('requires an explicit mapping even when names match', () => {
     const error = (() => {
       try {
-        moveProject(db, actor(fixture.tristan), fixture.inboxChildId, {
+        moveProject(db, actor(fixture.admin), fixture.inboxChildId, {
           destinationId: householdId,
           mapping: {},
         });
@@ -697,7 +697,7 @@ describe('moveProject', () => {
 
     const matchingNameError = (() => {
       try {
-        moveProject(db, actor(fixture.tristan), fixture.kitchenId, {
+        moveProject(db, actor(fixture.admin), fixture.kitchenId, {
           destinationId: renovateId,
           mapping: {},
         });
@@ -714,21 +714,21 @@ describe('moveProject', () => {
     const child = createFixtureProject(db, {
       title: 'Child of moved',
       parentId: fixture.kitchenId,
-      reporterId: fixture.tristan.id,
+      reporterId: fixture.admin.id,
     });
-    grantRole(db, child.id, fixture.tristan.id, 'admin');
+    grantRole(db, child.id, fixture.admin.id, 'admin');
     createWorkflow(db, child.id, { names: ['Leaf', 'Beyond'] });
     const grandchild = createFixtureProject(db, {
       title: 'Grandchild',
       parentId: child.id,
-      reporterId: fixture.tristan.id,
+      reporterId: fixture.admin.id,
     });
     const grandchildStatus = getStatuses(db, child.id)[0]!;
 
     const oldStatus = getProjectRow(db, fixture.kitchenId)!.status_id!;
     const priorityBefore = getProjectRow(db, fixture.kitchenId)!.priority;
     const mapped = householdStatuses.find((status) => status.name === 'Open')!;
-    const result = moveProject(db, actor(fixture.tristan), fixture.kitchenId, {
+    const result = moveProject(db, actor(fixture.admin), fixture.kitchenId, {
       destinationId: householdId,
       mapping: { [oldStatus]: mapped.id },
     });
@@ -756,14 +756,14 @@ describe('moveProject', () => {
   });
 
   it('clears Inbox when the move changes status (build-spec §6 rule 6)', () => {
-    const inboxProject = createProject(db, actor(fixture.tristan), {
+    const inboxProject = createProject(db, actor(fixture.admin), {
       parentId: householdId,
       title: 'Move from inbox',
     });
     expect(inboxProject.inbox).toBe(true);
     const oldStatus = getProjectRow(db, inboxProject.id)!.status_id!;
     const mapped = renovateStatuses[0]!;
-    const result = moveProject(db, actor(fixture.tristan), inboxProject.id, {
+    const result = moveProject(db, actor(fixture.admin), inboxProject.id, {
       destinationId: renovateId,
       mapping: { [oldStatus]: mapped.id },
     });
@@ -774,17 +774,17 @@ describe('moveProject', () => {
     const cycleParent = createFixtureProject(db, {
       title: 'Cycle parent',
       parentId: householdId,
-      reporterId: fixture.tristan.id,
+      reporterId: fixture.admin.id,
     });
     createWorkflow(db, cycleParent.id, { names: ['Open', 'Closed'] });
     const cycleChild = createFixtureProject(db, {
       title: 'Cycle child',
       parentId: cycleParent.id,
-      reporterId: fixture.tristan.id,
+      reporterId: fixture.admin.id,
     });
     const cycle = (() => {
       try {
-        moveProject(db, actor(fixture.tristan), cycleParent.id, {
+        moveProject(db, actor(fixture.admin), cycleParent.id, {
           destinationId: cycleChild.id,
           mapping: {},
         });
@@ -798,7 +798,7 @@ describe('moveProject', () => {
 
     const rootMove = (() => {
       try {
-        moveProject(db, actor(fixture.tristan), fixture.rootId, {
+        moveProject(db, actor(fixture.admin), fixture.rootId, {
           destinationId: householdId,
           mapping: {},
         });
@@ -811,7 +811,7 @@ describe('moveProject', () => {
 
     const noAccessDestination = (() => {
       try {
-        moveProject(db, actor(fixture.tristan), fixture.kitchenId, {
+        moveProject(db, actor(fixture.admin), fixture.kitchenId, {
           destinationId: 'missing-project',
           mapping: {},
         });
@@ -835,7 +835,7 @@ describe('moveProject', () => {
     const homeStatus = getProjectRow(db, fixture.homeId)!.status_id!;
     const unreadable = (() => {
       try {
-        moveProject(db, actor(fixture.tristan), fixture.homeId, {
+        moveProject(db, actor(fixture.admin), fixture.homeId, {
           destinationId: privateDestination.id,
           mapping: {},
         });
@@ -846,12 +846,12 @@ describe('moveProject', () => {
     })();
     expect(unreadable?.status).toBe(404);
 
-    // Destination readable by tristan as Viewer → cannot receive a move.
-    grantRole(db, privateDestination.id, fixture.tristan.id, 'viewer');
+    // Destination readable by admin as Viewer → cannot receive a move.
+    grantRole(db, privateDestination.id, fixture.admin.id, 'viewer');
     const destinationWorkflow = getStatuses(db, privateDestination.id);
     const readOnlyDestination = (() => {
       try {
-        moveProject(db, actor(fixture.tristan), fixture.homeId, {
+        moveProject(db, actor(fixture.admin), fixture.homeId, {
           destinationId: privateDestination.id,
           mapping: { [homeStatus]: destinationWorkflow[0]!.id },
         });
@@ -874,11 +874,11 @@ describe('getProjectPageData visibility', () => {
   it('returns null for an unreadable project instead of leaking it', async () => {
     const outsider = await createUser(db, { username: 'page-outsider' });
     expect(getProjectPageData(db, actor(outsider), fixture.homeId)).toBeNull();
-    expect(getProjectPageData(db, actor(fixture.tristan), fixture.homeId)).not.toBeNull();
+    expect(getProjectPageData(db, actor(fixture.admin), fixture.homeId)).not.toBeNull();
   });
 
   it('omits trashed and archived children unless visible', () => {
-    const trashed = createProject(db, actor(fixture.tristan), {
+    const trashed = createProject(db, actor(fixture.admin), {
       parentId: fixture.homeId,
       title: 'Trashed child',
     });
@@ -887,7 +887,7 @@ describe('getProjectPageData visibility', () => {
       new Date(Date.now() + 86_400_000).toISOString(),
       trashed.id,
     );
-    const page = getProjectPageData(db, actor(fixture.tristan), fixture.homeId)!;
+    const page = getProjectPageData(db, actor(fixture.admin), fixture.homeId)!;
     expect(page.children.map((child) => child.id)).not.toContain(trashed.id);
   });
 
@@ -898,7 +898,7 @@ describe('getProjectPageData visibility', () => {
     expect(page.project.canAdmin).toBe(false);
     expect(page.project.canMove).toBe(false);
 
-    const adminPage = getProjectPageData(db, actor(fixture.tristan), fixture.homeId)!;
+    const adminPage = getProjectPageData(db, actor(fixture.admin), fixture.homeId)!;
     expect(adminPage.project.canAdmin).toBe(true);
     expect(adminPage.project.canMove).toBe(true);
   });
@@ -914,7 +914,7 @@ describe('getProjectPageData archived fallbacks', () => {
     underArchivedId = createFixtureProject(db, {
       title: 'Under archived',
       parentId: fixture.kitchenId,
-      reporterId: fixture.tristan.id,
+      reporterId: fixture.admin.id,
     }).id;
   });
 
@@ -942,7 +942,7 @@ describe('getProjectPageData archived fallbacks', () => {
     const active = createFixtureProject(db, {
       title: 'Active sibling',
       parentId: fixture.homeId,
-      reporterId: fixture.tristan.id,
+      reporterId: fixture.admin.id,
     });
     const page = getProjectPageData(db, actor(fixture.maya, true), active.id)!;
     expect(page.project.hiddenWhenArchivedOff).toBe(false);
@@ -967,41 +967,41 @@ describe('layout template defaults (issue #17)', () => {
   });
 
   it('defaults to an empty Details card with a status/reporter sidebar', () => {
-    const home = getProjectPageData(db, actor(fixture.tristan), fixture.homeId)!;
+    const home = getProjectPageData(db, actor(fixture.admin), fixture.homeId)!;
     expect(home.layout).toEqual({ main: [], sidebar: ['status', 'reporter'] });
 
     // Root inherits the same default: only the Details heading is rendered.
-    const root = getProjectPageData(db, actor(fixture.tristan), fixture.rootId)!;
+    const root = getProjectPageData(db, actor(fixture.admin), fixture.rootId)!;
     expect(root.layout).toEqual({ main: [], sidebar: ['status', 'reporter'] });
   });
 
   it('keeps explicit templates and parent inheritance working', () => {
-    updateProjectSettings(db, actor(fixture.tristan), fixture.homeId, {
+    updateProjectSettings(db, actor(fixture.admin), fixture.homeId, {
       inherit_layout: false,
       layout_template: {
         main: ['projectId', 'parent', 'reporter'],
         sidebar: ['status', 'reporter'],
       },
     });
-    const home = getProjectPageData(db, actor(fixture.tristan), fixture.homeId)!;
+    const home = getProjectPageData(db, actor(fixture.admin), fixture.homeId)!;
     expect(home.layout).toEqual({
       main: ['projectId', 'parent', 'reporter'],
       sidebar: ['status', 'reporter'],
     });
 
     // Kitchen still inherits Home's explicit template.
-    const inherited = getProjectPageData(db, actor(fixture.tristan), fixture.kitchenId)!;
+    const inherited = getProjectPageData(db, actor(fixture.admin), fixture.kitchenId)!;
     expect(inherited.layout).toEqual({
       main: ['projectId', 'parent', 'reporter'],
       sidebar: ['status', 'reporter'],
     });
 
     // A child can opt out and define its own template.
-    updateProjectSettings(db, actor(fixture.tristan), fixture.kitchenId, {
+    updateProjectSettings(db, actor(fixture.admin), fixture.kitchenId, {
       inherit_layout: false,
       layout_template: { main: ['updated'], sidebar: ['parent'] },
     });
-    const own = getProjectPageData(db, actor(fixture.tristan), fixture.kitchenId)!;
+    const own = getProjectPageData(db, actor(fixture.admin), fixture.kitchenId)!;
     expect(own.layout).toEqual({ main: ['updated'], sidebar: ['parent'] });
   });
 });

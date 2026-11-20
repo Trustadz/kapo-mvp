@@ -23,7 +23,7 @@ function card(overrides: Partial<ProjectCard> & { id: string; title: string }): 
     inbox: true,
     archived: false,
     trashed: false,
-    reporter: { id: 'user-1', username: 'tristan', avatar: null },
+    reporter: { id: 'user-1', username: 'admin', avatar: null },
     parentId: 'parent-1',
     parent: { id: 'parent-1', title: 'Home improvement' },
     createdAt: new Date(0).toISOString(),

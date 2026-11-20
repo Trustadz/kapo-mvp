@@ -62,7 +62,7 @@ async function dragBetween(
 test('Card view reorders Inbox cards globally and keeps the release rail separate', async ({
   page,
 }) => {
-  await login(page, 'tristan');
+  await login(page, 'admin');
   const first = `E2E card drag A ${Date.now()}`;
   const second = `E2E card drag B ${Date.now()}`;
   await capture(page, first);
@@ -113,7 +113,7 @@ test('Card view reorders Inbox cards globally and keeps the release rail separat
 });
 
 test('Tree view reparents on a row middle and reorders between rows', async ({ page }) => {
-  await login(page, 'tristan');
+  await login(page, 'admin');
   const first = `E2E tree drag A ${Date.now()}`;
   const second = `E2E tree drag B ${Date.now()}`;
   await capture(page, first);

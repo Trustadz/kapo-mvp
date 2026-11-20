@@ -13,9 +13,9 @@ describe('login rate limiting', () => {
   beforeAll(() => resetLoginRateLimits());
 
   it('builds a case-insensitive key from username + ip', () => {
-    expect(loginAttemptKey('  Tristan ', '10.0.0.1')).toBe('tristan|10.0.0.1');
-    expect(loginAttemptKey('tristan', null)).toBe('tristan|unknown');
-    expect(loginAttemptKey('TRISTAN', '10.0.0.1')).toBe(loginAttemptKey('tristan', '10.0.0.1'));
+    expect(loginAttemptKey('  Admin ', '10.0.0.1')).toBe('admin|10.0.0.1');
+    expect(loginAttemptKey('admin', null)).toBe('admin|unknown');
+    expect(loginAttemptKey('ADMIN', '10.0.0.1')).toBe(loginAttemptKey('admin', '10.0.0.1'));
   });
 
   it('allows attempts until the failure budget is exhausted', () => {

@@ -44,7 +44,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   resetRequestContext();
-  signIn(db, household.tristan.id);
+  signIn(db, household.admin.id);
 });
 
 afterAll(() => {
@@ -78,7 +78,7 @@ describe('GET /api/dashboard', () => {
     expect(payload.widget.total).toBe(0);
     expect(payload.widget.items).toEqual([]);
 
-    signIn(db, household.tristan.id);
+    signIn(db, household.admin.id);
     const admin = await dashboardGet(request('/api/dashboard?widget=inbox'));
     const adminPayload = await json<{ widget: { total: number; items: unknown[]; openHref: string } }>(
       admin,
@@ -148,7 +148,7 @@ describe('GET/PUT /api/projects/:id/members', () => {
   });
 
   it('returns explicit members with cascade impact', async () => {
-    signIn(db, household.tristan.id);
+    signIn(db, household.admin.id);
     const response = await membersRoute.GET(
       request(`/api/projects/${household.home.id}/members`),
       params(household.home.id),
@@ -160,14 +160,14 @@ describe('GET/PUT /api/projects/:id/members', () => {
       cascadeImpact: number;
     }>(response);
     const roles = Object.fromEntries(payload.members.map((member) => [member.username, member.role]));
-    expect(roles.tristan).toBe('admin');
+    expect(roles.admin).toBe('admin');
     expect(roles.maya).toBe('user');
     expect(payload.canManage).toBe(true);
     expect(payload.cascadeImpact).toEqual(expect.any(Number));
   });
 
   it('requires acknowledgement, then cascades a reduction', async () => {
-    signIn(db, household.tristan.id);
+    signIn(db, household.admin.id);
     const unacknowledged = await membersRoute.PUT(
       request(`/api/projects/${household.home.id}/members`, {
         method: 'PUT',
@@ -203,19 +203,19 @@ describe('GET/PUT /api/projects/:id/members', () => {
   });
 
   it('refuses to leave a project without an Admin', async () => {
-    // Fresh project whose only Admin is tristan.
+    // Fresh project whose only Admin is admin.
     const project = createProject(db, {
       title: 'Solo admin project',
       parentId: household.root.id,
-      reporterId: household.tristan.id,
+      reporterId: household.admin.id,
     });
     createWorkflow(db, project.id, { names: ['To do', 'Done'] });
-    grantRole(db, project.id, household.tristan.id, 'admin');
+    grantRole(db, project.id, household.admin.id, 'admin');
     const response = await membersRoute.PUT(
       request(`/api/projects/${project.id}/members`, {
         method: 'PUT',
         body: {
-          changes: [{ userId: household.tristan.id, role: 'viewer' }],
+          changes: [{ userId: household.admin.id, role: 'viewer' }],
           acknowledged: true,
         },
       }),

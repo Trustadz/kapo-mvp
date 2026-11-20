@@ -57,7 +57,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   resetRequestContext();
-  signIn(db, household.tristan.id);
+  signIn(db, household.admin.id);
 });
 
 afterAll(() => {
@@ -211,7 +211,7 @@ describe('GET /api/projects/:id', () => {
     const archived = createFixtureProject(db, {
       title: 'Archived parent',
       parentId: household.root.id,
-      reporterId: household.tristan.id,
+      reporterId: household.admin.id,
       archived: true,
     });
     grantRole(db, archived.id, archiveUser.id, 'admin');
@@ -219,13 +219,13 @@ describe('GET /api/projects/:id', () => {
     const child = createFixtureProject(db, {
       title: 'Archived child',
       parentId: archived.id,
-      reporterId: household.tristan.id,
+      reporterId: household.admin.id,
     });
     grantRole(db, child.id, archiveUser.id, 'admin');
     const active = createFixtureProject(db, {
       title: 'Active fallback',
       parentId: household.root.id,
-      reporterId: household.tristan.id,
+      reporterId: household.admin.id,
     });
     grantRole(db, active.id, archiveUser.id, 'admin');
 
@@ -316,7 +316,7 @@ describe('PATCH /api/projects/:id', () => {
     );
     expect(viewer.status).toBe(403);
 
-    signIn(db, household.tristan.id);
+    signIn(db, household.admin.id);
     const empty = await projectRoute.PATCH(
       request(`/api/projects/${household.home.id}`, { method: 'PATCH', body: {} }),
       params(household.home.id),
@@ -383,9 +383,9 @@ describe('POST /api/projects/:id/move', () => {
     const destination = createFixtureProject(db, {
       title: 'Destination',
       parentId: household.root.id,
-      reporterId: household.tristan.id,
+      reporterId: household.admin.id,
     });
-    grantRole(db, destination.id, household.tristan.id, 'admin');
+    grantRole(db, destination.id, household.admin.id, 'admin');
     const destinationStatuses = createWorkflow(db, destination.id, { names: ['Open', 'Closed'] });
 
     const info = await moveRoute.GET(
@@ -432,14 +432,14 @@ describe('POST /api/projects/:id/move', () => {
     const parent = createFixtureProject(db, {
       title: 'Cycle owner',
       parentId: household.root.id,
-      reporterId: household.tristan.id,
+      reporterId: household.admin.id,
     });
-    grantRole(db, parent.id, household.tristan.id, 'admin');
+    grantRole(db, parent.id, household.admin.id, 'admin');
     createWorkflow(db, parent.id, { names: ['One', 'Two'] });
     const child = createFixtureProject(db, {
       title: 'Cycle child',
       parentId: parent.id,
-      reporterId: household.tristan.id,
+      reporterId: household.admin.id,
     });
     const response = await moveRoute.POST(
       request(`/api/projects/${parent.id}/move`, {
@@ -511,7 +511,7 @@ describe('trash and restore API', () => {
     const target = createFixtureProject(db, {
       title: 'Trash target',
       parentId: household.home.id,
-      reporterId: household.tristan.id,
+      reporterId: household.admin.id,
     });
     grantRole(db, target.id, household.alex.id, 'viewer');
     signIn(db, household.alex.id);
@@ -521,7 +521,7 @@ describe('trash and restore API', () => {
     );
     expect(viewerTrash.status).toBe(403);
 
-    signIn(db, household.tristan.id);
+    signIn(db, household.admin.id);
     const first = await trashRoute.POST(
       request(`/api/projects/${target.id}/trash`, { method: 'POST', body: {} }),
       params(target.id),
@@ -567,7 +567,7 @@ describe('GET /api/inbox and release', () => {
   });
 
   it('returns the application-wide tree with Inbox rows and no inaccessible parents', async () => {
-    signIn(db, household.tristan.id);
+    signIn(db, household.admin.id);
     // Earlier tests in this file mutate the shared fixture, so assert the tree
     // against a capture created here rather than a fixed seed row.
     const captured = await capture(
@@ -611,7 +611,7 @@ describe('GET /api/inbox and release', () => {
     const directCapture = createFixtureProject(db, {
       title: 'Maya direct capture',
       parentId: household.personal.id,
-      reporterId: household.tristan.id,
+      reporterId: household.admin.id,
       inbox: true,
     });
     grantRole(db, directCapture.id, household.maya.id, 'user');
@@ -641,7 +641,7 @@ describe('GET /api/inbox and release', () => {
     );
     expect(forbidden.status).toBe(403);
 
-    signIn(db, household.tristan.id);
+    signIn(db, household.admin.id);
     const missing = await releaseRoute.POST(
       request('/api/inbox/nope/release', { method: 'POST', body: {} }),
       params('nope'),
@@ -733,11 +733,11 @@ describe('POST /api/inbox/:id/reorder', () => {
     expect(forbidden.status).toBe(403);
 
     // A trashed target is not a valid drop position.
-    signIn(db, household.tristan.id);
+    signIn(db, household.admin.id);
     const trashedTarget = createFixtureProject(db, {
       title: `Trashed reorder target ${Date.now()}`,
       parentId: household.home.id,
-      reporterId: household.tristan.id,
+      reporterId: household.admin.id,
       inbox: false,
       trashedAt: new Date().toISOString(),
     });
@@ -840,7 +840,7 @@ describe('POST /api/inbox/:id/parent', () => {
     expect(forbidden.status).toBe(403);
 
     // The capture is still under its original parent and in the Inbox.
-    signIn(db, household.tristan.id);
+    signIn(db, household.admin.id);
     const row = getProjectRow(db, project.id)!;
     expect(row.parent_id).toBe(household.home.id);
     expect(row.inbox).toBe(1);
@@ -874,7 +874,7 @@ describe('GET /api/search', () => {
     expect(payload.query).toBe('paint');
     const titles = payload.results.map((row) => row.title);
     expect(titles).toContain('Paint hallway');
-    // tristan has no grant on Household, so Paint porch stays hidden.
+    // admin has no grant on Household, so Paint porch stays hidden.
     expect(titles).not.toContain('Paint porch');
 
     // maya inherits Root's user grant, so she sees both matches.
@@ -884,7 +884,7 @@ describe('GET /api/search', () => {
     expect(mayaPayload.results.map((row) => row.title)).toEqual(
       expect.arrayContaining(['Paint hallway', 'Paint porch']),
     );
-    signIn(db, household.tristan.id);
+    signIn(db, household.admin.id);
 
     const prefix = await searchGet('/api/search?q=renov');
     const prefixPayload = await json<{ results: Array<{ title: string }> }>(prefix);

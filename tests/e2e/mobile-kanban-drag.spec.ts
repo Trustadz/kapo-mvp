@@ -107,7 +107,7 @@ async function longPress(page: Page, source: Locator): Promise<{ x: number; y: n
 }
 
 test('long-presses a card, previews the gap and reorders on release', async ({ page }) => {
-  await login(page, 'tristan');
+  await login(page, 'admin');
   await openProject(page, 'Home improvement');
   await chooseView(page, 'Kanban');
 
@@ -151,7 +151,7 @@ test('long-presses a card, previews the gap and reorders on release', async ({ p
 });
 
 test('Escape cancels a touch drag without changing the order', async ({ page }) => {
-  await login(page, 'tristan');
+  await login(page, 'admin');
   await openProject(page, 'Home improvement');
   await chooseView(page, 'Kanban');
 

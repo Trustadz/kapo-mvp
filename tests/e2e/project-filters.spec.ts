@@ -59,7 +59,7 @@ function filterBar(page: Page) {
 }
 
 test('Card children filter live by title and reporter', async ({ page }) => {
-  await login(page, 'tristan');
+  await login(page, 'admin');
   await openHomeImprovement(page);
   await chooseView(page, 'Card');
 
@@ -101,7 +101,7 @@ test('Card children filter live by title and reporter', async ({ page }) => {
 });
 
 test('Tree filters keep matching ancestors as read-only context', async ({ page }) => {
-  await login(page, 'tristan');
+  await login(page, 'admin');
   await openHomeImprovement(page);
   await ensureInboxVisible(page);
   await chooseView(page, 'Tree');
@@ -133,7 +133,7 @@ test('Tree filters keep matching ancestors as read-only context', async ({ page 
 
 test('filter bar stacks cleanly on a mobile viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await login(page, 'tristan');
+  await login(page, 'admin');
   await openHomeImprovement(page);
   await chooseView(page, 'Card');
 

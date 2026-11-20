@@ -34,14 +34,14 @@ placeholder text.
   [app-project-settings-members-desktop-light.png](docs/screenshots/app-project-settings-members-desktop-light.png),
   [app-users-desktop-light.png](docs/screenshots/app-users-desktop-light.png),
   [app-trash-readonly-project-desktop-light.png](docs/screenshots/app-trash-readonly-project-desktop-light.png).
-- **Expected (reference):** display names are title-cased: sidebar/account menu show **“Tristan”** with
-  **“Application Admin”**; Profile identity and Username field show “Tristan”; Reporter “Tristan”;
-  Activity “Maya renamed the project”, “Jules created Paint hallway”; Members rows “Tristan/Maya/Jules”.
-- **Actual:** the raw `username` column is printed unmodified: sidebar “tristan”, Profile “tristan”,
-  Username field “tristan”, Reporter “tristan”/“maya”/“jules”, Activity actors “maya renamed the
-  project”, Members rows “alex/jules/maya/tristan”, Users list “alex/jules/maya/tristan”. The account
+- **Expected (reference):** display names are title-cased: sidebar/account menu show **“Admin”** with
+  **“Application Admin”**; Profile identity and Username field show “Admin”; Reporter “Admin”;
+  Activity “Maya renamed the project”, “Jules created Paint hallway”; Members rows “Admin/Maya/Jules”.
+- **Actual:** the raw `username` column is printed unmodified: sidebar “admin”, Profile “admin”,
+  Username field “admin”, Reporter “admin”/“maya”/“jules”, Activity actors “maya renamed the
+  project”, Members rows “alex/jules/maya/admin”, Users list “alex/jules/maya/admin”. The account
   menu also omits the designed “Application Admin” role line. Recent changes already capitalises
-  (“Maya updated…”, “Tristan created…”), so the UI is internally inconsistent.
+  (“Maya updated…”, “Admin created…”), so the UI is internally inconsistent.
 - **Fix:** add a client-safe `displayName(username)` helper (`src/lib/format.ts`, first grapheme upper-cased)
   and use it for every read-only identity: `Sidebar`/`AccountMenu` (`AccountMenu.tsx:118`),
   `ProfileForm` identity (`ProfileForm.tsx:213`), `ProjectView` reporter (lines 69, 259),
@@ -74,7 +74,7 @@ placeholder text.
   [app-project-settings-members-desktop-dark.png](docs/screenshots/app-project-settings-members-desktop-dark.png).
 - **Expected (Penpot 08 · Settings · workflow & permissions → 02 Members, 03 Private access):** radios
   **“Inherit parent permissions”** / **“Custom access”**, a checked **“Private — only selected members”**
-  state, a compact member list of **name + role** (“Tristan  Admin”), an **Add member** action and a
+  state, a compact member list of **name + role** (“Admin  Admin”), an **Add member** action and a
   **Save permissions** button. No per-row “Custom access” annotation is shown.
 - **Actual:** with **“Inherited from parent”** selected, every row says
   “Application admin · **Custom access (Admin)**”, “Application user · **Custom access (User)**” (because
@@ -329,7 +329,7 @@ placeholder text.
   (background), [app-trash-readonly-project-desktop-light.png](docs/screenshots/app-trash-readonly-project-desktop-light.png).
 - **Expected:** human copy for every event, e.g. “Released from Inbox”, in the design’s event style;
   also the design rows have no per-row 1px rules.
-- **Actual:** the row reads “tristan updated the project / **project.inbox_released**” — an internal
+- **Actual:** the row reads “admin updated the project / **project.inbox_released**” — an internal
   action/field name shown to users. Actor names are also lowercase (F01) and each row is separated by a
   1px border (design shows plain rows with spacing).
 - **Fix:** extend the activity formatter used by `ActivityPanel`/dashboard recent changes so
@@ -399,7 +399,7 @@ placeholder text.
   [app-project-empty-desktop-light.png](docs/screenshots/app-project-empty-desktop-light.png) vs
   [docs/reference/project-detail-desktop-light.png](docs/reference/project-detail-desktop-light.png).
 - **Expected:** compact inline metadata on one line — “Project ID KAP-104 · Parent Root · Reporter
-  Tristan” — inside a 188px card.
+  Admin” — inside a 188px card.
 - **Actual:** three separate label/value rows (Project ID / Parent / Reporter) with 24px vertical gaps,
   producing a different card rhythm from the design, and the Reporter uses the lowercase username (F01).
 - **Fix:** render the details as a wrapped meta row with `·` separators and 12px gaps (keep the stacked
@@ -427,7 +427,7 @@ placeholder text.
 | Suspect | Verdict | Evidence |
 |---|---|---|
 | Checkbox/radio render as bare tick glyphs, no box | **Not reproduced** in Chromium. Native 16px boxes/circles render with brand accent; residual UA-styling/contrast issue logged as F15. | [app-app-settings-desktop-light.png](docs/screenshots/app-app-settings-desktop-light.png), [app-app-settings-desktop-dark.png](docs/screenshots/app-app-settings-desktop-dark.png) |
-| Account label casing (“tristan” vs “Tristan”) | **Confirmed** everywhere; also missing “Application Admin” in the account menu. F01. | [app-home-desktop-light.png](docs/screenshots/app-home-desktop-light.png), [app-profile-desktop-light.png](docs/screenshots/app-profile-desktop-light.png) |
+| Account label casing (“admin” vs “Admin”) | **Confirmed** everywhere; also missing “Application Admin” in the account menu. F01. | [app-home-desktop-light.png](docs/screenshots/app-home-desktop-light.png), [app-profile-desktop-light.png](docs/screenshots/app-profile-desktop-light.png) |
 | Kanban column background/panel treatment | **Confirmed missing.** Reference columns are `surfaceAlt` rounded panels; app columns are transparent. F02. | [app-project-kanban-desktop-light.png](docs/screenshots/app-project-kanban-desktop-light.png) |
 | Members rows say “Custom access (User)” while mode is “Inherited from parent” | **Confirmed**, plus missing “Add member”/“Private — only selected members” states. F03. | [app-project-settings-members-desktop-light.png](docs/screenshots/app-project-settings-members-desktop-light.png) |
 | Favorites icons all folders vs per-project icons | **Confirmed.** Design: `home_repair_service` / `cottage` / `person`; app: `folder` for all. F16. | [app-home-desktop-light.png](docs/screenshots/app-home-desktop-light.png) |

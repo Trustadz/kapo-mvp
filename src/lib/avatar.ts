@@ -23,7 +23,7 @@ function hash(value: string): number {
  * the same four pairs.
  */
 const DESIGN_ACTOR_PALETTES: Record<string, number> = {
-  tristan: 1,
+  admin: 1,
   maya: 2,
   jules: 3,
   alex: 4,

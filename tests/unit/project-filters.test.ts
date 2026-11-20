@@ -28,7 +28,7 @@ interface FixtureOptions {
 function project(id: string, options: FixtureOptions = {}): ProjectWithParent {
   const reporter =
     options.reporter ??
-    ({ id: 'user-tristan', username: 'tristan', avatar: null } satisfies ProjectCard['reporter']);
+    ({ id: 'user-admin', username: 'admin', avatar: null } satisfies ProjectCard['reporter']);
   return {
     id,
     seq: 1,
@@ -48,7 +48,7 @@ function project(id: string, options: FixtureOptions = {}): ProjectWithParent {
   };
 }
 
-const TRISTAN = { id: 'user-tristan', username: 'tristan', avatar: null };
+const ADMIN = { id: 'user-admin', username: 'admin', avatar: null };
 const MAYA = { id: 'user-maya', username: 'maya', avatar: null };
 const JULES = { id: 'user-jules', username: 'jules', avatar: null };
 describe('title matching', () => {
@@ -75,7 +75,7 @@ describe('reporter matching', () => {
 
   it('matches only the selected reporter', () => {
     expect(matchesProjectReporter(project('a', { reporter: MAYA }), MAYA.id)).toBe(true);
-    expect(matchesProjectReporter(project('a', { reporter: TRISTAN }), MAYA.id)).toBe(false);
+    expect(matchesProjectReporter(project('a', { reporter: ADMIN }), MAYA.id)).toBe(false);
   });
 });
 
@@ -84,7 +84,7 @@ describe('matchesProjectFilters', () => {
 
   it('requires every active filter to match', () => {
     expect(matchesProjectFilters(project('a', { title: 'Fix kitchen tap', reporter: MAYA }), filters)).toBe(true);
-    expect(matchesProjectFilters(project('b', { title: 'Fix kitchen tap', reporter: TRISTAN }), filters)).toBe(false);
+    expect(matchesProjectFilters(project('b', { title: 'Fix kitchen tap', reporter: ADMIN }), filters)).toBe(false);
     expect(matchesProjectFilters(project('c', { title: 'Garden beds', reporter: MAYA }), filters)).toBe(false);
   });
 });
@@ -94,7 +94,7 @@ describe('filterProjectItems', () => {
     project('a', { title: 'Renovate basement', reporter: MAYA }),
     project('b', { title: 'Find contractor', reporter: JULES }),
     project('c', { title: 'Paint hallway', reporter: JULES }),
-    project('d', { title: 'Garden beds', reporter: TRISTAN }),
+    project('d', { title: 'Garden beds', reporter: ADMIN }),
   ];
 
   it('keeps the collection order when nothing is active', () => {
@@ -123,15 +123,15 @@ describe('filterProjectItems', () => {
 describe('reporterFilterOptions', () => {
   it('returns distinct reporters sorted by username', () => {
     const options = reporterFilterOptions([
-      project('a', { reporter: TRISTAN }),
+      project('a', { reporter: ADMIN }),
       project('b', { reporter: MAYA }),
       project('c', { reporter: JULES }),
       project('d', { reporter: MAYA }),
     ]);
     expect(options).toEqual([
+      { id: ADMIN.id, username: 'admin' },
       { id: JULES.id, username: 'jules' },
       { id: MAYA.id, username: 'maya' },
-      { id: TRISTAN.id, username: 'tristan' },
     ]);
   });
 
@@ -144,16 +144,16 @@ describe('filterProjectDescendants (Tree)', () => {
   // Depth-first, parent-linked collection:
   //   renovate (maya)
   //     contractor (jules)
-  //       quote (tristan)
+  //       quote (admin)
   //   paint (jules)
-  //   garden (tristan)
+  //   garden (admin)
   //     seeds (maya)
   const descendants = [
     project('renovate', { title: 'Renovate basement', reporter: MAYA, parentId: 'home' }),
     project('contractor', { title: 'Find contractor', reporter: JULES, parentId: 'renovate' }),
-    project('quote', { title: 'Request quote', reporter: TRISTAN, parentId: 'contractor' }),
+    project('quote', { title: 'Request quote', reporter: ADMIN, parentId: 'contractor' }),
     project('paint', { title: 'Paint hallway', reporter: JULES, parentId: 'home' }),
-    project('garden', { title: 'Garden beds', reporter: TRISTAN, parentId: 'home' }),
+    project('garden', { title: 'Garden beds', reporter: ADMIN, parentId: 'home' }),
     project('seeds', { title: 'Buy seeds', reporter: MAYA, parentId: 'garden' }),
   ];
 
