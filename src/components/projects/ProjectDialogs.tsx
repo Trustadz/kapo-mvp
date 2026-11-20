@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Dialog, Field, Input, Notice, Select } from '@/components/ui';
 import type { MoveInfo, ProjectCard, RestoreInfo } from './types';
@@ -43,6 +43,7 @@ export function AddProjectDialog({
   const [title, setTitle] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const titleRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) {
@@ -78,6 +79,7 @@ export function AddProjectDialog({
       title="Add child project"
       description={`Create a project under ${parentTitle}.`}
       dismissible={!saving}
+      initialFocusRef={titleRef}
       footer={
         <div className={styles.dialogFooter}>
           <Button type="submit" form="add-project-form" loading={saving}>
@@ -93,10 +95,10 @@ export function AddProjectDialog({
         {error ? <Notice tone="error">{error}</Notice> : null}
         <Field label="Title" htmlFor="add-project-title" required error={undefined}>
           <Input
+            ref={titleRef}
             id="add-project-title"
             name="title"
             value={title}
-            autoFocus
             maxLength={200}
             autoComplete="off"
             invalid={Boolean(error)}
