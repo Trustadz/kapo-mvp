@@ -1,47 +1,34 @@
-/** Date and time formatting shared by activity, cards and dashboards. */
-
-const DATE_FORMAT = new Intl.DateTimeFormat('en-GB', {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-});
-
-const TIME_FORMAT = new Intl.DateTimeFormat('en-GB', {
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-});
-
-const DAY_MONTH_FORMAT = new Intl.DateTimeFormat('en-GB', {
-  day: 'numeric',
-  month: 'short',
-});
-
-const DAY_MONTH_YEAR_FORMAT = new Intl.DateTimeFormat('en-GB', {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-});
+/**
+ * Date, time and name formatting shared by activity, cards and dashboards.
+ *
+ * Locale-aware Intl formatting lives in `src/i18n/format.ts`; these wrappers
+ * keep the historical call sites working (English by default) while allowing
+ * components to pass the active locale. Server-only code that has no request
+ * locale can keep calling them without a second argument.
+ */
+import { DEFAULT_LOCALE, type Locale } from '@/i18n/config';
+import {
+  formatDate as formatDateForLocale,
+  formatDateTime as formatDateTimeForLocale,
+  formatDayTime as formatDayTimeForLocale,
+  formatNumber as formatNumberForLocale,
+  formatRelative as formatRelativeForLocale,
+  formatTime as formatTimeForLocale,
+} from '@/i18n/format';
 
 /** "17 Nov 2026" */
-export function formatDate(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-  return DATE_FORMAT.format(date);
+export function formatDate(iso: string, locale: Locale = DEFAULT_LOCALE): string {
+  return formatDateForLocale(locale, iso);
 }
 
 /** "10:42" */
-export function formatTime(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-  return TIME_FORMAT.format(date);
+export function formatTime(iso: string, locale: Locale = DEFAULT_LOCALE): string {
+  return formatTimeForLocale(locale, iso);
 }
 
 /** "17 Nov 2026 · 10:42" — the Activity row pattern from the design. */
-export function formatDateTime(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-  return `${DATE_FORMAT.format(date)} · ${TIME_FORMAT.format(date)}`;
+export function formatDateTime(iso: string, locale: Locale = DEFAULT_LOCALE): string {
+  return formatDateTimeForLocale(locale, iso);
 }
 
 /**
@@ -49,14 +36,26 @@ export function formatDateTime(iso: string): string {
  * widget: "17 Nov · 10:42". The year is omitted while it matches the current
  * year and included otherwise. Activity uses formatDateTime (always with year).
  */
-export function formatDayTime(iso: string, now: Date = new Date()): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-  const dayMonth =
-    date.getFullYear() === now.getFullYear()
-      ? DAY_MONTH_FORMAT.format(date)
-      : DAY_MONTH_YEAR_FORMAT.format(date);
-  return `${dayMonth} · ${TIME_FORMAT.format(date)}`;
+export function formatDayTime(
+  iso: string,
+  locale: Locale = DEFAULT_LOCALE,
+  now: Date = new Date(),
+): string {
+  return formatDayTimeForLocale(locale, iso, now);
+}
+
+/** Locale-aware number formatting: "1,234.5" (EN) / "1.234,5" (NL). */
+export function formatNumber(value: number, locale: Locale = DEFAULT_LOCALE): string {
+  return formatNumberForLocale(locale, value);
+}
+
+/** Relative time such as "yesterday" / "gisteren". */
+export function formatRelative(
+  value: string | Date,
+  locale: Locale = DEFAULT_LOCALE,
+  now: Date = new Date(),
+): string {
+  return formatRelativeForLocale(locale, value, now);
 }
 
 /**

@@ -9,6 +9,7 @@ import { LiveRegion } from '@/components/ui/LiveRegion';
 import { useAnnouncer } from '@/components/ui/use-live-announcer';
 import { cleanTitle, validateProjectTitle } from '@/lib/validation';
 import { cn } from '@/lib/cn';
+import { useI18n } from '@/i18n/client';
 import styles from './CaptureForm.module.css';
 
 export interface CaptureFormProps {
@@ -25,7 +26,10 @@ export interface CaptureFormProps {
   announceSuccess?: boolean;
 }
 
-async function readErrorMessage(response: Response): Promise<string> {
+async function readErrorMessage(
+  response: Response,
+  fallback: string,
+): Promise<string> {
   try {
     const payload: unknown = await response.json();
     if (
@@ -39,7 +43,7 @@ async function readErrorMessage(response: Response): Promise<string> {
   } catch {
     /* fall through to the generic message */
   }
-  return 'Could not create the project. Try again.';
+  return fallback;
 }
 
 /**
@@ -57,6 +61,7 @@ export function CaptureForm({
   announceSuccess = true,
 }: CaptureFormProps) {
   const router = useRouter();
+  const { locale, t } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -68,14 +73,14 @@ export function CaptureForm({
     event.preventDefault();
     if (submitting) return;
 
-    const validationError = validateProjectTitle(title);
+    const validationError = validateProjectTitle(title, locale);
     if (validationError) {
       setError(validationError);
       inputRef.current?.focus();
       return;
     }
     if (!rootProjectId) {
-      setError('Root project is not available.');
+      setError(t('shell.rootUnavailable'));
       return;
     }
 
@@ -89,11 +94,11 @@ export function CaptureForm({
         body: JSON.stringify({ parentId: rootProjectId, title: cleanTitle(title) }),
       });
       if (!response.ok) {
-        setError(await readErrorMessage(response));
+        setError(await readErrorMessage(response, t('shell.captureFailed')));
         return;
       }
       const createdTitle = cleanTitle(title);
-      const message = `Added "${createdTitle}" to Inbox.`;
+      const message = t('shell.captureSuccess', { title: createdTitle });
       setTitle('');
       setStatus(message);
       if (announceSuccess) announce(message);
@@ -101,7 +106,7 @@ export function CaptureForm({
       router.refresh();
       inputRef.current?.focus();
     } catch {
-      setError('Could not reach the server. Check your connection and try again.');
+      setError(t('common.networkError'));
     } finally {
       setSubmitting(false);
     }
@@ -113,11 +118,11 @@ export function CaptureForm({
         className={cn(styles.form, styles.mobile, className)}
         onSubmit={handleSubmit}
         noValidate
-        aria-label="Add a project to Root"
+        aria-label={t('shell.captureForm')}
       >
         <LiveRegion message={announcement.message} sequence={announcement.sequence} />
         <label className={styles.mobileLabel} htmlFor="capture-title-mobile">
-          Project title
+          {t('shell.projectTitleLabel')}
         </label>
         <input
           ref={inputRef}
@@ -125,7 +130,7 @@ export function CaptureForm({
           className={`${styles.input} ${styles.mobileInput}`}
           type="text"
           name="title"
-          placeholder="Add a project to Root…"
+          placeholder={t('shell.capturePlaceholder')}
           value={title}
           autoFocus={autoFocus}
           autoComplete="off"
@@ -144,11 +149,11 @@ export function CaptureForm({
         ) : null}
         <div className={styles.mobileActions}>
           <Button type="submit" loading={submitting} disabled={!title.trim()}>
-            Create project
+            {t('shell.createProject')}
           </Button>
           {onCancel ? (
             <Button type="button" variant="quiet" onClick={onCancel}>
-              Cancel
+              {t('common.cancel')}
             </Button>
           ) : null}
         </div>
@@ -161,12 +166,12 @@ export function CaptureForm({
       className={cn(styles.form, className)}
       onSubmit={handleSubmit}
       noValidate
-      aria-label="Add a project to Root"
+      aria-label={t('shell.captureForm')}
     >
       <LiveRegion message={announcement.message} sequence={announcement.sequence} />
       <div className={styles.field}>
         <label className="visually-hidden" htmlFor="capture-title">
-          Add a project to Root
+          {t('shell.captureTitleLabel')}
         </label>
         <Icon name="add" size={20} className={styles.plus} />
         <input
@@ -175,7 +180,7 @@ export function CaptureForm({
           className={styles.input}
           type="text"
           name="title"
-          placeholder="Add a project to Root…"
+          placeholder={t('shell.capturePlaceholder')}
           value={title}
           autoFocus={autoFocus}
           autoComplete="off"

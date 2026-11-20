@@ -56,6 +56,12 @@
   font-size: var(--font-size-body);
 }
 
+.languageRow {
+  margin-top: var(--space-4);
+  display: flex;
+  justify-content: center;
+}
+
 @media (max-width: 640px) {
   .page {
     padding: var(--space-6) var(--space-4) var(--space-6);

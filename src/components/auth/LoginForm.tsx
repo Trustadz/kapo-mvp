@@ -7,9 +7,11 @@ import { Input } from '@/components/ui/Input';
 import { Notice } from '@/components/ui/Notice';
 import { postJson } from '@/lib/api-client';
 import { normalizeUsername } from '@/lib/validation';
+import { useI18n } from '@/i18n/client';
 import styles from './AuthForm.module.css';
 
 export function LoginForm() {
+  const { t } = useI18n();
   const usernameRef = useRef<HTMLInputElement>(null);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -22,8 +24,8 @@ export function LoginForm() {
     if (submitting) return;
 
     const errors: Record<string, string> = {};
-    if (!normalizeUsername(username)) errors.username = 'Enter your username.';
-    if (!password) errors.password = 'Enter your password.';
+    if (!normalizeUsername(username)) errors.username = t('auth.usernameRequired');
+    if (!password) errors.password = t('auth.passwordRequired');
     setFieldErrors(errors);
     setFormError(null);
     if (Object.keys(errors).length > 0) {
@@ -43,9 +45,7 @@ export function LoginForm() {
       if (!result.ok) {
         if (result.fields) setFieldErrors(result.fields);
         setFormError(
-          result.status === 429
-            ? 'Too many sign-in attempts. Wait a few minutes and try again.'
-            : result.message,
+          result.status === 429 ? t('auth.tooManyAttempts') : result.message,
         );
         return;
       }
@@ -56,14 +56,14 @@ export function LoginForm() {
   };
 
   return (
-    <form className={styles.form} onSubmit={handleSubmit} noValidate aria-label="Sign in">
-      <h1 className={styles.heading}>Sign in</h1>
+    <form className={styles.form} onSubmit={handleSubmit} noValidate aria-label={t('auth.signInForm')}>
+      <h1 className={styles.heading}>{t('auth.signIn')}</h1>
 
       {formError ? <Notice tone="error">{formError}</Notice> : null}
 
       <div className={styles.fields}>
         <Field
-          label="Username"
+          label={t('auth.username')}
           htmlFor="login-username"
           error={fieldErrors.username}
           required
@@ -83,7 +83,7 @@ export function LoginForm() {
           />
         </Field>
         <Field
-          label="Password"
+          label={t('auth.password')}
           htmlFor="login-password"
           error={fieldErrors.password}
           required
@@ -104,7 +104,7 @@ export function LoginForm() {
 
       <div className={styles.actions}>
         <Button type="submit" loading={submitting} className={styles.submit}>
-          Sign in
+          {t('auth.signIn')}
         </Button>
       </div>
     </form>

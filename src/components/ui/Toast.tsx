@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { cn } from '@/lib/cn';
 import { Icon } from './Icon';
+import { useI18n } from '@/i18n/client';
 import styles from './Toast.module.css';
 
 export type ToastTone = 'success' | 'error' | 'info';
@@ -44,6 +45,7 @@ export function Toast({
   duration = 4000,
   announcementKey = 0,
 }: ToastProps) {
+  const { t } = useI18n();
   useEffect(() => {
     if (!open || duration <= 0) return;
     const timer = window.setTimeout(onClose, duration);
@@ -67,7 +69,7 @@ export function Toast({
       <span className={styles.message} data-toast-message="">
         {message}
       </span>
-      <button type="button" className={styles.close} onClick={onClose} aria-label="Dismiss message">
+      <button type="button" className={styles.close} onClick={onClose} aria-label={t('common.dismissMessage')}>
         <Icon name="close" size={18} />
       </button>
     </div>

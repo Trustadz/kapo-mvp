@@ -21,14 +21,15 @@ import {
 } from '@/server/http';
 import { normalizeUsername } from '@/lib/validation';
 import { resolveLandingHref } from '@/server/domain/users';
+import { getI18n } from '@/i18n/server';
 
 export const dynamic = 'force-dynamic';
-
-const INVALID_CREDENTIALS = 'Invalid username or password.';
 
 /** POST /api/auth/login — JSON { username, password }. */
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) return rejectCrossOrigin();
+
+  const { t, locale } = await getI18n();
 
   const body = await readJsonBody(request);
   if (!body.ok) return body.response;
@@ -36,20 +37,19 @@ export async function POST(request: Request) {
   const password = readStringField(body.data, 'password');
 
   const fields: Record<string, string> = {};
-  if (!username) fields.username = 'Enter your username.';
-  if (!password) fields.password = 'Enter your password.';
+  if (!username) fields.username = t('auth.usernameRequired');
+  if (!password) fields.password = t('auth.passwordRequired');
   if (Object.keys(fields).length > 0) {
-    return jsonError(422, 'validation_failed', 'Check the highlighted fields.', fields);
+    return jsonError(422, 'validation_failed', t('common.checkFields'), fields);
   }
 
   const rateKey = loginAttemptKey(username, clientIp(request));
   const limit = checkLoginRateLimit(rateKey);
   if (!limit.allowed) {
-    const minutes = Math.max(1, Math.ceil(limit.retryAfterSeconds / 60));
     const response = jsonError(
       429,
       'rate_limited',
-      `Too many sign-in attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`,
+      t('auth.tooManyAttempts'),
     );
     response.headers.set('retry-after', String(limit.retryAfterSeconds));
     return response;
@@ -63,13 +63,13 @@ export async function POST(request: Request) {
     // Spend comparable time whether or not the account exists.
     await hashPassword(password);
     recordLoginFailure(rateKey);
-    return jsonError(401, 'invalid_credentials', INVALID_CREDENTIALS);
+    return jsonError(401, 'invalid_credentials', t('auth.invalidCredentials'));
   }
 
   const valid = await verifyPassword(password, record.passwordHash);
   if (!valid) {
     recordLoginFailure(rateKey);
-    return jsonError(401, 'invalid_credentials', INVALID_CREDENTIALS);
+    return jsonError(401, 'invalid_credentials', t('auth.invalidCredentials'));
   }
 
   clearLoginAttempts(rateKey);

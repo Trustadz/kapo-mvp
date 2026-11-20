@@ -2,6 +2,7 @@
 
 import { Icon, Input, Select } from '@/components/ui';
 import { formatPersonName } from '@/lib/format';
+import { useI18n } from '@/i18n/client';
 import {
   hasActiveProjectFilters,
   type ProjectFilterState,
@@ -31,30 +32,31 @@ export function ProjectFilterBar({
   matchingCount,
   totalCount,
 }: ProjectFilterBarProps) {
+  const { t, plural } = useI18n();
   const active = hasActiveProjectFilters(filters);
 
   return (
-    <div className={styles.filterBar} role="group" aria-label="Filter child projects">
+    <div className={styles.filterBar} role="group" aria-label={t('filters.group')}>
       <div className={styles.filterSearch}>
         <Icon name="search" size={20} className={styles.filterSearchIcon} />
         <Input
           className={styles.filterSearchInput}
           type="search"
           value={filters.title}
-          placeholder="Filter by title"
-          aria-label="Filter projects by title"
+          placeholder={t('filters.byTitle')}
+          aria-label={t('filters.byTitleAria')}
           onChange={(event) => onChange({ ...filters, title: event.target.value })}
         />
       </div>
       <Select
         className={styles.filterReporter}
-        aria-label="Filter projects by reporter"
+        aria-label={t('filters.byReporterAria')}
         value={filters.reporterId ?? ''}
         onChange={(event) =>
           onChange({ ...filters, reporterId: event.target.value || null })
         }
       >
-        <option value="">All reporters</option>
+        <option value="">{t('filters.allReporters')}</option>
         {reporters.map((reporter) => (
           <option key={reporter.id} value={reporter.id}>
             {formatPersonName(reporter.username)}
@@ -63,7 +65,10 @@ export function ProjectFilterBar({
       </Select>
       {active ? (
         <span className={styles.filterCount} role="status" aria-live="polite" aria-atomic="true">
-          {matchingCount} of {totalCount} project{totalCount === 1 ? '' : 's'}
+          {plural('plurals.filterCount', totalCount, {
+            matching: matchingCount,
+            total: totalCount,
+          })}
         </span>
       ) : null}
     </div>

@@ -5,6 +5,7 @@ import { Button, Dialog, Field, Input, Notice } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import type { MoveDestination, ProjectCard } from '@/components/projects/types';
 import { changeInboxParentRequest, fetchMoveInfo } from '@/components/projects/api';
+import { useI18n } from '@/i18n/client';
 import styles from './inbox.module.css';
 
 export interface ChangeParentDialogProps {
@@ -31,6 +32,7 @@ export function ChangeParentDialog({
   onClose,
   onChanged,
 }: ChangeParentDialogProps) {
+  const { t } = useI18n();
   const inputId = useId();
   const [destinations, setDestinations] = useState<MoveDestination[]>([]);
   const [destinationId, setDestinationId] = useState('');
@@ -98,32 +100,32 @@ export function ChangeParentDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      title="Change parent"
-      description={`${projectTitle} stays in the Inbox and starts at the new parent's Start status.`}
+      title={t('inbox.changeParentTitle')}
+      description={t('inbox.changeParentDescription', { title: projectTitle })}
       dismissible={!saving}
       footer={
         <div className={styles.dialogFooter}>
           <Button type="button" onClick={() => void submit()} disabled={!canSubmit} loading={saving}>
-            Change parent
+            {t('inbox.changeParent')}
           </Button>
           <Button type="button" variant="quiet" onClick={onClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
         </div>
       }
     >
       <div className={styles.dialogForm}>
-        {loading ? <Notice tone="info">Loading projects…</Notice> : null}
+        {loading ? <Notice tone="info">{t('inbox.loadingProjects')}</Notice> : null}
         {error ? <Notice tone="error">{error}</Notice> : null}
         {!loading && !error && destinations.length === 0 ? (
-          <Notice tone="info">There is no other project you can move this capture under.</Notice>
+          <Notice tone="info">{t('inbox.noOtherParent')}</Notice>
         ) : null}
         {!loading && !error && destinations.length > 0 ? (
           <>
             <Field
-              label="Find a parent"
+              label={t('inbox.findParent')}
               htmlFor={inputId}
-              hint="Search by project title. The list only includes projects you can edit."
+              hint={t('inbox.findParentHint')}
             >
               <Input
                 id={inputId}
@@ -131,12 +133,12 @@ export function ChangeParentDialog({
                 value={query}
                 autoFocus
                 autoComplete="off"
-                placeholder="Type a project title"
+                placeholder={t('inbox.typeProjectTitle')}
                 onChange={(event) => setQuery(event.target.value)}
               />
             </Field>
             {filtered.length > 0 ? (
-              <ul className={styles.parentOptions} aria-label="Parent destinations">
+              <ul className={styles.parentOptions} aria-label={t('inbox.parentDestinations')}>
                 {filtered.map((destination) => (
                   <li key={destination.id}>
                     <button
@@ -155,11 +157,16 @@ export function ChangeParentDialog({
                 ))}
               </ul>
             ) : (
-              <p className={styles.dialogHint}>No project titles match “{query.trim()}”.</p>
+              <p className={styles.dialogHint}>
+                {t('inbox.noTitlesMatch', { query: query.trim() })}
+              </p>
             )}
             {selected && selectedStart ? (
               <p className={styles.dialogHint}>
-                {selected.title} starts captures at “{selectedStart.name}”.
+                {t('inbox.startsCapturesAt', {
+                  title: selected.title,
+                  status: selectedStart.name,
+                })}
               </p>
             ) : null}
           </>

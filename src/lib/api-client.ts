@@ -1,4 +1,6 @@
 /** Client-side JSON fetch helper matching build-spec §7 error shape. */
+import { readLocaleCookie } from '@/i18n/cookie';
+import { t } from '@/i18n/translate';
 
 export interface ApiFailure {
   ok: false;
@@ -52,7 +54,7 @@ export async function requestJson<T = unknown>(
       ok: false,
       status: 0,
       code: 'network_error',
-      message: 'Could not reach the server. Check your connection and try again.',
+      message: t(readLocaleCookie(), 'common.networkError'),
     };
   }
 
@@ -83,7 +85,7 @@ export async function requestJson<T = unknown>(
     message:
       typeof errorBody?.message === 'string'
         ? errorBody.message
-        : 'Something went wrong. Try again.',
+        : t(readLocaleCookie(), 'common.genericError'),
     ...(Object.keys(fields).length > 0 ? { fields } : {}),
   };
 }

@@ -6,7 +6,8 @@ import { useState, type FormEvent } from 'react';
 import { Badge, Button, EmptyState, Icon, Input, Toast } from '@/components/ui';
 import { useToastMessage } from '@/components/ui/use-live-announcer';
 import { RestoreDialog } from '@/components/projects/ProjectDialogs';
-import { formatDate, formatPersonName } from '@/lib/format';
+import { formatPersonName } from '@/lib/format';
+import { useI18n } from '@/i18n/client';
 import type { SearchResultItem, TrashGroup, TrashItem } from '@/components/projects/types';
 import styles from './search.module.css';
 
@@ -23,6 +24,7 @@ export interface SearchPageProps {
  * Trash is grouped by action (F06) and never mixed into ordinary results.
  */
 export function SearchPage({ tab, query, results, trashItems, trashGroups }: SearchPageProps) {
+  const { t, plural, formatDate } = useI18n();
   const router = useRouter();
   const [value, setValue] = useState(query);
   const { toast, notify, dismiss } = useToastMessage();
@@ -47,14 +49,14 @@ export function SearchPage({ tab, query, results, trashItems, trashGroups }: Sea
 
   return (
     <div className={styles.page}>
-      <nav className={styles.tabs} aria-label="Search sections">
+      <nav className={styles.tabs} aria-label={t('search.sectionsAria')}>
         <Link
           href={tabHref('search')}
           className={styles.tab}
           data-active={tab === 'search' || undefined}
           aria-current={tab === 'search' ? 'page' : undefined}
         >
-          Search
+          {t('search.search')}
         </Link>
         <Link
           href={tabHref('trash')}
@@ -62,27 +64,27 @@ export function SearchPage({ tab, query, results, trashItems, trashGroups }: Sea
           data-active={tab === 'trash' || undefined}
           aria-current={tab === 'trash' ? 'page' : undefined}
         >
-          Trash
+          {t('search.trash')}
         </Link>
       </nav>
 
       <header className={styles.header}>
-        <h1 className={styles.title}>{tab === 'trash' ? 'Trash' : 'Search'}</h1>
+        <h1 className={styles.title}>
+          {tab === 'trash' ? t('search.trash') : t('search.search')}
+        </h1>
         <p className={styles.subtitle}>
-          {tab === 'trash'
-            ? 'Read-only projects · Permanently removed 30 days after entering Trash'
-            : 'Search project titles and available text fields.'}
+          {tab === 'trash' ? t('search.trashSubtitle') : t('search.subtitle')}
         </p>
       </header>
 
       <form
         className={styles.searchForm}
         role="search"
-        aria-label={tab === 'trash' ? 'Filter trashed projects' : 'Search projects'}
+        aria-label={tab === 'trash' ? t('search.filterAria') : t('search.searchAria')}
         onSubmit={submit}
       >
         <label className="visually-hidden" htmlFor="project-search-input">
-          {tab === 'trash' ? 'Filter trashed projects' : 'Search projects'}
+          {tab === 'trash' ? t('search.filterAria') : t('search.searchAria')}
         </label>
         <div className={styles.searchField}>
           <Icon name="search" size={20} className={styles.searchFieldIcon} />
@@ -91,7 +93,9 @@ export function SearchPage({ tab, query, results, trashItems, trashGroups }: Sea
             className={styles.searchInput}
             type="text"
             name="q"
-            placeholder={tab === 'trash' ? 'Filter trashed projects…' : 'Search projects…'}
+            placeholder={
+              tab === 'trash' ? t('search.filterPlaceholder') : t('search.searchPlaceholder')
+            }
             value={value}
             autoComplete="off"
             onChange={(event) => setValue(event.target.value)}
@@ -100,19 +104,19 @@ export function SearchPage({ tab, query, results, trashItems, trashGroups }: Sea
       </form>
 
       {tab === 'search' ? (
-        <section aria-label="Search results" className={styles.results}>
+        <section aria-label={t('search.resultsAria')} className={styles.results}>
           {!query ? (
             <EmptyState
               icon="search"
-              title="Find a project"
-              description="Enter a title or another available text value to search."
+              title={t('search.findTitle')}
+              description={t('search.findDescription')}
             />
           ) : null}
           {query && results.length === 0 ? (
             <EmptyState
               icon="search"
-              title={`No projects match “${query}”`}
-              description="Try a shorter or different word."
+              title={t('search.noMatchTitle', { query })}
+              description={t('search.noMatchDescription')}
             />
           ) : null}
           {results.map((result) => (
@@ -121,33 +125,38 @@ export function SearchPage({ tab, query, results, trashItems, trashGroups }: Sea
                 <h2 className={styles.resultTitle}>
                   <Link href={`/p/${result.id}`}>{result.title}</Link>
                 </h2>
-                {result.archived ? <Badge tone="archived">Archived</Badge> : null}
+                {result.archived ? (
+                  <Badge tone="archived">{t('common.archived')}</Badge>
+                ) : null}
               </div>
               <p className={styles.context}>
-                {result.directAccess ? (
-                  'Direct access'
-                ) : result.parentTitle ? (
-                  result.parentTitle
-                ) : (
-                  'Root'
-                )}
+                {result.directAccess
+                  ? t('common.directAccess')
+                  : result.parentTitle
+                    ? result.parentTitle
+                    : t('common.root')}
               </p>
               <p className={styles.match}>
                 {result.match.field === 'Title'
-                  ? 'Title match'
-                  : `Match in ${result.match.field}: ${result.match.text}`}
+                  ? t('search.titleMatch')
+                  : result.match.field === 'Text'
+                    ? t('search.textMatch', { text: result.match.text })
+                    : t('search.matchIn', {
+                        field: result.match.field,
+                        text: result.match.text,
+                      })}
               </p>
             </article>
           ))}
-          <p className={styles.note}>Trash is not included in ordinary search.</p>
+          <p className={styles.note}>{t('search.trashNote')}</p>
         </section>
       ) : (
-        <section aria-label="Trashed projects" className={styles.results}>
+        <section aria-label={t('search.trashResultsAria')} className={styles.results}>
           {trashGroups.length === 0 ? (
             <EmptyState
               icon="delete"
-              title="Trash is empty"
-              description="Projects you move to Trash appear here for 30 days before permanent removal."
+              title={t('search.emptyTrashTitle')}
+              description={t('search.emptyTrashDescription')}
             />
           ) : (
             <ul className={styles.trashList}>
@@ -158,34 +167,40 @@ export function SearchPage({ tab, query, results, trashItems, trashGroups }: Sea
                       <h2 className={styles.resultTitle}>
                         <Link href={`/p/${group.lead.id}`}>{group.lead.title}</Link>
                       </h2>
-                      {group.lead.archived ? <Badge tone="archived">Archived</Badge> : null}
-                      {group.separate ? <Badge tone="pulled">Trashed separately</Badge> : null}
+                      {group.lead.archived ? (
+                        <Badge tone="archived">{t('common.archived')}</Badge>
+                      ) : null}
+                      {group.separate ? (
+                        <Badge tone="pulled">{t('search.trashedSeparately')}</Badge>
+                      ) : null}
                     </div>
                     <p className={styles.context}>
                       {group.lead.parentTitle
-                        ? `Under ${group.lead.parentTitle}`
-                        : 'Direct access'}{' '}
-                      · {group.lead.statusName ?? 'Status unavailable'}
+                        ? t('search.under', { title: group.lead.parentTitle })
+                        : t('common.directAccess')}{' '}
+                      · {group.lead.statusName ?? t('search.statusUnavailable')}
                     </p>
                     <p className={styles.trashMeta}>
                       {group.actor
-                        ? `Trashed by ${formatPersonName(group.actor.username)} · `
-                        : 'Trashed · '}
+                        ? t('search.trashedBy', {
+                            name: formatPersonName(group.actor.username),
+                          })
+                        : t('search.trashed')}
                       {group.actionCreatedAt || group.lead.trashedAt
                         ? formatDate((group.actionCreatedAt ?? group.lead.trashedAt) as string)
-                        : 'recently'}
+                        : t('search.recently')}
                     </p>
                     <p className={styles.trashMeta}>
-                      Purge deadline:{' '}
                       {group.lead.purgeDeadline
-                        ? formatDate(group.lead.purgeDeadline)
-                        : '30 days after trashing'}
+                        ? t('search.purgeDeadline', {
+                            date: formatDate(group.lead.purgeDeadline),
+                          })
+                        : t('search.purgeFallback')}
                     </p>
                     {group.alsoTrashed.length > 0 ? (
                       <details className={styles.trashMore}>
                         <summary>
-                          Also trashed by this action: {group.alsoTrashed.length} project
-                          {group.alsoTrashed.length === 1 ? '' : 's'}
+                          {plural('plurals.alsoTrashed', group.alsoTrashed.length)}
                         </summary>
                         <ul className={styles.trashMoreList}>
                           {group.alsoTrashed.map((item) => (
@@ -194,11 +209,16 @@ export function SearchPage({ tab, query, results, trashItems, trashGroups }: Sea
                                 <Link href={`/p/${item.id}`} className={styles.openLink}>
                                   {item.title}
                                 </Link>
-                                {item.parentTitle ? ` · under ${item.parentTitle}` : ''}
+                                {item.parentTitle
+                                  ? t('search.alsoTrashedUnder', { title: item.parentTitle })
+                                  : ''}
                               </span>
                               <span>
-                                Purge deadline:{' '}
-                                {item.purgeDeadline ? formatDate(item.purgeDeadline) : '—'}
+                                {item.purgeDeadline
+                                  ? t('search.purgeDeadline', {
+                                      date: formatDate(item.purgeDeadline),
+                                    })
+                                  : '—'}
                               </span>
                             </li>
                           ))}
@@ -208,7 +228,7 @@ export function SearchPage({ tab, query, results, trashItems, trashGroups }: Sea
                     <div className={styles.trashActions}>
                       <Link href={`/p/${group.lead.id}`} className={styles.openLink}>
                         <Icon name="open_in_new" size={18} />
-                        <span>Open</span>
+                        <span>{t('common.open')}</span>
                       </Link>
                       {group.lead.canRestore ? (
                         <Button
@@ -217,7 +237,7 @@ export function SearchPage({ tab, query, results, trashItems, trashGroups }: Sea
                           icon={<Icon name="restore_from_trash" size={18} />}
                           onClick={() => setRestore(group.lead)}
                         >
-                          Restore action
+                          {t('search.restoreAction')}
                         </Button>
                       ) : null}
                     </div>
@@ -235,7 +255,7 @@ export function SearchPage({ tab, query, results, trashItems, trashGroups }: Sea
         projectTitle={restore?.title ?? ''}
         onClose={() => setRestore(null)}
         onRestored={() => {
-          notify('Project restored.');
+          notify(t('search.restored'));
           router.refresh();
         }}
       />

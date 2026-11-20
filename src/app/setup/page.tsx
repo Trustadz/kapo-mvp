@@ -3,8 +3,12 @@ import { redirect } from 'next/navigation';
 import { AuthShell } from '@/components/auth/AuthShell';
 import { SetupForm } from '@/components/auth/SetupForm';
 import { getSessionUser, isFirstRun } from '@/server/auth/current-user';
+import { getI18n } from '@/i18n/server';
 
-export const metadata: Metadata = { title: 'Create account' };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t('auth.createAccount') };
+}
 export const dynamic = 'force-dynamic';
 
 /**

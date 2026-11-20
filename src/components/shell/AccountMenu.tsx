@@ -8,7 +8,10 @@ import { Menu, type MenuItem } from '@/components/ui/Menu';
 import { Toast } from '@/components/ui/Toast';
 import { useToastMessage } from '@/components/ui/use-live-announcer';
 import type { AuthUser, Appearance } from '@/lib/types';
-import { APPEARANCE_LABELS, ACCOUNT_ROLE_LABELS } from '@/lib/types';
+import { ACCOUNT_ROLE_MESSAGE_KEYS, APPEARANCE_MESSAGE_KEYS } from '@/i18n/domain-labels';
+import { LOCALES, LOCALE_LABELS, type Locale } from '@/i18n/config';
+import { writeLocaleCookie } from '@/i18n/cookie';
+import { useI18n } from '@/i18n/client';
 import { formatPersonName } from '@/lib/format';
 import { applyAppearance } from '@/lib/theme';
 import { cn } from '@/lib/cn';
@@ -35,6 +38,7 @@ export function AccountMenu({
   className,
 }: AccountMenuProps) {
   const router = useRouter();
+  const { locale, t } = useI18n();
   const displayName = formatPersonName(user.username);
   const [appearance, setAppearance] = useState<Appearance>(user.appearance);
   const { toast, notify, dismiss } = useToastMessage();
@@ -50,14 +54,19 @@ export function AccountMenu({
           body: JSON.stringify({ appearance: preference }),
         });
         if (!response.ok) {
-          notify('Appearance changed for this visit, but could not be saved.', 'error');
+          notify(t('shell.appearanceNotSaved'), 'error');
         }
       } catch {
-        notify('Appearance changed for this visit, but could not be saved.', 'error');
+        notify(t('shell.appearanceNotSaved'), 'error');
       }
     },
     [],
   );
+
+  const changeLocale = useCallback((next: Locale) => {
+    writeLocaleCookie(next);
+    window.location.reload();
+  }, []);
 
   const signOut = useCallback(() => {
     void (async () => {
@@ -70,14 +79,14 @@ export function AccountMenu({
   }, []);
 
   const items: MenuItem[] = [
-    { id: 'profile', label: 'Profile', icon: 'person', href: '/profile' },
+    { id: 'profile', label: t('common.profile'), icon: 'person', href: '/profile' },
     {
       id: 'appearance',
-      label: 'Appearance',
+      label: t('common.appearance'),
       icon: 'palette',
       items: (['light', 'dark', 'system'] as const).map((option) => ({
         id: `appearance-${option}`,
-        label: APPEARANCE_LABELS[option],
+        label: t(APPEARANCE_MESSAGE_KEYS[option]),
         icon: option === 'light' ? 'light_mode' : option === 'dark' ? 'dark_mode' : 'brightness_auto',
         selected: appearance === option,
         onSelect: () => {
@@ -85,19 +94,30 @@ export function AccountMenu({
         },
       })),
     },
+    {
+      id: 'language',
+      label: t('common.language'),
+      icon: 'translate',
+      items: LOCALES.map((option) => ({
+        id: `language-${option}`,
+        label: LOCALE_LABELS[option],
+        selected: locale === option,
+        onSelect: () => changeLocale(option),
+      })),
+    },
   ];
 
   if (user.appRole === 'admin') {
     items.push(
       { id: 'admin-separator', separator: true },
-      { id: 'settings', label: 'Settings', icon: 'settings', href: '/settings' },
-      { id: 'users', label: 'Users', icon: 'group', href: '/users' },
+      { id: 'settings', label: t('common.settings'), icon: 'settings', href: '/settings' },
+      { id: 'users', label: t('common.users'), icon: 'group', href: '/users' },
     );
   }
 
   items.push(
     { id: 'signout-separator', separator: true },
-    { id: 'signout', label: 'Sign out', icon: 'logout', onSelect: signOut },
+    { id: 'signout', label: t('common.signOut'), icon: 'logout', onSelect: signOut },
   );
 
   const identity = (
@@ -105,7 +125,7 @@ export function AccountMenu({
       <Avatar name={displayName} src={user.avatar} size={40} decorative />
       <span className={styles.identityText}>
         <span className={styles.identityName}>{displayName}</span>
-        <span className={styles.identityRole}>{ACCOUNT_ROLE_LABELS[user.appRole]}</span>
+        <span className={styles.identityRole}>{t(ACCOUNT_ROLE_MESSAGE_KEYS[user.appRole])}</span>
       </span>
     </div>
   );
@@ -113,7 +133,7 @@ export function AccountMenu({
   return (
     <>
       <Menu
-        label="Account menu"
+        label={t('shell.accountMenu')}
         items={items}
         header={identity}
         side={side}
@@ -124,7 +144,7 @@ export function AccountMenu({
             {...triggerProps}
             type="button"
             className={cn(styles.trigger, variant === 'compact' && styles.compactTrigger)}
-            aria-label={variant === 'compact' ? 'Account menu' : undefined}
+            aria-label={variant === 'compact' ? t('shell.accountMenu') : undefined}
           >
             <Avatar name={displayName} src={user.avatar} size={32} decorative />
             {variant === 'sidebar' ? (

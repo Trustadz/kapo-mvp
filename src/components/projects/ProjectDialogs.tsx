@@ -16,6 +16,7 @@ import {
   trashProjectRequest,
   updateProjectFields,
 } from './api';
+import { useI18n } from '@/i18n/client';
 import styles from './ProjectPage.module.css';
 
 function errorMessage(result: { message: string }): string {
@@ -41,6 +42,7 @@ export function AddProjectDialog({
   onClose,
   onCreated,
 }: AddProjectDialogProps) {
+  const { t } = useI18n();
   const [title, setTitle] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -58,7 +60,7 @@ export function AddProjectDialog({
     event.preventDefault();
     if (saving) return;
     if (!title.trim()) {
-      setError('Enter a project title.');
+      setError(t('validation.projectTitleRequired'));
       return;
     }
     setSaving(true);
@@ -77,17 +79,17 @@ export function AddProjectDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      title="Add child project"
-      description={`Create a project under ${parentTitle}.`}
+      title={t('dialogs.addChildTitle')}
+      description={t('dialogs.addChildDescription', { title: parentTitle })}
       dismissible={!saving}
       initialFocusRef={titleRef}
       footer={
         <div className={styles.dialogFooter}>
           <Button type="submit" form="add-project-form" loading={saving}>
-            Add child project
+            {t('dialogs.addChildTitle')}
           </Button>
           <Button type="button" variant="quiet" onClick={onClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
         </div>
       }
@@ -97,9 +99,14 @@ export function AddProjectDialog({
         className={styles.dialogForm}
         onSubmit={submit}
         noValidate
-        aria-label="Add child project"
+        aria-label={t('dialogs.addChildTitle')}
       >
-        <Field label="Title" htmlFor="add-project-title" required error={error ?? undefined}>
+        <Field
+          label={t('dialogs.title')}
+          htmlFor="add-project-title"
+          required
+          error={error ?? undefined}
+        >
           <Input
             ref={titleRef}
             id="add-project-title"
@@ -112,7 +119,7 @@ export function AddProjectDialog({
           />
         </Field>
         <p className={styles.dialogHint}>
-          New projects start in the parent&apos;s start status and normally arrive in the Inbox.
+          {t('dialogs.addChildHint')}
         </p>
       </form>
     </Dialog>
@@ -140,6 +147,7 @@ export function MoveDialog({
   onClose,
   onMoved,
 }: MoveDialogProps) {
+  const { t } = useI18n();
   const [info, setInfo] = useState<MoveInfo | null>(null);
   const [destinationId, setDestinationId] = useState('');
   const [mapping, setMapping] = useState<Record<string, string>>({});
@@ -183,7 +191,7 @@ export function MoveDialog({
 
   const submit = async () => {
     if (!destination || !oldStatusId || !mappedStatusId) {
-      setError('Choose a destination and map the current status explicitly.');
+      setError(t('dialogs.chooseDestinationError'));
       return;
     }
     setSaving(true);
@@ -205,26 +213,28 @@ export function MoveDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      title="Move project"
-      description={`Move ${projectTitle} to another parent.`}
+      title={t('dialogs.moveTitle')}
+      description={t('dialogs.moveDescription', { title: projectTitle })}
       dismissible={!saving}
       footer={
         <div className={styles.dialogFooter}>
           <Button type="button" onClick={() => void submit()} disabled={!canSubmit} loading={saving}>
-            Confirm move
+            {t('dialogs.confirmMove')}
           </Button>
           <Button type="button" variant="quiet" onClick={onClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
         </div>
       }
     >
       <div className={styles.dialogForm}>
-        {loading ? <Notice tone="info">Loading destinations…</Notice> : null}
+        {loading ? (
+          <Notice tone="info">{t('dialogs.loadingDestinations')}</Notice>
+        ) : null}
         {error ? <Notice tone="error">{error}</Notice> : null}
         {info ? (
           <>
-            <Field label="Destination" htmlFor="move-destination" required>
+            <Field label={t('dialogs.destination')} htmlFor="move-destination" required>
               <Select
                 id="move-destination"
                 value={destinationId}
@@ -233,7 +243,7 @@ export function MoveDialog({
                   setMapping({});
                 }}
               >
-                <option value="">Choose a project</option>
+                <option value="">{t('dialogs.chooseProject')}</option>
                 {info.destinations.map((entry) => (
                   <option key={entry.id} value={entry.id}>
                     {entry.path}
@@ -245,17 +255,19 @@ export function MoveDialog({
               <div className={styles.mappingRows}>
                 <div className={styles.mappingRow}>
                   <span className={styles.mappingLabel}>
-                    {info.project.currentStatusName ?? 'Current status'} maps to
+                    {t('dialogs.mapsTo', {
+                      status: info.project.currentStatusName ?? t('dialogs.currentStatus'),
+                    })}
                   </span>
                   <Select
                     className={styles.mappingSelect}
-                    aria-label="Destination status for the current status"
+                    aria-label={t('dialogs.destinationStatusAria')}
                     value={mappedStatusId}
                     onChange={(event) =>
                       setMapping((current) => ({ ...current, [oldStatusId]: event.target.value }))
                     }
                   >
-                    <option value="">Choose a status</option>
+                    <option value="">{t('dialogs.chooseStatus')}</option>
                     {destination.statuses.map((status) => (
                       <option key={status.id} value={status.id}>
                         {status.name}
@@ -265,9 +277,8 @@ export function MoveDialog({
                 </div>
               </div>
             ) : null}
-            <Notice tone="info" title="Map explicitly">
-              Matching status names are not automatically equivalent. Descendants keep their own
-              statuses because their immediate parents do not change.
+            <Notice tone="info" title={t('dialogs.mapExplicitly')}>
+              {t('dialogs.mapExplicitlyBody')}
             </Notice>
           </>
         ) : null}
@@ -295,6 +306,7 @@ export function TrashDialog({
   onClose,
   onTrashed,
 }: TrashDialogProps) {
+  const { t } = useI18n();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -322,16 +334,16 @@ export function TrashDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      title="Move to Trash?"
-      description={`${projectTitle} and its descendants will be moved to Trash.`}
+      title={t('dialogs.trashTitle')}
+      description={t('dialogs.trashDescription', { title: projectTitle })}
       dismissible={!saving}
       footer={
         <div className={styles.dialogFooter}>
           <Button type="button" variant="danger" onClick={() => void submit()} loading={saving}>
-            Move to Trash
+            {t('dialogs.trashButton')}
           </Button>
           <Button type="button" variant="quiet" onClick={onClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
         </div>
       }
@@ -339,8 +351,7 @@ export function TrashDialog({
       <div className={styles.dialogForm}>
         {error ? <Notice tone="error">{error}</Notice> : null}
         <p className={styles.dialogHint}>
-          Trashed projects are read-only and are permanently deleted 30 days after they enter
-          Trash. You can restore them before then.
+          {t('dialogs.trashHint')}
         </p>
       </div>
     </Dialog>
@@ -368,6 +379,7 @@ export function ArchiveDialog({
   onClose,
   onChanged,
 }: ArchiveDialogProps) {
+  const { t } = useI18n();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -395,16 +407,16 @@ export function ArchiveDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      title={mode === 'archive' ? 'Archive project?' : 'Unarchive project?'}
+      title={mode === 'archive' ? t('dialogs.archiveTitle') : t('dialogs.unarchiveTitle')}
       description={projectTitle}
       dismissible={!saving}
       footer={
         <div className={styles.dialogFooter}>
           <Button type="button" onClick={() => void submit()} loading={saving}>
-            {mode === 'archive' ? 'Archive project' : 'Unarchive project'}
+            {mode === 'archive' ? t('dialogs.archiveButton') : t('dialogs.unarchiveButton')}
           </Button>
           <Button type="button" variant="quiet" onClick={onClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
         </div>
       }
@@ -413,12 +425,11 @@ export function ArchiveDialog({
         {error ? <Notice tone="error">{error}</Notice> : null}
         {mode === 'archive' ? (
           <p className={styles.dialogHint}>
-            Archiving hides this project and its descendants unless Show archived is turned on.
-            Descendants keep their own archived state.
+            {t('dialogs.archiveHint')}
           </p>
         ) : (
           <p className={styles.dialogHint}>
-            Unarchiving shows this project again according to the current Show archived setting.
+            {t('dialogs.unarchiveHint')}
           </p>
         )}
       </div>
@@ -452,6 +463,7 @@ export function HideArchivedDialog({
   onClose,
   onConfirmed,
 }: HideArchivedDialogProps) {
+  const { t } = useI18n();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -479,16 +491,16 @@ export function HideArchivedDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      title="Turn off Show archived?"
-      description={`${projectTitle} will be hidden.`}
+      title={t('dialogs.hideArchivedTitle')}
+      description={t('dialogs.hideArchivedDescription', { title: projectTitle })}
       dismissible={!saving}
       footer={
         <div className={styles.dialogFooter}>
           <Button type="button" onClick={() => void submit()} loading={saving}>
-            Turn off Show archived
+            {t('dialogs.turnOffShowArchived')}
           </Button>
           <Button type="button" variant="quiet" onClick={onClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
         </div>
       }
@@ -496,9 +508,7 @@ export function HideArchivedDialog({
       <div className={styles.dialogForm}>
         {error ? <Notice tone="error">{error}</Notice> : null}
         <p className={styles.dialogHint}>
-          This project is archived, or is inside an archived project, so it will no longer be
-          visible with Show archived off. You will be taken to {fallbackTitle}. You can turn Show
-          archived back on later.
+          {t('dialogs.hideArchivedHint', { fallback: fallbackTitle })}
         </p>
       </div>
     </Dialog>
@@ -520,6 +530,7 @@ export function RestoreDialog({
   onClose,
   onRestored,
 }: RestoreDialogProps) {
+  const { t, plural } = useI18n();
   const [info, setInfo] = useState<RestoreInfo | null>(null);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -554,7 +565,7 @@ export function RestoreDialog({
   const submit = async () => {
     if (!info) return;
     if (!allMapped) {
-      setError('Choose a status for every project that needs mapping.');
+      setError(t('dialogs.chooseStatusForEvery'));
       return;
     }
     setSaving(true);
@@ -574,40 +585,39 @@ export function RestoreDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      title="Restore project"
+      title={t('dialogs.restoreTitle')}
       description={projectTitle}
       dismissible={!saving}
       footer={
         <div className={styles.dialogFooter}>
           <Button type="button" onClick={() => void submit()} disabled={!canSubmit} loading={saving}>
-            Restore project
+            {t('dialogs.restoreButton')}
           </Button>
           <Button type="button" variant="quiet" onClick={onClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
         </div>
       }
     >
       <div className={styles.dialogForm}>
-        {loading ? <Notice tone="info">Preparing restore…</Notice> : null}
+        {loading ? <Notice tone="info">{t('dialogs.preparingRestore')}</Notice> : null}
         {error ? <Notice tone="error">{error}</Notice> : null}
         {info ? (
           <>
             <p className={styles.dialogHint}>
-              Restoring undoes this trash action. Only projects trashed together with it return;
-              descendants trashed separately stay in Trash.
+              {t('dialogs.restoreHint')}
             </p>
             {info.candidates.length > 0 ? (
               <div className={styles.restoreList}>
                 <p className={styles.restoreListTitle}>
-                  Projects that will return ({info.candidates.length})
+                  {plural('plurals.returning', info.candidates.length)}
                 </p>
                 <ul className={styles.restoreListItems}>
                   {info.candidates.map((candidate) => (
                     <li key={candidate.projectId}>
                       {candidate.title}
                       {candidate.statusName ? ` · ${candidate.statusName}` : ''}
-                      {candidate.invalid ? ' · needs a new status' : ''}
+                      {candidate.invalid ? ` · ${t('dialogs.needsNewStatus')}` : ''}
                     </li>
                   ))}
                 </ul>
@@ -615,9 +625,8 @@ export function RestoreDialog({
             ) : null}
             {invalid.length > 0 ? (
               <div className={styles.mappingRows}>
-                <Notice tone="warning" title="Status no longer available">
-                  These projects used a status that was removed from the parent workflow. Choose a
-                  valid status before restoring.
+                <Notice tone="warning" title={t('dialogs.statusUnavailable')}>
+                  {t('dialogs.statusUnavailableBody')}
                 </Notice>
                 {invalid.map((candidate) => (
                   <div key={candidate.projectId} className={styles.mappingRow}>
@@ -625,12 +634,12 @@ export function RestoreDialog({
                       {candidate.title}
                       <span className={styles.destinationPath}>
                         {' '}
-                        — {candidate.statusName ?? 'removed status'}
+                        — {candidate.statusName ?? t('dialogs.removedStatus')}
                       </span>
                     </span>
                     <Select
                       className={styles.mappingSelect}
-                      aria-label={`Restore status for ${candidate.title}`}
+                      aria-label={t('dialogs.restoreStatusAria', { title: candidate.title })}
                       value={mapping[candidate.projectId] ?? ''}
                       onChange={(event) =>
                         setMapping((current) => ({
@@ -639,7 +648,7 @@ export function RestoreDialog({
                         }))
                       }
                     >
-                      <option value="">Choose a status</option>
+                      <option value="">{t('dialogs.chooseStatus')}</option>
                       {candidate.statuses.map((status) => (
                         <option key={status.id} value={status.id}>
                           {status.name}
@@ -675,6 +684,7 @@ export function BulkTrashDialog({
   onClose,
   onTrashed,
 }: BulkTrashDialogProps) {
+  const { t, plural } = useI18n();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const count = projects.length;
@@ -705,16 +715,16 @@ export function BulkTrashDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      title={`Move ${count} project${count === 1 ? '' : 's'} to Trash?`}
-      description="They will be grouped as one Trash action."
+      title={plural('plurals.bulkTrashTitle', count)}
+      description={t('dialogs.bulkTrashDescription')}
       dismissible={!saving}
       footer={
         <div className={styles.dialogFooter}>
           <Button type="button" variant="danger" onClick={() => void submit()} loading={saving}>
-            Move {count} to Trash
+            {t('dialogs.bulkTrashButton', { count })}
           </Button>
           <Button type="button" variant="quiet" onClick={onClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
         </div>
       }
@@ -722,8 +732,7 @@ export function BulkTrashDialog({
       <div className={styles.dialogForm}>
         {error ? <Notice tone="error">{error}</Notice> : null}
         <p className={styles.dialogHint}>
-          Selected projects and their live descendants become read-only in Trash. Each newly trashed
-          project gets its own 30-day deadline; projects already in Trash keep theirs.
+          {t('dialogs.bulkTrashHint')}
         </p>
       </div>
     </Dialog>
@@ -752,6 +761,7 @@ interface BulkStatusRow {
  * All projects sharing an old status receive the same destination status.
  */
 export function BulkMoveDialog({ open, projects, onClose, onMoved }: BulkMoveDialogProps) {
+  const { t, plural } = useI18n();
   const [infos, setInfos] = useState<MoveInfo[] | null>(null);
   const [destinationId, setDestinationId] = useState('');
   const [mapping, setMapping] = useState<Record<string, string>>({});
@@ -808,7 +818,7 @@ export function BulkMoveDialog({ open, projects, onClose, onMoved }: BulkMoveDia
       if (!project.statusId) continue;
       const row = rows.get(project.statusId) ?? {
         id: project.statusId,
-        name: project.statusName ?? 'Unknown status',
+        name: project.statusName ?? t('dialogs.unknownStatus'),
         count: 0,
       };
       row.count += 1;
@@ -822,11 +832,11 @@ export function BulkMoveDialog({ open, projects, onClose, onMoved }: BulkMoveDia
 
   const submit = async () => {
     if (!destination) {
-      setError('Choose a destination project.');
+      setError(t('dialogs.chooseDestination'));
       return;
     }
     if (!allMapped) {
-      setError('Map every old status explicitly.');
+      setError(t('dialogs.mapEveryStatus'));
       return;
     }
     const first = projects[0];
@@ -852,29 +862,31 @@ export function BulkMoveDialog({ open, projects, onClose, onMoved }: BulkMoveDia
     <Dialog
       open={open}
       onClose={onClose}
-      title={`Move ${projects.length} project${projects.length === 1 ? '' : 's'}`}
-      description="They all move to one parent; descendants that are not selected keep their own statuses."
+      title={plural('plurals.bulkMoveTitle', projects.length)}
+      description={t('dialogs.bulkMoveDescription')}
       dismissible={!saving}
       footer={
         <div className={styles.dialogFooter}>
           <Button type="button" onClick={() => void submit()} disabled={!canSubmit} loading={saving}>
-            Confirm move
+            {t('dialogs.confirmMove')}
           </Button>
           <Button type="button" variant="quiet" onClick={onClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
         </div>
       }
     >
       <div className={styles.dialogForm}>
-        {loading ? <Notice tone="info">Loading destinations…</Notice> : null}
+        {loading ? (
+          <Notice tone="info">{t('dialogs.loadingDestinations')}</Notice>
+        ) : null}
         {error ? <Notice tone="error">{error}</Notice> : null}
         {!loading && infos && destinationOptions.length === 0 ? (
-          <Notice tone="info">There is no shared destination available for this selection.</Notice>
+          <Notice tone="info">{t('dialogs.noSharedDestination')}</Notice>
         ) : null}
         {destinationOptions.length > 0 ? (
           <>
-            <Field label="Destination" htmlFor="bulk-move-destination" required>
+            <Field label={t('dialogs.destination')} htmlFor="bulk-move-destination" required>
               <Select
                 id="bulk-move-destination"
                 value={destinationId}
@@ -883,7 +895,7 @@ export function BulkMoveDialog({ open, projects, onClose, onMoved }: BulkMoveDia
                   setMapping({});
                 }}
               >
-                <option value="">Choose a project</option>
+                <option value="">{t('dialogs.chooseProject')}</option>
                 {destinationOptions.map((entry) => (
                   <option key={entry.id} value={entry.id}>
                     {entry.path}
@@ -896,18 +908,22 @@ export function BulkMoveDialog({ open, projects, onClose, onMoved }: BulkMoveDia
                 {statusRows.map((row) => (
                   <div key={row.id} className={styles.mappingRow}>
                     <span className={styles.mappingLabel}>
-                      {row.name}
-                      {row.count > 1 ? ` (${row.count} projects)` : ''} maps to
+                      {t('dialogs.mapsToBulk', {
+                        status:
+                          row.count > 1
+                            ? `${row.name}${plural('plurals.statusProjectCount', row.count)}`
+                            : row.name,
+                      })}
                     </span>
                     <Select
                       className={styles.mappingSelect}
-                      aria-label={`Destination status for ${row.name}`}
+                      aria-label={t('dialogs.destinationStatusFor', { status: row.name })}
                       value={mapping[row.id] ?? ''}
                       onChange={(event) =>
                         setMapping((current) => ({ ...current, [row.id]: event.target.value }))
                       }
                     >
-                      <option value="">Choose a status</option>
+                      <option value="">{t('dialogs.chooseStatus')}</option>
                       {destination.statuses.map((status) => (
                         <option key={status.id} value={status.id}>
                           {status.name}
@@ -918,9 +934,8 @@ export function BulkMoveDialog({ open, projects, onClose, onMoved }: BulkMoveDia
                 ))}
               </div>
             ) : null}
-            <Notice tone="info" title="Map explicitly">
-              Every distinct old status in the selection needs its own destination status, even when
-              names match. Projects sharing an old status receive the same new status.
+            <Notice tone="info" title={t('dialogs.mapExplicitly')}>
+              {t('dialogs.mapExplicitlyBulkBody')}
             </Notice>
           </>
         ) : null}

@@ -1,13 +1,18 @@
+import type { Metadata } from 'next';
 import { SearchPage } from '@/components/search/SearchPage';
 import { requireUser } from '@/server/auth/current-user';
 import { getDb } from '@/server/db';
 import { searchProjects, searchTrash } from '@/server/domain/search';
 import { groupTrashItems } from '@/server/domain/trash';
 import type { SearchResultItem, TrashGroup, TrashItem } from '@/components/projects/types';
+import { getI18n } from '@/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata = { title: 'Search · Kapo' };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t('search.search') };
+}
 
 interface SearchRouteProps {
   searchParams: Promise<{ q?: string | string[]; tab?: string | string[] }>;

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { LanguageSwitcher } from '@/components/i18n/LanguageSwitcher';
 import styles from './AuthShell.module.css';
 
 export interface AuthShellProps {
@@ -23,6 +24,9 @@ export function AuthShell({ children, footer }: AuthShellProps) {
       <div className={styles.card}>
         {children}
         {footer ? <div className={styles.footer}>{footer}</div> : null}
+      </div>
+      <div className={styles.languageRow}>
+        <LanguageSwitcher id="auth-language" />
       </div>
     </main>
   );

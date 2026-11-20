@@ -171,6 +171,8 @@ export function getRecentWidget(
       actorName,
       projectId: row.project_id,
       projectTitle: row.project_title,
+      action: row.action,
+      targetTitle,
       summary: `${actorName} ${verb}`,
       createdAt: row.created_at,
       href: `/p/${row.project_id}#activity`,

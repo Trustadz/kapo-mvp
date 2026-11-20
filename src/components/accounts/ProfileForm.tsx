@@ -24,13 +24,10 @@ import { useToastMessage } from '@/components/ui/use-live-announcer';
 import { patchJson } from '@/lib/api-client';
 import { formatPersonName } from '@/lib/format';
 import { applyAppearance } from '@/lib/theme';
-import {
-  APPEARANCES,
-  APPEARANCE_LABELS,
-  APP_ROLE_LABELS,
-  type Appearance,
-  type AuthUser,
-} from '@/lib/types';
+import { APPEARANCES, type Appearance, type AuthUser } from '@/lib/types';
+import { APPEARANCE_MESSAGE_KEYS, APP_ROLE_MESSAGE_KEYS } from '@/i18n/domain-labels';
+import { useI18n } from '@/i18n/client';
+import { LanguageSwitcher } from '@/components/i18n/LanguageSwitcher';
 import {
   normalizeEmail,
   normalizeUsername,
@@ -70,6 +67,7 @@ function valuesFromUser(user: AuthUser): ProfileValues {
  * touches project data (build-spec §1).
  */
 export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
+  const { locale, t } = useI18n();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const usernameRef = useRef<HTMLInputElement>(null);
@@ -103,7 +101,7 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
       ? landingOptions
       : [
           ...landingOptions,
-          { value: values.landingPage, label: 'Current landing page' },
+          { value: values.landingPage, label: t('profile.currentLanding') },
         ];
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -111,8 +109,8 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
     if (saving || !dirty) return;
 
     const errors: Record<string, string> = {};
-    const usernameError = validateUsername(values.username);
-    const emailError = validateEmail(values.email);
+    const usernameError = validateUsername(values.username, locale);
+    const emailError = validateEmail(values.email, locale);
     if (usernameError) errors.username = usernameError;
     if (emailError) errors.email = emailError;
     setFieldErrors(errors);
@@ -139,7 +137,7 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
       setSaved(next);
       setValues(next);
       applyAppearance(next.appearance);
-      notify('Profile saved.');
+      notify(t('profile.saved'));
       router.refresh();
     } finally {
       setSaving(false);
@@ -157,11 +155,11 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
     event.target.value = '';
     if (!file) return;
     if (!AVATAR_MIME.includes(file.type)) {
-      setAvatarError('Choose a PNG, JPEG or WebP image.');
+      setAvatarError(t('profile.avatarType'));
       return;
     }
     if (file.size > AVATAR_MAX_BYTES) {
-      setAvatarError('Choose an image up to 2 MB.');
+      setAvatarError(t('profile.avatarSize'));
       return;
     }
 
@@ -183,7 +181,7 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
           payload !== null &&
           typeof (payload as { error?: { message?: unknown } }).error?.message === 'string'
             ? (payload as { error: { message: string } }).error.message
-            : 'Could not upload the picture. Try again.';
+            : t('profile.uploadFailed');
         setAvatarError(message);
         return;
       }
@@ -194,10 +192,10 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
           ? (payload as { avatar: string }).avatar
           : null;
       if (nextAvatar) setAvatar(nextAvatar);
-      notify('Profile picture updated.');
+      notify(t('profile.pictureUpdated'));
       router.refresh();
     } catch {
-      setAvatarError('Could not reach the server. Check your connection and try again.');
+      setAvatarError(t('common.networkError'));
     } finally {
       setUploading(false);
     }
@@ -206,12 +204,12 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
   return (
     <>
       <Card>
-        <CardHeader title="Account" />
+        <CardHeader title={t('profile.account')} />
         <div className={styles.identity}>
           <Avatar name={formatPersonName(user.username)} src={avatar} size={48} />
           <div className={styles.identityText}>
             <p className={styles.identityName}>{formatPersonName(user.username)}</p>
-            <p className={styles.identityRole}>{APP_ROLE_LABELS[user.appRole]}</p>
+            <p className={styles.identityRole}>{t(APP_ROLE_MESSAGE_KEYS[user.appRole])}</p>
           </div>
           <div className={styles.identityAction}>
             <input
@@ -222,7 +220,7 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
               onChange={(event) => {
                 void handleAvatarChange(event);
               }}
-              aria-label="Choose a profile picture"
+              aria-label={t('profile.choosePicture')}
               tabIndex={-1}
             />
             <Button
@@ -233,7 +231,7 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
               onClick={() => fileInputRef.current?.click()}
               className={styles.changePicture}
             >
-              Change picture
+              {t('profile.changePicture')}
             </Button>
           </div>
         </div>
@@ -247,12 +245,12 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
           className={styles.form}
           onSubmit={handleSubmit}
           noValidate
-          aria-label="Account profile"
+          aria-label={t('profile.accountForm')}
         >
           {formError ? <Notice tone="error">{formError}</Notice> : null}
 
           <Field
-            label="Username"
+            label={t('auth.username')}
             htmlFor={usernameId}
             error={fieldErrors.username}
             required
@@ -271,7 +269,7 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
           </Field>
 
           <Field
-            label="Email"
+            label={t('auth.email')}
             htmlFor={emailId}
             error={fieldErrors.email}
             required
@@ -289,7 +287,7 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
             />
           </Field>
 
-          <Field label="Landing page" htmlFor={landingId} labelWidth={190}>
+          <Field label={t('profile.landingPage')} htmlFor={landingId} labelWidth={190}>
             <Select
               id={landingId}
               name="landingPage"
@@ -299,20 +297,24 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
             >
               {categoryOptions.map((option) => (
                 <option key={option.value} value={option.value}>
-                  {option.label}
+                  {option.value === 'home'
+                    ? t('common.home')
+                    : option.value === 'root'
+                      ? t('common.root')
+                      : option.label}
                 </option>
               ))}
             </Select>
           </Field>
 
-          <FieldGroup legend="Appearance" className={styles.appearanceField}>
+          <FieldGroup legend={t('common.appearance')} className={styles.appearanceField}>
             <div className={styles.radioRow}>
               {APPEARANCES.map((appearance) => (
                 <Radio
                   key={appearance}
                   name="appearance"
                   value={appearance}
-                  label={APPEARANCE_LABELS[appearance]}
+                  label={t(APPEARANCE_MESSAGE_KEYS[appearance])}
                   checked={values.appearance === appearance}
                   onChange={() => update('appearance', appearance)}
                 />
@@ -320,15 +322,28 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
             </div>
           </FieldGroup>
 
-          <Field label="Password" htmlFor="profile-password" labelWidth={190}>
+          <Field
+            label={t('common.language')}
+            htmlFor="profile-language"
+            hint={t('profile.languageHint')}
+            labelWidth={190}
+          >
+            <LanguageSwitcher id="profile-language" hideLabel />
+          </Field>
+
+          <Field
+            label={t('profile.password')}
+            htmlFor="profile-password"
+            labelWidth={190}
+          >
             <Button
               id="profile-password"
               variant="ghost"
               className={styles.passwordButton}
-              aria-label="Change password"
+              aria-label={t('profile.changePassword')}
               onClick={() => setPasswordOpen(true)}
             >
-              Change password
+              {t('profile.changePassword')}
             </Button>
           </Field>
 
@@ -339,7 +354,7 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
               disabled={!dirty}
               className={styles.saveButton}
             >
-              Save changes
+              {t('common.saveChanges')}
             </Button>
             <Button
               type="button"
@@ -348,7 +363,7 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
               disabled={!dirty || saving}
               className={styles.cancelButton}
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
           </div>
         </form>
@@ -359,7 +374,7 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
         onClose={() => setPasswordOpen(false)}
         onChanged={() => {
           setPasswordOpen(false);
-          notify('Password changed.');
+          notify(t('profile.passwordChanged'));
         }}
       />
 
@@ -394,6 +409,7 @@ const EMPTY_PASSWORDS: PasswordValues = {
 
 /** Change-password dialog: current password is required and verified server-side. */
 export function ChangePasswordDialog({ open, onClose, onChanged }: ChangePasswordDialogProps) {
+  const { t } = useI18n();
   const currentRef = useRef<HTMLInputElement>(null);
   const [values, setValues] = useState<PasswordValues>(EMPTY_PASSWORDS);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -418,13 +434,16 @@ export function ChangePasswordDialog({ open, onClose, onChanged }: ChangePasswor
     if (saving) return;
 
     const errors: Record<string, string> = {};
-    if (!values.currentPassword) errors.currentPassword = 'Enter your current password.';
-    if (!values.newPassword) errors.newPassword = 'Enter a new password.';
-    else if (values.newPassword.length < 8) {
-      errors.newPassword = 'Password must be at least 8 characters.';
+    if (!values.currentPassword) {
+      errors.currentPassword = t('profile.currentPasswordRequired');
+    }
+    if (!values.newPassword) {
+      errors.newPassword = t('profile.newPasswordRequired');
+    } else if (values.newPassword.length < 8) {
+      errors.newPassword = t('validation.passwordMin', { min: 8 });
     }
     if (values.confirmation !== values.newPassword) {
-      errors.confirmation = 'Passwords do not match.';
+      errors.confirmation = t('validation.passwordsMismatch');
     }
     setFieldErrors(errors);
     setFormError(null);
@@ -465,13 +484,13 @@ export function ChangePasswordDialog({ open, onClose, onChanged }: ChangePasswor
         setFormError(
           typeof error?.message === 'string'
             ? error.message
-            : 'Could not change the password. Try again.',
+            : t('profile.passwordChangeFailed'),
         );
         return;
       }
       onChanged();
     } catch {
-      setFormError('Could not reach the server. Check your connection and try again.');
+      setFormError(t('common.networkError'));
     } finally {
       setSaving(false);
     }
@@ -481,15 +500,15 @@ export function ChangePasswordDialog({ open, onClose, onChanged }: ChangePasswor
     <Dialog
       open={open}
       onClose={onClose}
-      title="Change password"
+      title={t('profile.changePassword')}
       dismissible={!saving}
       footer={
         <>
           <Button type="submit" form="change-password-form" loading={saving}>
-            Save password
+            {t('profile.savePassword')}
           </Button>
           <Button type="button" variant="quiet" onClick={onClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
         </>
       }
@@ -499,11 +518,11 @@ export function ChangePasswordDialog({ open, onClose, onChanged }: ChangePasswor
         className={styles.dialogForm}
         onSubmit={handleSubmit}
         noValidate
-        aria-label="Change password"
+        aria-label={t('profile.changePassword')}
       >
         {formError ? <Notice tone="error">{formError}</Notice> : null}
         <Field
-          label="Current password"
+          label={t('profile.currentPassword')}
           htmlFor="password-current"
           error={fieldErrors.currentPassword}
           required
@@ -522,7 +541,7 @@ export function ChangePasswordDialog({ open, onClose, onChanged }: ChangePasswor
           />
         </Field>
         <Field
-          label="New password"
+          label={t('profile.newPassword')}
           htmlFor="password-new"
           error={fieldErrors.newPassword}
           required
@@ -540,7 +559,7 @@ export function ChangePasswordDialog({ open, onClose, onChanged }: ChangePasswor
           />
         </Field>
         <Field
-          label="Confirm password"
+          label={t('profile.confirmPassword')}
           htmlFor="password-confirmation"
           error={fieldErrors.confirmation}
           required

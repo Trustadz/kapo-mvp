@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/Input';
 import { Notice } from '@/components/ui/Notice';
 import { postJson } from '@/lib/api-client';
 import {
-  cleanTitle,
   normalizeEmail,
   normalizeUsername,
   validateEmail,
@@ -15,9 +14,11 @@ import {
   validatePasswordConfirmation,
   validateUsername,
 } from '@/lib/validation';
+import { useI18n } from '@/i18n/client';
 import styles from './AuthForm.module.css';
 
 export function SetupForm() {
+  const { locale, t } = useI18n();
   const usernameRef = useRef<HTMLInputElement>(null);
   const [values, setValues] = useState({
     username: '',
@@ -38,10 +39,14 @@ export function SetupForm() {
     if (submitting) return;
 
     const errors: Record<string, string> = {};
-    const usernameError = validateUsername(values.username);
-    const emailError = validateEmail(values.email);
-    const passwordError = validatePassword(values.password);
-    const confirmationError = validatePasswordConfirmation(values.password, values.confirmation);
+    const usernameError = validateUsername(values.username, locale);
+    const emailError = validateEmail(values.email, locale);
+    const passwordError = validatePassword(values.password, locale);
+    const confirmationError = validatePasswordConfirmation(
+      values.password,
+      values.confirmation,
+      locale,
+    );
     if (usernameError) errors.username = usernameError;
     if (emailError) errors.email = emailError;
     if (passwordError) errors.password = passwordError;
@@ -74,18 +79,18 @@ export function SetupForm() {
   };
 
   return (
-    <form className={styles.form} onSubmit={handleSubmit} noValidate aria-label="Create account">
+    <form className={styles.form} onSubmit={handleSubmit} noValidate aria-label={t('auth.createAccountForm')}>
       <div className={styles.intro}>
-        <h1 className={styles.heading}>Create account</h1>
-        <p className={styles.subheading}>Set up your first Admin account</p>
-        <p className={styles.description}>This account manages your Kapo installation.</p>
+        <h1 className={styles.heading}>{t('auth.createAccount')}</h1>
+        <p className={styles.subheading}>{t('auth.setupSubheading')}</p>
+        <p className={styles.description}>{t('auth.setupDescription')}</p>
       </div>
 
       {formError ? <Notice tone="error">{formError}</Notice> : null}
 
       <div className={styles.fields}>
         <Field
-          label="Username"
+          label={t('auth.username')}
           htmlFor="setup-username"
           error={fieldErrors.username}
           required
@@ -105,7 +110,7 @@ export function SetupForm() {
           />
         </Field>
         <Field
-          label="Email"
+          label={t('auth.email')}
           htmlFor="setup-email"
           error={fieldErrors.email}
           required
@@ -123,7 +128,7 @@ export function SetupForm() {
           />
         </Field>
         <Field
-          label="Password"
+          label={t('auth.password')}
           htmlFor="setup-password"
           error={fieldErrors.password}
           required
@@ -141,7 +146,7 @@ export function SetupForm() {
           />
         </Field>
         <Field
-          label="Confirm password"
+          label={t('auth.confirmPassword')}
           htmlFor="setup-confirmation"
           error={fieldErrors.confirmation}
           required
@@ -160,11 +165,11 @@ export function SetupForm() {
         </Field>
       </div>
 
-      <p className={styles.hint}>Your initials are used until you choose a profile picture.</p>
+      <p className={styles.hint}>{t('auth.setupHint')}</p>
 
       <div className={styles.actions}>
         <Button type="submit" loading={submitting} className={styles.submit}>
-          Create account
+          {t('auth.createAccount')}
         </Button>
       </div>
     </form>

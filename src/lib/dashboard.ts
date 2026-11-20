@@ -32,6 +32,11 @@ export interface DashboardRecentEvent {
   actorName: string;
   projectId: string;
   projectTitle: string;
+  /** Audit action constant; clients format the sentence in their locale. */
+  action: string;
+  /** Human title of a child project target, when the event has one. */
+  targetTitle: string | null;
+  /** Kept for API compatibility; clients prefer the structured fields. */
   summary: string;
   createdAt: string;
   href: string;
@@ -81,6 +86,8 @@ function isRecentEvent(value: unknown): value is DashboardRecentEvent {
     isString(value.actorName) &&
     isString(value.projectId) &&
     isString(value.projectTitle) &&
+    isString(value.action) &&
+    (value.targetTitle === null || isString(value.targetTitle)) &&
     isString(value.summary) &&
     isString(value.createdAt) &&
     isString(value.href)

@@ -1,17 +1,19 @@
 import Link from 'next/link';
 import { Button, EmptyState } from '@/components/ui';
+import { getI18n } from '@/i18n/server';
 
 /** Projects are permission filtered; an inaccessible project is indistinguishable from a missing one. */
-export default function ProjectNotFound() {
+export default async function ProjectNotFound() {
+  const { t } = await getI18n();
   return (
     <EmptyState
       level={1}
       icon="lock"
-      title="Project not available"
-      description="It may not exist, or you may not have access to it."
+      title={t('notFound.title')}
+      description={t('notFound.description')}
       action={
         <Link href="/">
-          <Button variant="quiet">Go to Home</Button>
+          <Button variant="quiet">{t('notFound.goHome')}</Button>
         </Link>
       }
     />

@@ -5,6 +5,7 @@ import { Icon } from '@/components/ui/Icon';
 import type { AuthUser } from '@/lib/types';
 import { AccountMenu } from './AccountMenu';
 import { CaptureForm } from './CaptureForm';
+import { useI18n } from '@/i18n/client';
 import styles from './TopBar.module.css';
 
 export interface TopBarProps {
@@ -17,6 +18,7 @@ export interface TopBarProps {
  * mobile header with search and the account avatar (build-spec §8).
  */
 export function TopBar({ user, rootProjectId }: TopBarProps) {
+  const { t } = useI18n();
   const canCapture = user.appRole !== 'viewer';
 
   return (
@@ -28,18 +30,18 @@ export function TopBar({ user, rootProjectId }: TopBarProps) {
           ) : (
             <p className={styles.readOnlyHint}>
               <Icon name="visibility" size={18} />
-              <span>Viewers can browse only.</span>
+              <span>{t('shell.viewersCanBrowseOnly')}</span>
             </p>
           )}
         </div>
         <Link href="/search" className={styles.searchLink}>
           <Icon name="search" size={20} />
-          <span>Search</span>
+          <span>{t('common.search')}</span>
         </Link>
       </header>
 
       <header className={styles.mobileBar}>
-        <Link href="/" className={styles.mobileBrand} aria-label="Kapo — Home">
+        <Link href="/" className={styles.mobileBrand} aria-label={t('shell.kapoHome')}>
           <span className={styles.logoPlate}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.svg" alt="" width={24} height={24} className={styles.logo} />
@@ -47,7 +49,7 @@ export function TopBar({ user, rootProjectId }: TopBarProps) {
           <span className={styles.wordmark}>kapo</span>
         </Link>
         <div className={styles.mobileActions}>
-          <Link href="/search" className={styles.mobileIconButton} aria-label="Search">
+          <Link href="/search" className={styles.mobileIconButton} aria-label={t('common.search')}>
             <Icon name="search" size={22} />
           </Link>
           <AccountMenu user={user} variant="compact" side="bottom" align="end" />
