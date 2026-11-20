@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode, type RefObject } from 'react';
 import { Icon } from './Icon';
 import { cn } from '@/lib/cn';
 import styles from './Dialog.module.css';
@@ -16,6 +16,13 @@ export interface DialogProps {
   dismissible?: boolean;
   size?: 'sm' | 'md' | 'lg';
   className?: string;
+  /**
+   * Optional element to focus after the native dialog opens. Native <dialog>
+   * focus handling focuses the first control (the close button) in some
+   * browsers, and React's autoFocus is not reliable there (notably Firefox).
+   * Only dialogs that explicitly pass a ref get this behaviour.
+   */
+  initialFocusRef?: RefObject<HTMLElement | null>;
 }
 
 /**
@@ -32,6 +39,7 @@ export function Dialog({
   dismissible = true,
   size = 'md',
   className,
+  initialFocusRef,
 }: DialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -42,10 +50,17 @@ export function Dialog({
     if (!dialog) return;
     if (open && !dialog.open) {
       dialog.showModal();
+      const target = initialFocusRef?.current;
+      if (target) {
+        // showModal() runs the platform's own focus steps first; move focus on
+        // the next frame so this wins consistently across browsers.
+        const frame = requestAnimationFrame(() => target.focus());
+        return () => cancelAnimationFrame(frame);
+      }
     } else if (!open && dialog.open) {
       dialog.close();
     }
-  }, [open]);
+  }, [open, initialFocusRef]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
