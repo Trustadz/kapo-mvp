@@ -43,6 +43,18 @@
   background: var(--color-pulled);
 }
 
+.card[data-dragging] {
+  opacity: 0.65;
+}
+
+.card[draggable='true'] {
+  cursor: grab;
+}
+
+.card[draggable='true']:active {
+  cursor: grabbing;
+}
+
 .cardHeading {
   display: flex;
   align-items: center;
@@ -106,6 +118,90 @@
   font-size: var(--font-size-small);
 }
 
+/* Drag-to-release target above the list. */
+.dropZone {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border: 1.5px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+  color: var(--color-muted-strong);
+}
+
+.dropZone[data-active] {
+  border-color: var(--color-brand);
+  background: var(--color-brand-light);
+}
+
+.dropIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-brand);
+}
+
+.dropText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dropTitle {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.dropHint {
+  color: var(--color-muted);
+  font-size: var(--font-size-small);
+}
+
+/* Small confirmation card shown directly under the drop area after release. */
+.dropResult {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-success-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.dropResultIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  color: var(--color-success);
+}
+
+.dropResultText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.dropResultTitle {
+  color: var(--color-text);
+  font-size: var(--font-size-small);
+  overflow-wrap: anywhere;
+}
+
+.dropResultHint {
+  color: var(--color-muted);
+  font-size: var(--font-size-small);
+}
+
 .error {
   margin-bottom: calc(var(--space-2) * -1);
 }
@@ -113,5 +209,19 @@
 @media (max-width: 899px) {
   .title {
     font-size: 26px;
+  }
+
+  .dropZone {
+    align-items: flex-start;
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .dropIcon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .dropResult {
+    flex-wrap: wrap;
   }
 }

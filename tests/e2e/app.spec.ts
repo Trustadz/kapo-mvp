@@ -86,6 +86,52 @@ test.describe('seeded application', () => {
     await expect(page.getByRole('article').filter({ hasText: title })).toHaveCount(0);
   });
 
+  test('drags an Inbox capture onto the drop area to release it', async ({ page }) => {
+    await login(page, 'tristan');
+    // The seeded Inbox plus the new capture is taller than the default 720px
+    // viewport; keep the source card and the drop area on screen together.
+    await page.setViewportSize({ width: 1440, height: 1100 });
+    const title = `E2E drop ${Date.now()}`;
+    await capture(page, title);
+
+    await page.goto('/inbox');
+    const item = page.getByRole('article').filter({ hasText: title });
+    const dropArea = page.getByRole('region', { name: 'Release drop area' });
+    await expect(item).toBeVisible();
+    await expect(dropArea).toBeVisible();
+
+    await item.scrollIntoViewIfNeeded();
+    await dropArea.scrollIntoViewIfNeeded();
+    // Start on card padding: the center is the Release button, which does not
+    // initiate an HTML5 drag.
+    await item.dragTo(dropArea, { sourcePosition: { x: 12, y: 12 } });
+
+    // The capture is released, acknowledged under the drop area, and stays in
+    // the list as Pulled.
+    await expect(item.getByText('Pulled')).toBeVisible();
+    const confirmation = page.getByRole('region', { name: 'Released capture' });
+    await expect(confirmation).toBeVisible();
+    await expect(confirmation).toContainText(title);
+    await expect(confirmation).toContainText('To do');
+
+    const projectId = await findProjectId(page, title);
+    const projectResponse = await page.request.get(`/api/projects/${projectId}`);
+    const payload = (await projectResponse.json()) as {
+      project: { inbox: boolean; statusName: string | null };
+    };
+    expect(payload.project.inbox).toBe(false);
+    expect(payload.project.statusName).toBe('To do');
+
+    // The per-card Release button remains the keyboard-accessible path.
+    await page.goto('/inbox');
+    const nextTitle = `E2E keyboard ${Date.now()}`;
+    await capture(page, nextTitle);
+    await page.goto('/inbox');
+    const nextItem = page.getByRole('article').filter({ hasText: nextTitle });
+    await nextItem.getByRole('button', { name: /release to to do/i }).click();
+    await expect(nextItem.getByText('Pulled')).toBeVisible();
+  });
+
   test('changes a project status from the project page', async ({ page }) => {
     await login(page, 'tristan');
     const homeId = await findProjectId(page, 'Home improvement');
