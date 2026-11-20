@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState, type DragEvent } from 'react';
+import { useMemo, useRef, useState, type DragEvent } from 'react';
 import { Badge, Button, Checkbox, EmptyState, Icon, InlineError } from '@/components/ui';
 import type { InboxItem, InboxTreeNode, ProjectCard } from '@/components/projects/types';
 import {
@@ -16,6 +16,7 @@ import {
   planSequenceMove,
 } from '@/lib/inbox-tree';
 import { dropZoneAt, reorderEdgeAt, type DropZone, type ReorderEdge } from '@/lib/reorder';
+import { useFlipReorder } from '@/lib/use-flip-reorder';
 import { ChangeParentDialog } from './ChangeParentDialog';
 import styles from './inbox.module.css';
 
@@ -145,8 +146,14 @@ export function InboxTree({
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ id: string; zone: DropZone } | null>(null);
+  const tbodyRef = useRef<HTMLTableSectionElement | null>(null);
   const index = useMemo(() => indexInboxTree(tree), [tree]);
   const rows = flattenInboxTree(index, collapsed);
+  useFlipReorder(
+    tbodyRef,
+    rows.map((row) => row.node.id).join('|'),
+    draggingId === null,
+  );
   const itemById = useMemo(
     () => new Map(items.map((item) => [item.project.id, item])),
     [items],
@@ -231,7 +238,7 @@ export function InboxTree({
               </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody ref={tbodyRef}>
             {rows.map(({ node, depth, hasChildren }) => {
               const item = itemById.get(node.id);
               const isPulled = pulled.has(node.id);
@@ -242,6 +249,7 @@ export function InboxTree({
                 <tr
                   key={node.id}
                   className={styles.treeRow}
+                  data-flip-key={node.id}
                   data-inbox={inboxRow || undefined}
                   data-context={!inboxRow || undefined}
                   data-pulled={isPulled || undefined}
@@ -402,6 +410,12 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
   );
   const [movePending, setMovePending] = useState(false);
   const [lastReleased, setLastReleased] = useState<InboxItem | null>(null);
+  const listRef = useRef<HTMLUListElement | null>(null);
+  useFlipReorder(
+    listRef,
+    items.map((item) => item.project.id).join('|'),
+    draggingId === null,
+  );
 
   const resetDrag = () => {
     setDraggingId(null);
@@ -782,12 +796,12 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
           </p>
           </div>
 
-          <ul className={styles.list} aria-label="Projects in the Inbox">
+          <ul ref={listRef} className={styles.list} aria-label="Projects in the Inbox">
             {items.map((item) => {
               const isPulled = pulled.has(item.project.id);
               const canDrag = !isPulled && item.canRelease;
               return (
-                <li key={item.project.id}>
+                <li key={item.project.id} data-flip-key={item.project.id}>
                   <article
                     className={styles.card}
                     data-pulled={isPulled || undefined}

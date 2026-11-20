@@ -112,6 +112,10 @@
 
   /* elevation: Kapo uses borders, never decorative shadows */
   --shadow-none: none;
+
+  /* motion (issue #56): short and subtle, never blocking interaction */
+  --motion-fast: 140ms;
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
 }
 
 [data-theme='dark'] {

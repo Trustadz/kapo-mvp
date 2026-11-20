@@ -41,6 +41,7 @@ import {
   updateProjectFields,
 } from '@/components/projects/api';
 import { BulkMoveDialog, BulkTrashDialog } from '@/components/projects/ProjectDialogs';
+import { useFlipReorder } from '@/lib/use-flip-reorder';
 import type { CollectionViewContext } from './types';
 import styles from './views.module.css';
 
@@ -353,6 +354,13 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
 
   const cardsFor = (statusId: string) =>
     ordered.filter((project) => project.statusId === statusId);
+
+  // Issue #56: one signature per column so a cross-column status move also
+  // reads as an order change for the FLIP helper.
+  const flipSignature = columns
+    .map((status) => `${status.id}:${cardsFor(status.id).map((card) => card.id).join('.')}`)
+    .join('|');
+  useFlipReorder(scrollerRef, flipSignature, dragging === null);
 
   const resetDrag = () => {
     const pending = pendingPressRef.current;
@@ -729,6 +737,7 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
                           data-dragging={dragging?.id === project.id || undefined}
                           data-pressing={pendingPressId === project.id || undefined}
                           data-kanban-card-id={project.id}
+                          data-flip-key={project.id}
                           draggable={ctx.canEdit}
                           onPointerDown={(event) => startPointerPress(event, project)}
                           onPointerMove={(event) => {
@@ -846,8 +855,14 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
 
 export function CardView({ ctx }: { ctx: CollectionViewContext }) {
   const ordered = orderedChildren(ctx.children);
+  const listRef = useRef<HTMLUListElement | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ id: string; zone: DropZone } | null>(null);
+  useFlipReorder(
+    listRef,
+    ordered.map((project) => project.id).join('|'),
+    draggingId === null,
+  );
 
   const resetDrag = () => {
     setDraggingId(null);
@@ -891,9 +906,9 @@ export function CardView({ ctx }: { ctx: CollectionViewContext }) {
 
   return (
     <>
-      <ul className={styles.cardList} aria-label="Projects as cards">
+      <ul ref={listRef} className={styles.cardList} aria-label="Projects as cards">
         {ordered.map((project) => (
-          <li key={project.id}>
+          <li key={project.id} data-flip-key={project.id}>
             <article
               className={styles.projectCard}
               data-archived={project.archived || undefined}
@@ -986,6 +1001,7 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
   // The view unmounts when the collection view changes, which clears it.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkDialog, setBulkDialog] = useState<'move' | 'trash' | null>(null);
+  const tbodyRef = useRef<HTMLTableSectionElement | null>(null);
 
   // Filtered Tree rows that are ancestors of matches: they keep the structure
   // visible but are read-only context (issue #55).
@@ -1049,6 +1065,8 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
   };
 
   const allSiblings = orderedChildren(ctx.children);
+  // Flattened row order in render order, used as the FLIP signature.
+  const rowOrder: string[] = [];
 
   const renderRows = (parentId: string, depth: number): ReactElement[] => {
     const rows: ReactElement[] = [];
@@ -1056,10 +1074,12 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
       const hasChildren = (byParent.get(project.id) ?? []).length > 0;
       const isCollapsed = collapsed.has(project.id);
       const contextRow = isContext(project.id);
+      rowOrder.push(project.id);
       rows.push(
         <tr
           key={project.id}
           className={styles.treeRow}
+          data-flip-key={project.id}
           data-archived={project.archived || undefined}
           data-context={contextRow || undefined}
           draggable={ctx.canEdit && project.id !== ctx.projectId && !contextRow}
@@ -1187,6 +1207,9 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
     return rows;
   };
 
+  const rows = renderRows(ctx.projectId, 0);
+  useFlipReorder(tbodyRef, rowOrder.join('|'), draggingId === null);
+
   return (
     <div className={styles.treeWrap}>
       {selectedProjects.length > 0 ? (
@@ -1227,7 +1250,7 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
             </th>
           </tr>
         </thead>
-        <tbody>{renderRows(ctx.projectId, 0)}</tbody>
+        <tbody ref={tbodyRef}>{rows}</tbody>
       </table>
       <p className={styles.hint}>
         Drag a project onto another row to move it inside that project. Drag between two rows to
@@ -1277,8 +1300,14 @@ export function ListView({ ctx }: { ctx: CollectionViewContext }) {
   const ordered = orderedChildren(ctx.children);
   const finish = ctx.statuses.find((status) => status.isFinish) ?? null;
   const start = ctx.statuses.find((status) => status.isStart) ?? null;
+  const listRef = useRef<HTMLUListElement | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ id: string; edge: ReorderEdge } | null>(null);
+  useFlipReorder(
+    listRef,
+    ordered.map((project) => project.id).join('|'),
+    draggingId === null,
+  );
 
   const resetDrag = () => {
     setDraggingId(null);
@@ -1296,13 +1325,14 @@ export function ListView({ ctx }: { ctx: CollectionViewContext }) {
 
   return (
     <>
-      <ul className={styles.list} aria-label="Projects checklist">
+      <ul ref={listRef} className={styles.list} aria-label="Projects checklist">
         {ordered.map((project) => {
           const complete = finish !== null && project.statusId === finish.id;
           const disabled = !ctx.canEdit || !finish || !start;
           return (
             <li
               key={project.id}
+              data-flip-key={project.id}
               className={styles.listRow}
               data-archived={project.archived || undefined}
               data-dragging={draggingId === project.id || undefined}

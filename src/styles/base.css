@@ -127,6 +127,31 @@ svg {
   flex: none;
 }
 
+/* Session-scoped "changed field" emphasis (issue #56). Client components add
+ * this class after a successful save; it stays until a full page load. The
+ * negative inline margins and matching padding keep content in place while the
+ * tint and 3px accent extend into the surrounding padding. */
+.changed-field {
+  margin-inline: calc(-1 * var(--space-2));
+  padding-inline: var(--space-2);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-brand-light);
+  background-image: linear-gradient(to right, var(--color-accent) 0 3px, transparent 3px);
+  animation: changed-field-appear var(--motion-fast) var(--ease-out);
+}
+
+@keyframes changed-field-appear {
+  from {
+    background-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .changed-field {
+    animation: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

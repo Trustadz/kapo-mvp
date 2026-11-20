@@ -29,6 +29,8 @@ import type { MemberCandidate } from './api';
 import type { ProjectAccessMode, ViewFieldKey, ViewFields } from '@/lib/projects';
 import { DEFAULT_VIEW_FIELDS, VIEW_FIELD_KEYS, VIEW_FIELD_LABELS } from '@/lib/projects';
 import { formatPersonName } from '@/lib/format';
+import { markFieldChanged } from '@/lib/changed-fields';
+import { useFieldChanged } from '@/lib/use-field-changed';
 import { saveMembers, saveProjectSettings, saveWorkflow, updateProjectFields } from './api';
 import styles from './ProjectSettings.module.css';
 
@@ -155,6 +157,12 @@ function GeneralTab({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  // Issue #56: read back the session markers so the saved field stays tinted.
+  const titleChanged = useFieldChanged(project.id, 'title');
+  const childPositionChanged = useFieldChanged(project.id, 'child_position');
+  const defaultViewChanged = useFieldChanged(project.id, 'default_view');
+  const inheritLayoutChanged = useFieldChanged(project.id, 'inherit_layout');
+  const skipInboxChanged = useFieldChanged(project.id, 'skip_inbox');
 
   useEffect(() => {
     setTitle(project.title);
@@ -179,12 +187,22 @@ function GeneralTab({
     setError(null);
     setFieldErrors({});
     let failed = false;
-    if (project.canEdit && title.trim() !== project.title) {
+    const titleWillChange = project.canEdit && title.trim() !== project.title;
+    const settingsChanges = {
+      child_position: childPosition !== data.settings.child_position,
+      default_view: defaultView !== data.settings.default_view,
+      inherit_layout: inheritLayout !== data.settings.inherit_layout,
+      skip_inbox: !sendToInbox !== data.settings.skip_inbox,
+    };
+    let titleSaved = false;
+    if (titleWillChange) {
       const titleResult = await updateProjectFields(project.id, { title });
       if (!titleResult.ok) {
         failed = true;
         setError(titleResult.message);
         if (titleResult.fields) setFieldErrors(titleResult.fields);
+      } else {
+        titleSaved = true;
       }
     }
     const settingsResult = await saveProjectSettings(project.id, {
@@ -197,6 +215,13 @@ function GeneralTab({
       failed = true;
       setError(settingsResult.message);
       if (settingsResult.fields) setFieldErrors(settingsResult.fields);
+    } else {
+      // Issue #56: mark only the values that actually changed, once the
+      // server accepted them. The markers reset on a full page load.
+      if (titleSaved) markFieldChanged(project.id, 'title');
+      for (const [field, changed] of Object.entries(settingsChanges)) {
+        if (changed) markFieldChanged(project.id, field);
+      }
     }
     setSaving(false);
     if (!failed) {
@@ -211,7 +236,7 @@ function GeneralTab({
       <p className={styles.cardHint}>Core project details and how children behave.</p>
       {error ? <Notice tone="error">{error}</Notice> : null}
       <div className={styles.fields}>
-        <Field label="Title" htmlFor="settings-title" required error={fieldErrors.title}>
+        <Field label="Title" htmlFor="settings-title" required error={fieldErrors.title} changed={titleChanged}>
           <Input
             id="settings-title"
             value={title}
@@ -223,7 +248,7 @@ function GeneralTab({
         <Field label="Reporter" htmlFor="settings-reporter">
           <Input id="settings-reporter" value={project.reporter.username} readOnly disabled />
         </Field>
-        <Field label="Child projects appear" htmlFor="settings-child-position">
+        <Field label="Child projects appear" htmlFor="settings-child-position" changed={childPositionChanged}>
           <div className={styles.radios} id="settings-child-position">
             <Radio
               name="child-position"
@@ -241,7 +266,7 @@ function GeneralTab({
             />
           </div>
         </Field>
-        <Field label="Default view" htmlFor="settings-default-view" error={fieldErrors.default_view}>
+        <Field label="Default view" htmlFor="settings-default-view" error={fieldErrors.default_view} changed={defaultViewChanged}>
           <Select
             id="settings-default-view"
             value={defaultView}
@@ -254,7 +279,7 @@ function GeneralTab({
             ))}
           </Select>
         </Field>
-        <Field label="Layout" htmlFor="settings-inherit-layout">
+        <Field label="Layout" htmlFor="settings-inherit-layout" changed={inheritLayoutChanged}>
           <Checkbox
             id="settings-inherit-layout"
             label="Inherit layout from the parent project"
@@ -262,7 +287,7 @@ function GeneralTab({
             onChange={(event) => setInheritLayout(event.target.checked)}
           />
         </Field>
-        <Field label="New children" htmlFor="settings-send-inbox">
+        <Field label="New children" htmlFor="settings-send-inbox" changed={skipInboxChanged}>
           <Checkbox
             id="settings-send-inbox"
             label="Send new children to the Inbox"
@@ -323,6 +348,7 @@ export function WorkflowTab({
   const [mappingError, setMappingError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const workflowChanged = useFieldChanged(data.project.id, 'workflow');
 
   useEffect(() => {
     setRows(workflowRows(workflow));
@@ -409,6 +435,7 @@ export function WorkflowTab({
     }
     setShowMapping(false);
     setMappingError(null);
+    markFieldChanged(data.project.id, 'workflow');
     notify(
       result.data.remappedChildren > 0
         ? `Workflow saved. ${result.data.remappedChildren} child project${result.data.remappedChildren === 1 ? '' : 's'} remapped.`
@@ -474,7 +501,7 @@ export function WorkflowTab({
   };
 
   return (
-    <Card className={styles.card}>
+    <Card className={styles.card} data-changed={workflowChanged || undefined}>
       <h2 className={styles.cardTitle}>Workflow for child projects</h2>
       <p className={styles.cardHint}>This workflow controls children, not this project&apos;s own status.</p>
       {error ? <Notice tone="error">{error}</Notice> : null}
@@ -687,6 +714,7 @@ function MembersTab({
   const [privateConfirm, setPrivateConfirm] = useState(false);
   const [addUserId, setAddUserId] = useState('');
   const [addRole, setAddRole] = useState<ProjectRole>('user');
+  const accessFieldChanged = useFieldChanged(project.id, 'access');
 
   useEffect(() => {
     const next: Record<string, ProjectRole | null> = {};
@@ -738,6 +766,7 @@ function MembersTab({
       return;
     }
     setConfirmMessage(null);
+    if (accessChanged) markFieldChanged(project.id, 'access');
     notify('Permissions updated.');
     refresh();
   };
@@ -783,6 +812,7 @@ function MembersTab({
       return;
     }
     notify('Project is now private.');
+    markFieldChanged(project.id, 'access');
     refresh();
   };
 
@@ -795,7 +825,7 @@ function MembersTab({
       </p>
       {error ? <Notice tone="error">{error}</Notice> : null}
       <div className={styles.accessBlock}>
-        <Field label="Access" htmlFor="members-access-mode">
+        <Field label="Access" htmlFor="members-access-mode" changed={accessFieldChanged}>
           {project.isRoot ? (
             <p className={styles.cardHint}>
               Root always uses <strong>Custom access</strong>: its explicit grants plus the implicit
