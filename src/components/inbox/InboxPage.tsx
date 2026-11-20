@@ -18,6 +18,7 @@ import {
 } from '@/lib/inbox-tree';
 import { dropZoneAt, reorderEdgeAt, type DropZone, type ReorderEdge } from '@/lib/reorder';
 import { cancelFlipAnimations, useFlipReorder } from '@/lib/use-flip-reorder';
+import { useI18n } from '@/i18n/client';
 import { ChangeParentDialog } from './ChangeParentDialog';
 import styles from './inbox.module.css';
 
@@ -35,29 +36,35 @@ function isSelectable(item: InboxItem, pulled: ReadonlySet<string>): boolean {
 }
 
 function ReleasedBadges({ item, pulled }: { item: InboxItem; pulled: ReadonlySet<string> }) {
+  const { t } = useI18n();
   return (
     <>
-      {pulled.has(item.project.id) ? <Badge tone="pulled">Pulled</Badge> : null}
-      {item.project.archived ? <Badge tone="archived">Archived</Badge> : null}
+      {pulled.has(item.project.id) ? (
+        <Badge tone="pulled">{t('common.pulled')}</Badge>
+      ) : null}
+      {item.project.archived ? (
+        <Badge tone="archived">{t('common.archived')}</Badge>
+      ) : null}
     </>
   );
 }
 
 /** Parent context shared by the Card and Tree presentations. */
 function ParentContext({ item }: { item: InboxItem }) {
+  const { t } = useI18n();
   const parent = item.project.parent;
   if (parent) {
     return (
       <>
-        Under{' '}
+        {t('inbox.under')}{' '}
         <Link href={`/p/${parent.id}`} className={styles.contextLink}>
           {parent.title}
         </Link>
       </>
     );
   }
-  if (item.parentTitle) return <>Under {item.parentTitle}</>;
-  return <>Direct access</>;
+  if (item.parentTitle) return <>{t('inbox.under')} {item.parentTitle}</>;
+  return <>{t('common.directAccess')}</>;
 }
 
 /**
@@ -71,8 +78,9 @@ function InboxViewSwitch({
   view: InboxView;
   onChange: (view: InboxView) => void;
 }) {
+  const { t } = useI18n();
   return (
-    <div className={styles.viewSwitch} role="group" aria-label="Inbox view">
+    <div className={styles.viewSwitch} role="group" aria-label={t('inbox.viewAria')}>
       <button
         type="button"
         className={styles.viewButton}
@@ -80,7 +88,7 @@ function InboxViewSwitch({
         onClick={() => onChange('card')}
       >
         <Icon name="view_agenda" size={18} />
-        <span>Card</span>
+        <span>{t('inbox.card')}</span>
       </button>
       <button
         type="button"
@@ -89,7 +97,7 @@ function InboxViewSwitch({
         onClick={() => onChange('tree')}
       >
         <Icon name="account_tree" size={18} />
-        <span>Tree</span>
+        <span>{t('inbox.tree')}</span>
       </button>
     </div>
   );
@@ -144,6 +152,7 @@ export function InboxTree({
   onReorder,
   onReparent,
 }: InboxTreeProps) {
+  const { t, plural } = useI18n();
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ id: string; zone: DropZone } | null>(null);
@@ -180,14 +189,14 @@ export function InboxTree({
   };
 
   return (
-    <div className={styles.treeWrap} role="region" aria-label="Application tree">
-      <h2 className="visually-hidden">Application tree</h2>
+    <div className={styles.treeWrap} role="region" aria-label={t('inbox.treeRegion')}>
+      <h2 className="visually-hidden">{t('inbox.treeRegion')}</h2>
       {items.length > 0 ? (
-        <div className={styles.bulkToolbar} role="region" aria-label="Bulk release">
+        <div className={styles.bulkToolbar} role="region" aria-label={t('inbox.bulkRelease')}>
           <span className={styles.bulkCount}>
             {selectedItems.length > 0
-              ? `${selectedItems.length} selected`
-              : 'Select captures to release them together'}
+              ? plural('plurals.inboxSelected', selectedItems.length)
+              : t('inbox.selectPrompt')}
           </span>
           <Button
             size="sm"
@@ -196,28 +205,28 @@ export function InboxTree({
             loading={bulkPending}
             disabled={selectedItems.length === 0 || anyPending}
           >
-            Release selected
+            {t('inbox.releaseSelected')}
           </Button>
           {selectedItems.length > 0 ? (
             <Button size="sm" variant="ghost" onClick={onClearSelection} disabled={anyPending}>
-              Clear
+              {t('common.clear')}
             </Button>
           ) : null}
         </div>
       ) : (
         <p className={styles.treeEmptyNotice}>
-          No Inbox captures right now — showing every project you can read.
+          {t('inbox.treeEmptyNotice')}
         </p>
       )}
 
       <div className={styles.treeScroll}>
         <table
           className={styles.treeTable}
-          aria-label="Application projects"
+          aria-label={t('inbox.tableAria')}
           aria-describedby="inbox-tree-drag-hint"
         >
           <caption className="visually-hidden">
-            Application projects and Inbox captures, with status and available actions
+            {t('inbox.caption')}
           </caption>
           <thead>
             <tr>
@@ -227,23 +236,23 @@ export function InboxTree({
                   ref={(node) => {
                     if (node) node.indeterminate = someSelected && !allSelected;
                   }}
-                  label={<span className="visually-hidden">Select all Inbox captures</span>}
+                  label={<span className="visually-hidden">{t('inbox.selectAll')}</span>}
                   checked={allSelected}
                   disabled={selectable.length === 0}
                   title={
                     selectable.length === 0
-                      ? 'No captures can be released right now'
-                      : 'Select all Inbox captures'
+                      ? t('inbox.noCapturesReleasable')
+                      : t('inbox.selectAll')
                   }
                   onChange={onToggleAll}
                 />
               </th>
-              <th scope="col">Project</th>
+              <th scope="col">{t('inbox.columnProject')}</th>
               <th scope="col" className={styles.treeStatusHeader}>
-                Status
+                {t('inbox.columnStatus')}
               </th>
               <th scope="col" className={styles.treeActionHeader}>
-                <span className="visually-hidden">Actions</span>
+                <span className="visually-hidden">{t('inbox.columnActions')}</span>
               </th>
             </tr>
           </thead>
@@ -311,15 +320,15 @@ export function InboxTree({
                       <Checkbox
                         id={`inbox-tree-select-${node.id}`}
                         label={
-                          <span className="visually-hidden">Select {node.title}</span>
+                          <span className="visually-hidden">{t('inbox.selectProject', { title: node.title })}</span>
                         }
                         checked={selectableItem && selected.has(node.id)}
                         disabled={!selectableItem}
                         title={
                           isPulled
-                            ? 'Already released'
+                            ? t('inbox.alreadyReleased')
                             : !item?.canRelease
-                              ? 'You need edit access to release this capture'
+                              ? t('inbox.needEditToRelease')
                               : undefined
                         }
                         onChange={(event) => onToggle(node.id, event.target.checked)}
@@ -335,7 +344,11 @@ export function InboxTree({
                         <button
                           type="button"
                           className={styles.chevronButton}
-                          aria-label={`${expanded ? 'Collapse' : 'Expand'} ${node.title}`}
+                          aria-label={
+                            expanded
+                              ? t('common.collapseName', { title: node.title })
+                              : t('common.expandName', { title: node.title })
+                          }
                           aria-expanded={expanded}
                           onClick={() => toggleBranch(node.id)}
                         >
@@ -351,8 +364,10 @@ export function InboxTree({
                       >
                         {node.title}
                       </Link>
-                      {isPulled ? <Badge tone="pulled">Pulled</Badge> : null}
-                      {node.archived ? <Badge tone="archived">Archived</Badge> : null}
+                      {isPulled ? <Badge tone="pulled">{t('common.pulled')}</Badge> : null}
+                      {node.archived ? (
+                        <Badge tone="archived">{t('common.archived')}</Badge>
+                      ) : null}
                       {inboxRow ? (
                         <span className={styles.treeInlineStatus} aria-hidden="true">
                           {node.statusName ?? '—'}
@@ -366,11 +381,11 @@ export function InboxTree({
                       <Link
                         href={`/p/${node.id}`}
                         className={styles.open}
-                        aria-label={`Open ${node.title}`}
+                        aria-label={t('common.openName', { title: node.title })}
                         draggable={false}
                       >
                         <Icon name="open_in_new" size={18} />
-                        <span className={styles.openLabel}>Open</span>
+                        <span className={styles.openLabel}>{t('common.open')}</span>
                       </Link>
                     ) : null}
                   </td>
@@ -382,10 +397,7 @@ export function InboxTree({
       </div>
 
       <p className={styles.hint} id="inbox-tree-drag-hint">
-        Inbox captures are highlighted, selectable for bulk release, and draggable. Drop one on
-        another row’s middle to move it under that project, or between rows to reorder it in the
-        global sequence. Non-Inbox rows are drop targets but read-only context. Use the chevron to
-        expand or collapse a branch — all branches start expanded.
+        {t('inbox.dragHint')}
       </p>
     </div>
   );
@@ -404,6 +416,7 @@ export function InboxTree({
  * and the Card "Change parent" action remain the keyboard-accessible paths.
  */
 export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
+  const { t, plural } = useI18n();
   const [items, setItems] = useState<InboxItem[]>(initialItems);
   const [tree, setTree] = useState<InboxTreeNode[]>(initialTree);
   const [pulled, setPulled] = useState<Set<string>>(new Set());
@@ -473,9 +486,10 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
     }
     markReleased([item.project.id]);
     announce(
-      `Released “${item.project.title}” to ${
-        item.startStatusName ?? 'the start status'
-      }.`,
+      t('inbox.releaseSuccess', {
+        title: item.project.title,
+        status: item.startStatusName ?? t('inbox.startStatus'),
+      }),
     );
     setLastReleased(item);
   };
@@ -498,12 +512,12 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
     setBulkPending(false);
     markReleased(released);
     if (released.length > 0) {
-      announce(`Released ${released.length} capture${released.length === 1 ? '' : 's'}.`);
+      announce(plural('plurals.releases', released.length));
     }
     if (failures.length > 0) {
       const count = failures.length;
       setError(
-        `${count} capture${count === 1 ? '' : 's'} could not be released. ${failures[0]}`,
+        plural('plurals.releaseFailures', count, { message: failures[0] ?? '' }),
       );
     }
   };
@@ -627,7 +641,7 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
     // Server-validated state is the source of truth; apply it locally so the
     // list/tree refresh immediately and released (Pulled) rows stay put.
     applyLocalReorder(item.project.id, targetId, edge);
-    announce(`Reordered “${item.project.title}”.`);
+    announce(t('inbox.reorderAnnounce', { title: item.project.title }));
   };
 
   /** Reparent an Inbox capture while keeping it in the Inbox (issue #53). */
@@ -647,7 +661,10 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
     applyParentChange(result.data.project);
     const parentTitle = tree.find((node) => node.id === targetId)?.title;
     announce(
-      `Moved “${item.project.title}” under ${parentTitle ?? 'the new parent'}; it stays in the Inbox.`,
+      t('inbox.reparentAnnounce', {
+        title: item.project.title,
+        parent: parentTitle ?? t('inbox.newParent'),
+      }),
     );
   };
 
@@ -694,10 +711,8 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
     <div className={styles.page}>
       <header className={styles.header}>
         <div className={styles.headerText}>
-          <h1 className={styles.title}>Inbox</h1>
-          <p className={styles.subtitle}>
-            Review captured projects and move them into work.
-          </p>
+          <h1 className={styles.title}>{t('inbox.title')}</h1>
+          <p className={styles.subtitle}>{t('inbox.subtitle')}</p>
         </div>
         <InboxViewSwitch view={view} onChange={setView} />
       </header>
@@ -734,8 +749,8 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
       ) : items.length === 0 ? (
         <EmptyState
           icon="inbox"
-          title="Inbox is empty"
-          description="New projects captured from the top bar appear here for refinement."
+          title={t('inbox.emptyTitle')}
+          description={t('inbox.emptyDescription')}
         />
       ) : (
         <div className={styles.cardLayout}>
@@ -743,7 +758,7 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
           <section
             className={styles.dropZone}
             data-active={dropActive || undefined}
-            aria-label="Release drop area"
+            aria-label={t('inbox.releaseDropArea')}
             aria-describedby="inbox-drop-hint"
             data-drop-area="release"
             onDragOver={(event) => {
@@ -762,49 +777,48 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
             </span>
             <span className={styles.dropText}>
               <span className={styles.dropTitle}>
-                {dropActive ? 'Release to the start status' : 'Drag a capture here to release it'}
+                {dropActive ? t('inbox.dropActive') : t('inbox.dropIdle')}
               </span>
               <span id="inbox-drop-hint" className={styles.dropHint}>
-                Drop here to release. To reorder instead, drag between cards in the list. Prefer
-                the keyboard? Use the Release button on a card.
+                {t('inbox.dropHint')}
               </span>
             </span>
           </section>
 
           {lastReleased ? (
-            <section className={styles.dropResult} aria-label="Released capture">
+            <section className={styles.dropResult} aria-label={t('inbox.releaseAria')}>
               <span className={styles.dropResultIcon} aria-hidden="true">
                 <Icon name="check_circle" size={20} />
               </span>
               <span className={styles.dropResultText}>
                 <span className={styles.dropResultTitle}>
-                  “{lastReleased.project.title}” released to{' '}
-                  {lastReleased.startStatusName ?? 'the start status'}.
+                  {t('inbox.releasedTo', {
+                    title: lastReleased.project.title,
+                    status: lastReleased.startStatusName ?? t('inbox.startStatus'),
+                  })}
                 </span>
-                <span className={styles.dropResultHint}>Still listed below as Pulled.</span>
+                <span className={styles.dropResultHint}>{t('inbox.stillPulled')}</span>
               </span>
               <Link
                 href={`/p/${lastReleased.project.id}`}
                 className={styles.open}
-                aria-label={`Open ${lastReleased.project.title}`}
+                aria-label={t('common.openName', { title: lastReleased.project.title })}
               >
                 <Icon name="open_in_new" size={18} />
-                <span className={styles.openLabel}>Open</span>
+                <span className={styles.openLabel}>{t('common.open')}</span>
               </Link>
             </section>
           ) : null}
 
           <p id="inbox-card-drag-hint" className="visually-hidden">
-            Drag a capture above or below another card to reorder it in the global sequence.
-            Dragging a capture onto the release rail moves it into work. Every drag action also
-            has a keyboard-operable button: Release, Change parent, or Open.
+            {t('inbox.cardDragHint')}
           </p>
           </div>
 
           <ul
             ref={listRef}
             className={styles.list}
-            aria-label="Projects in the Inbox"
+            aria-label={t('inbox.listAria')}
             aria-describedby="inbox-card-drag-hint"
           >
             {items.map((item) => {
@@ -852,7 +866,7 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
                       {isPulled ? (
                         <span className={styles.pulledNote}>
                           <Icon name="check_circle" size={18} />
-                          Released — open it to keep working.
+                          {t('inbox.releasedOpen')}
                         </span>
                       ) : item.canRelease ? (
                         <Button
@@ -861,7 +875,9 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
                           loading={pendingId === item.project.id}
                           disabled={Boolean(pendingId) || bulkPending || movePending}
                         >
-                          Release to {item.startStatusName ?? 'the start status'}
+                          {t('inbox.releaseTo', {
+                            status: item.startStatusName ?? t('inbox.startStatus'),
+                          })}
                         </Button>
                       ) : null}
                       {!isPulled && item.canChangeParent ? (
@@ -870,16 +886,16 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
                           onClick={() => setChangeParentItem(item)}
                           disabled={Boolean(pendingId) || movePending}
                         >
-                          Change parent
+                          {t('inbox.changeParent')}
                         </Button>
                       ) : null}
                       <Link
                         href={`/p/${item.project.id}`}
                         className={styles.open}
-                        aria-label={`Open ${item.project.title}`}
+                        aria-label={t('common.openName', { title: item.project.title })}
                       >
                         <Icon name="open_in_new" size={18} />
-                        <span className={styles.openLabel}>Open</span>
+                        <span className={styles.openLabel}>{t('common.open')}</span>
                       </Link>
                     </div>
                   </article>

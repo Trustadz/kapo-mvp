@@ -4,6 +4,8 @@ import '@fontsource-variable/inter';
 import 'material-symbols/outlined.css';
 import './globals.css';
 import { ThemeScript } from '@/components/shell/ThemeScript';
+import { I18nProvider } from '@/i18n/client';
+import { getI18n, getLocale } from '@/i18n/server';
 import { getSessionUser } from '@/server/auth/current-user';
 
 /**
@@ -22,13 +24,15 @@ function publicBaseUrl(): URL {
   }
 }
 
-export const metadata: Metadata = {
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return {
   metadataBase: publicBaseUrl(),
   title: {
     default: 'Kapo',
     template: '%s · Kapo',
   },
-  description: 'Self-hosted household project management. Everything is a project.',
+  description: t('common.appDescription'),
   applicationName: 'Kapo',
   manifest: '/manifest.webmanifest',
   icons: {
@@ -46,7 +50,8 @@ export const metadata: Metadata = {
   formatDetection: {
     telephone: false,
   },
-};
+  };
+}
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -59,6 +64,7 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
+  const locale = await getLocale();
   let appearance: 'light' | 'dark' | 'system' | null = null;
   try {
     const user = await getSessionUser();
@@ -71,10 +77,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const explicitTheme = appearance === 'light' || appearance === 'dark' ? appearance : undefined;
 
   return (
-    <html lang="en" data-theme={explicitTheme} suppressHydrationWarning>
+    <html lang={locale} data-theme={explicitTheme} suppressHydrationWarning>
       <body>
         <ThemeScript appearance={appearance} />
-        {children}
+        <I18nProvider locale={locale}>{children}</I18nProvider>
       </body>
     </html>
   );

@@ -18,29 +18,30 @@ import {
   Toast,
 } from '@/components/ui';
 import type { CollectionView, ProjectRole } from '@/lib/types';
-import { COLLECTION_VIEWS, COLLECTION_VIEW_LABELS } from '@/lib/types';
+import { COLLECTION_VIEWS } from '@/lib/types';
+import {
+  COLLECTION_VIEW_MESSAGE_KEYS,
+  PROJECT_FIELD_MESSAGE_KEYS,
+  SHORT_ROLE_MESSAGE_KEYS,
+  VIEW_FIELD_MESSAGE_KEYS,
+} from '@/i18n/domain-labels';
+import { useI18n } from '@/i18n/client';
 import type {
   ProjectFieldKey,
   ProjectPageData,
   WorkflowViewData,
   ProjectMemberView,
 } from './types';
-import { PROJECT_FIELD_KEYS, PROJECT_FIELD_LABELS } from './types';
+import { PROJECT_FIELD_KEYS } from './types';
 import type { MemberCandidate } from './api';
 import type { ProjectAccessMode, ViewFieldKey, ViewFields } from '@/lib/projects';
-import { DEFAULT_VIEW_FIELDS, VIEW_FIELD_KEYS, VIEW_FIELD_LABELS } from '@/lib/projects';
+import { DEFAULT_VIEW_FIELDS, VIEW_FIELD_KEYS } from '@/lib/projects';
 import { formatPersonName } from '@/lib/format';
 import { markFieldChanged } from '@/lib/changed-fields';
 import { useFieldChanged } from '@/lib/use-field-changed';
 import { useToastMessage } from '@/components/ui/use-live-announcer';
 import { saveMembers, saveProjectSettings, saveWorkflow, updateProjectFields } from './api';
 import styles from './ProjectSettings.module.css';
-
-const ROLE_LABELS: Record<ProjectRole, string> = {
-  admin: 'Admin',
-  user: 'User',
-  viewer: 'Viewer',
-};
 
 const ROLE_RANK: Record<ProjectRole, number> = { viewer: 1, user: 2, admin: 3 };
 
@@ -50,12 +51,14 @@ function rank(role: ProjectRole | null | undefined): number {
 
 type TabId = 'general' | 'workflow' | 'members' | 'layout';
 
-const TABS: Array<{ id: TabId; label: string }> = [
-  { id: 'general', label: 'General' },
-  { id: 'workflow', label: 'Workflow' },
-  { id: 'members', label: 'Members' },
-  { id: 'layout', label: 'Layout' },
-];
+const TAB_MESSAGE_KEYS: Record<TabId, 'settings.tabs.general' | 'settings.tabs.workflow' | 'settings.tabs.members' | 'settings.tabs.layout'> = {
+  general: 'settings.tabs.general',
+  workflow: 'settings.tabs.workflow',
+  members: 'settings.tabs.members',
+  layout: 'settings.tabs.layout',
+};
+
+const TABS: TabId[] = ['general', 'workflow', 'members', 'layout'];
 
 interface SettingsPageProps {
   data: ProjectPageData;
@@ -75,35 +78,37 @@ export function ProjectSettingsPage({
   tab,
 }: SettingsPageProps) {
   const router = useRouter();
+  const { t } = useI18n();
   const { toast, notify, dismiss } = useToastMessage();
   const refresh = () => router.refresh();
   const project = data.project;
-  const activeTab = TABS.find((entry) => entry.id === tab) ?? TABS[0]!;
+  const tabLabel = (id: TabId) => t(TAB_MESSAGE_KEYS[id]);
+  const activeTab = TABS.includes(tab) ? tab : 'general';
 
   return (
     <div className={styles.page}>
-      <nav className={styles.breadcrumb} aria-label="Breadcrumb">
+      <nav className={styles.breadcrumb} aria-label={t('project.breadcrumb')}>
         <Link href={`/p/${project.id}`} className={styles.breadcrumbLink}>
           {project.title}
         </Link>
         <span aria-hidden="true">/</span>
-        <span>Project settings</span>
+        <span>{t('settings.projectSettings')}</span>
       </nav>
 
       <header>
-        <h1 className={styles.title}>{activeTab.label}</h1>
+        <h1 className={styles.title}>{tabLabel(activeTab)}</h1>
       </header>
 
-      <nav className={styles.tabs} aria-label="Project settings sections">
+      <nav className={styles.tabs} aria-label={t('settings.sectionsAria')}>
         {TABS.map((entry) => (
           <Link
-            key={entry.id}
-            href={`/p/${project.id}/settings?tab=${entry.id}`}
+            key={entry}
+            href={`/p/${project.id}/settings?tab=${entry}`}
             className={styles.tab}
-            data-active={entry.id === tab || undefined}
-            aria-current={entry.id === tab ? 'page' : undefined}
+            data-active={entry === tab || undefined}
+            aria-current={entry === tab ? 'page' : undefined}
           >
-            {entry.label}
+            {tabLabel(entry)}
           </Link>
         ))}
       </nav>
@@ -153,6 +158,7 @@ function GeneralTab({
   refresh: () => void;
 }) {
   const project = data.project;
+  const { t } = useI18n();
   const [title, setTitle] = useState(project.title);
   const [childPosition, setChildPosition] = useState(data.settings.child_position);
   const [defaultView, setDefaultView] = useState<CollectionView>(data.settings.default_view);
@@ -229,18 +235,24 @@ function GeneralTab({
     }
     setSaving(false);
     if (!failed) {
-      notify('Project settings saved.');
+      notify(t('settings.projectSaved'));
       refresh();
     }
   };
 
   return (
     <Card className={styles.card}>
-      <h2 className={styles.cardTitle}>Project defaults</h2>
-      <p className={styles.cardHint}>Core project details and how children behave.</p>
+      <h2 className={styles.cardTitle}>{t('settings.projectDefaults')}</h2>
+      <p className={styles.cardHint}>{t('settings.projectDefaultsHint')}</p>
       {error ? <Notice tone="error">{error}</Notice> : null}
       <div className={styles.fields}>
-        <Field label="Title" htmlFor="settings-title" required error={fieldErrors.title} changed={titleChanged}>
+        <Field
+          label={t('settings.title')}
+          htmlFor="settings-title"
+          required
+          error={fieldErrors.title}
+          changed={titleChanged}
+        >
           <Input
             id="settings-title"
             value={title}
@@ -249,30 +261,35 @@ function GeneralTab({
             onChange={(event) => setTitle(event.target.value)}
           />
         </Field>
-        <Field label="Reporter" htmlFor="settings-reporter">
+        <Field label={t('settings.reporter')} htmlFor="settings-reporter">
           <Input id="settings-reporter" value={project.reporter.username} readOnly disabled />
         </Field>
         <FieldGroup
-          legend="Child projects appear"
+          legend={t('settings.childProjectsAppear')}
           changed={childPositionChanged}
           controlClassName={styles.radios}
         >
             <Radio
               name="child-position"
               value="below"
-              label="Below the project details"
+              label={t('settings.belowDetails')}
               checked={childPosition === 'below'}
               onChange={() => setChildPosition('below')}
             />
           <Radio
             name="child-position"
             value="above"
-            label="Above the project details"
+            label={t('settings.aboveDetails')}
             checked={childPosition === 'above'}
             onChange={() => setChildPosition('above')}
           />
         </FieldGroup>
-        <Field label="Default view" htmlFor="settings-default-view" error={fieldErrors.default_view} changed={defaultViewChanged}>
+        <Field
+          label={t('settings.defaultView')}
+          htmlFor="settings-default-view"
+          error={fieldErrors.default_view}
+          changed={defaultViewChanged}
+        >
           <Select
             id="settings-default-view"
             value={defaultView}
@@ -280,24 +297,32 @@ function GeneralTab({
           >
             {data.settings.enabled_views.map((view) => (
               <option key={view} value={view}>
-                {COLLECTION_VIEW_LABELS[view]}
+                {t(COLLECTION_VIEW_MESSAGE_KEYS[view])}
               </option>
             ))}
           </Select>
         </Field>
-        <Field label="Layout" htmlFor="settings-inherit-layout" changed={inheritLayoutChanged}>
+        <Field
+          label={t('settings.layout')}
+          htmlFor="settings-inherit-layout"
+          changed={inheritLayoutChanged}
+        >
           <Checkbox
             id="settings-inherit-layout"
-            label="Inherit layout from the parent project"
+            label={t('settings.inheritLayout')}
             checked={inheritLayout}
             onChange={(event) => setInheritLayout(event.target.checked)}
           />
         </Field>
-        <Field label="New children" htmlFor="settings-send-inbox" changed={skipInboxChanged}>
+        <Field
+          label={t('settings.newChildren')}
+          htmlFor="settings-send-inbox"
+          changed={skipInboxChanged}
+        >
           <Checkbox
             id="settings-send-inbox"
-            label="Send new children to the Inbox"
-            description="When off, captured children are created directly in their start status."
+            label={t('settings.sendToInbox')}
+            description={t('settings.sendToInboxDescription')}
             checked={sendToInbox}
             onChange={(event) => setSendToInbox(event.target.checked)}
           />
@@ -305,10 +330,10 @@ function GeneralTab({
       </div>
       <div className={styles.footer}>
         <Button onClick={() => void save()} loading={saving} disabled={saving}>
-          Save changes
+          {t('common.saveChanges')}
         </Button>
         <Button variant="quiet" onClick={reset} disabled={saving}>
-          Cancel
+          {t('common.cancel')}
         </Button>
       </div>
     </Card>
@@ -348,6 +373,7 @@ export function WorkflowTab({
   notify: (message: string, tone?: 'success' | 'error' | 'info') => void;
   refresh: () => void;
 }) {
+  const { t, plural } = useI18n();
   const [rows, setRows] = useState<WorkflowRow[]>(() => workflowRows(workflow));
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [showMapping, setShowMapping] = useState(false);
@@ -402,16 +428,16 @@ export function WorkflowTab({
   const keptRows = rows.filter((row) => row.id !== null);
 
   const validate = (): string | null => {
-    if (rows.length === 0) return 'A workflow needs at least one status.';
-    if (rows.some((row) => !row.name.trim())) return 'Give every status a name.';
+    if (rows.length === 0) return t('settings.needOneStatus');
+    if (rows.some((row) => !row.name.trim())) return t('settings.nameEveryStatus');
     const names = new Set<string>();
     for (const row of rows) {
       const normalized = row.name.trim().toLowerCase();
-      if (names.has(normalized)) return 'Status names must be unique.';
+      if (names.has(normalized)) return t('settings.uniqueStatusNames');
       names.add(normalized);
     }
-    if (rows.filter((row) => row.isStart).length !== 1) return 'Choose exactly one Start status.';
-    if (rows.filter((row) => row.isFinish).length !== 1) return 'Choose exactly one Finish status.';
+    if (rows.filter((row) => row.isStart).length !== 1) return t('settings.oneStart');
+    if (rows.filter((row) => row.isFinish).length !== 1) return t('settings.oneFinish');
     return null;
   };
 
@@ -444,8 +470,8 @@ export function WorkflowTab({
     markFieldChanged(data.project.id, 'workflow');
     notify(
       result.data.remappedChildren > 0
-        ? `Workflow saved. ${result.data.remappedChildren} child project${result.data.remappedChildren === 1 ? '' : 's'} remapped.`
-        : 'Workflow saved.',
+        ? plural('plurals.workflowSavedRemapped', result.data.remappedChildren)
+        : t('settings.workflowSaved'),
     );
     refresh();
   };
@@ -485,7 +511,9 @@ export function WorkflowTab({
     const missing = missingMapping();
     if (missing.length > 0) {
       setMappingError(
-        `Choose where existing children of these statuses go: ${missing.map((status) => status.name).join(', ')}.`,
+        t('settings.chooseWhere', {
+          names: missing.map((status) => status.name).join(', '),
+        }),
       );
       return;
     }
@@ -508,36 +536,38 @@ export function WorkflowTab({
 
   return (
     <Card className={styles.card} data-changed={workflowChanged || undefined}>
-      <h2 className={styles.cardTitle}>Workflow for child projects</h2>
-      <p className={styles.cardHint}>This workflow controls children, not this project&apos;s own status.</p>
+      <h2 className={styles.cardTitle}>{t('settings.workflowTitle')}</h2>
+      <p className={styles.cardHint}>{t('settings.workflowHint')}</p>
       {error ? <Notice tone="error">{error}</Notice> : null}
       <ul className={styles.workflowList}>
         {rows.map((row, index) => {
           const usage = row.id ? workflow.usage[row.id] : undefined;
-          const removeLabel = row.name.trim() || 'this status';
+          const removeLabel = row.name.trim() || t('common.thisStatus');
           const removeBlockReason =
             row.isStart && row.isFinish
-              ? `Cannot remove ${removeLabel}: it is both the Start and Finish status. Choose another row for those roles first.`
+              ? t('settings.removeBoth', { name: removeLabel })
               : row.isStart
-                ? `Cannot remove ${removeLabel}: it is the Start status. Choose another Start status first.`
+                ? t('settings.removeStart', { name: removeLabel })
                 : row.isFinish
-                  ? `Cannot remove ${removeLabel}: it is the Finish status. Choose another Finish status first.`
+                  ? t('settings.removeFinish', { name: removeLabel })
                   : rows.length <= 1
-                    ? `Cannot remove ${removeLabel}: a workflow needs at least one status.`
+                    ? t('settings.removeLast', { name: removeLabel })
                     : null;
           return (
             <li key={row.key} className={styles.workflowRow}>
               <div className={styles.workflowName}>
                 <Input
-                  aria-label={`Status name ${index + 1}`}
+                  aria-label={t('settings.statusNameN', { n: index + 1 })}
                   value={row.name}
                   maxLength={60}
                   onChange={(event) => updateRow(row.key, { name: event.target.value })}
                 />
                 {usage && usage.live + usage.trashed > 0 ? (
                   <span className={styles.usage}>
-                    {usage.live} child{usage.live === 1 ? '' : 'ren'}
-                    {usage.trashed > 0 ? ` · ${usage.trashed} in Trash` : ''}
+                    {plural('plurals.childUsage', usage.live)}
+                    {usage.trashed > 0
+                      ? t('settings.inTrashCount', { count: usage.trashed })
+                      : ''}
                   </span>
                 ) : null}
               </div>
@@ -545,8 +575,10 @@ export function WorkflowTab({
                 <Radio
                   name={`start-${row.key}`}
                   value="start"
-                  label="Start"
-                  aria-label={`Set ${row.name || 'this status'} as the Start status`}
+                  label={t('settings.start')}
+                  aria-label={t('settings.setStart', {
+                    name: row.name || t('common.thisStatus'),
+                  })}
                   checked={row.isStart}
                   onChange={() =>
                     setRows((current) =>
@@ -557,8 +589,10 @@ export function WorkflowTab({
                 <Radio
                   name={`finish-${row.key}`}
                   value="finish"
-                  label="Finish"
-                  aria-label={`Set ${row.name || 'this status'} as the Finish status`}
+                  label={t('settings.finish')}
+                  aria-label={t('settings.setFinish', {
+                    name: row.name || t('common.thisStatus'),
+                  })}
                   checked={row.isFinish}
                   onChange={() =>
                     setRows((current) =>
@@ -571,7 +605,9 @@ export function WorkflowTab({
                 <button
                   type="button"
                   className={styles.iconButton}
-                  aria-label={`Move ${row.name || 'status'} up`}
+                  aria-label={t('common.moveNameUp', {
+                    name: row.name || t('common.status'),
+                  })}
                   disabled={index === 0}
                   onClick={() => moveRow(row.key, -1)}
                 >
@@ -580,7 +616,9 @@ export function WorkflowTab({
                 <button
                   type="button"
                   className={styles.iconButton}
-                  aria-label={`Move ${row.name || 'status'} down`}
+                  aria-label={t('common.moveNameDown', {
+                    name: row.name || t('common.status'),
+                  })}
                   disabled={index === rows.length - 1}
                   onClick={() => moveRow(row.key, 1)}
                 >
@@ -589,7 +627,10 @@ export function WorkflowTab({
                 <button
                   type="button"
                   className={styles.iconButton}
-                  aria-label={removeBlockReason ?? `Remove ${row.name || 'status'}`}
+                  aria-label={
+                    removeBlockReason ??
+                    t('common.removeName', { name: row.name || t('common.status') })
+                  }
                   title={removeBlockReason ?? undefined}
                   disabled={removeBlockReason !== null}
                   onClick={() => removeRow(row.key)}
@@ -607,14 +648,14 @@ export function WorkflowTab({
         onClick={addRow}
         className={styles.addStatus}
       >
-        Add status
+        {t('settings.addStatus')}
       </Button>
 
       <Dialog
         open={showMapping}
         onClose={closeMapping}
-        title="Map removed statuses"
-        description="Children in a removed status must be mapped to a kept status before saving. Identical names are not matched automatically."
+        title={t('settings.mapRemovedTitle')}
+        description={t('settings.mapRemovedDescription')}
         dismissible={!saving}
         footer={
           <div className={styles.footer}>
@@ -623,10 +664,10 @@ export function WorkflowTab({
               loading={saving}
               disabled={saving || removedLive.length === 0}
             >
-              Confirm mapping
+              {t('settings.confirmMapping')}
             </Button>
             <Button variant="quiet" onClick={closeMapping} disabled={saving}>
-              Cancel
+              {t('common.cancel')}
             </Button>
           </div>
         }
@@ -634,29 +675,27 @@ export function WorkflowTab({
         <div className={styles.mappingBlock}>
           {mappingError ? <Notice tone="error">{mappingError}</Notice> : null}
           {removedLive.length === 0 ? (
-            <Notice tone="warning">
-              The server asked for a status mapping, but no removed status with live children could
-              be found. Reload the page and try again.
-            </Notice>
+            <Notice tone="warning">{t('settings.noRemovedFound')}</Notice>
           ) : (
             <div className={styles.mappingRows}>
               {removedLive.map((status) => (
                 <div key={status.id} className={styles.mappingRow}>
                   <span>
-                    {status.name} ({workflow.usage[status.id]?.live ?? 0} children)
+                    {status.name}{' '}
+                    {plural('plurals.childUsage', workflow.usage[status.id]?.live ?? 0)}
                   </span>
                   <Select
-                    aria-label={`Destination status for ${status.name}`}
+                    aria-label={t('settings.destinationStatusFor', { name: status.name })}
                     value={mapping[status.id] ?? ''}
                     onChange={(event) => {
                       setMapping((current) => ({ ...current, [status.id]: event.target.value }));
                       setMappingError(null);
                     }}
                   >
-                    <option value="">Choose a status</option>
+                    <option value="">{t('common.chooseStatus')}</option>
                     {keptRows.map((row) => (
                       <option key={row.key} value={row.id ?? ''}>
-                        {row.name || 'Untitled status'}
+                        {row.name || t('settings.untitledStatus')}
                       </option>
                     ))}
                   </Select>
@@ -666,23 +705,21 @@ export function WorkflowTab({
           )}
           {removedTrashed.length > 0 ? (
             <p className={styles.cardHint}>
-              {removedTrashed.length} removed status
-              {removedTrashed.length === 1 ? ' is' : 'es are'} only used by trashed projects; those
-              will be mapped when the projects are restored.
+              {plural('plurals.removedTrashedOnly', removedTrashed.length)}
             </p>
           ) : null}
         </div>
       </Dialog>
 
       <p className={styles.cardHint}>
-        Removing an in-use status asks you to map its children before saving.
+        {t('settings.removedInUseHint')}
       </p>
       <div className={styles.footer}>
         <Button onClick={() => void save()} loading={saving} disabled={saving}>
-          Save workflow
+          {t('settings.saveWorkflow')}
         </Button>
         <Button variant="quiet" onClick={reset} disabled={saving}>
-          Cancel
+          {t('common.cancel')}
         </Button>
       </div>
     </Card>
@@ -708,8 +745,11 @@ function MembersTab({
   notify: (message: string, tone?: 'success' | 'error' | 'info') => void;
   refresh: () => void;
 }) {
+  const { t, plural } = useI18n();
   const project = data.project;
-  const parentName = project.parent ? formatPersonName(project.parent.title) : 'parent';
+  const parentName = project.parent
+    ? formatPersonName(project.parent.title)
+    : t('settings.parentFallback');
   const [roles, setRoles] = useState<Record<string, ProjectRole | null>>(() => {
     const next: Record<string, ProjectRole | null> = {};
     for (const candidate of candidates) next[candidate.id] = candidate.explicitRole;
@@ -758,7 +798,7 @@ function MembersTab({
 
   const submit = async (acknowledged: boolean) => {
     if (changes.length === 0 && !accessChanged) {
-      setError('Change at least one role or the access mode before saving.');
+      setError(t('settings.changeAtLeastOne'));
       return;
     }
     setSaving(true);
@@ -775,7 +815,7 @@ function MembersTab({
     }
     setConfirmMessage(null);
     if (accessChanged) markFieldChanged(project.id, 'access');
-    notify('Permissions updated.');
+    notify(t('settings.permissionsUpdated'));
     refresh();
   };
 
@@ -819,41 +859,41 @@ function MembersTab({
       setError(result.message);
       return;
     }
-    notify('Project is now private.');
+    notify(t('settings.nowPrivate'));
     markFieldChanged(project.id, 'access');
     refresh();
   };
 
   return (
     <Card className={styles.card}>
-      <h2 className={styles.cardTitle}>Project members</h2>
+      <h2 className={styles.cardTitle}>{t('settings.projectMembers')}</h2>
       <p className={styles.cardHint}>
-        Explicit grants only. Reducing or removing a role here also restricts descendants after
-        confirmation; increasing access never propagates automatically.
+        {t('settings.membersHint')}
       </p>
       {error ? <Notice tone="error">{error}</Notice> : null}
       <div className={styles.accessBlock}>
-        <FieldGroup legend="Access" changed={accessFieldChanged}>
+        <FieldGroup legend={t('settings.access')} changed={accessFieldChanged}>
           {project.isRoot ? (
             <p className={styles.cardHint}>
-              Root always uses <strong>Custom access</strong>: its explicit grants plus the implicit
-              Admin for application Admins.
+              {t('settings.rootAccessBefore')}
+              <strong>{t('settings.rootAccessCustom')}</strong>
+              {t('settings.rootAccessAfter')}
             </p>
           ) : (
             <div className={styles.radios}>
               <Radio
                 name="access-mode"
                 value="inherit"
-                label="Inherit parent permissions"
-                description="Accounts with access to the parent can open this project too."
+                label={t('settings.inheritPermissions')}
+                description={t('settings.inheritPermissionsDescription')}
                 checked={access === 'inherit'}
                 onChange={() => setAccess('inherit')}
               />
               <Radio
                 name="access-mode"
                 value="custom"
-                label="Custom access"
-                description="Only the selected members below can open this project, even application Admins."
+                label={t('settings.customAccess')}
+                description={t('settings.customAccessDescription')}
                 checked={access === 'custom'}
                 onChange={() => setAccess('custom')}
               />
@@ -863,7 +903,7 @@ function MembersTab({
         {!project.isRoot && access === 'custom' ? (
           <p className={styles.privateState}>
             <Icon name="lock" size={18} />
-            <span>Private — only selected members</span>
+            <span>{t('settings.privateState')}</span>
           </p>
         ) : null}
         {!project.isRoot && !isPrivate ? (
@@ -875,28 +915,33 @@ function MembersTab({
               onClick={() => setPrivateConfirm(true)}
               disabled={saving}
             >
-              Make private
+              {t('settings.makePrivate')}
             </Button>
             <span className={styles.cardHint}>
-              Keeps you as Admin and removes every other explicit grant.
+              {t('settings.makePrivateHint')}
             </span>
           </div>
         ) : null}
       </div>
 
-      <ul className={styles.memberList} aria-label="Project members">
+      <ul className={styles.memberList} aria-label={t('settings.membersAria')}>
         {visibleCandidates.map((candidate) => {
           const selected = roles[candidate.id] ?? null;
           const explicit = candidate.explicitRole;
           const inherited = candidate.inheritedRole;
           const meta =
             selected !== null
-              ? `Explicit grant · ${ROLE_LABELS[selected]}`
+              ? t('settings.explicitGrant', {
+                  role: t(SHORT_ROLE_MESSAGE_KEYS[selected]),
+                })
               : access === 'inherit' && inherited
-                ? `Inherited from ${parentName} · ${ROLE_LABELS[inherited]}`
+                ? t('settings.inheritedFrom', {
+                    parent: parentName,
+                    role: t(SHORT_ROLE_MESSAGE_KEYS[inherited]),
+                  })
                 : project.isRoot && candidate.appRole === 'admin'
-                  ? 'Application Admin · implicit'
-                  : 'No access';
+                  ? t('settings.appAdminImplicit')
+                  : t('common.noAccess');
           return (
             <li key={candidate.id} className={styles.memberRow}>
               <div className={styles.memberIdentity}>
@@ -905,20 +950,24 @@ function MembersTab({
               </div>
               <Select
                 className={styles.memberSelect}
-                aria-label={`Project role for ${formatPersonName(candidate.username)}`}
+                aria-label={t('users.roleFor', {
+                  name: formatPersonName(candidate.username),
+                })}
                 value={selected ?? ''}
                 onChange={(event) => onSelect(candidate)(event.target.value)}
               >
                 <option value="">
                   {explicit !== null
-                    ? 'No access'
+                    ? t('common.noAccess')
                     : access === 'inherit' && inherited
-                      ? `Inherited (${ROLE_LABELS[inherited]})`
-                      : 'No access'}
+                      ? t('settings.inheritedRole', {
+                          role: t(SHORT_ROLE_MESSAGE_KEYS[inherited]),
+                        })
+                      : t('common.noAccess')}
                 </option>
                 {(['viewer', 'user', 'admin'] as ProjectRole[]).map((role) => (
                   <option key={role} value={role}>
-                    {ROLE_LABELS[role]}
+                    {t(SHORT_ROLE_MESSAGE_KEYS[role])}
                   </option>
                 ))}
               </Select>
@@ -926,23 +975,25 @@ function MembersTab({
           );
         })}
         {visibleCandidates.length === 0 ? (
-          <li className={styles.cardHint}>No explicit members yet.</li>
+          <li className={styles.cardHint}>{t('settings.noExplicitMembers')}</li>
         ) : null}
       </ul>
 
       <div className={styles.addMemberRow}>
           <span className={styles.addMemberLabel} id="members-add-label">
-            Add member
+            {t('settings.addMember')}
           </span>
           <div className={styles.addMemberControls} role="group" aria-labelledby="members-add-label">
             <Select
-              aria-label="Account to add"
+              aria-label={t('settings.accountToAdd')}
               value={addUserId}
               disabled={addableCandidates.length === 0}
               onChange={(event) => setAddUserId(event.target.value)}
             >
               <option value="">
-                {addableCandidates.length === 0 ? 'Everyone already has a grant' : 'Choose an account'}
+                {addableCandidates.length === 0
+                  ? t('settings.everyoneHasGrant')
+                  : t('common.chooseAccount')}
               </option>
               {addableCandidates.map((candidate) => (
                 <option key={candidate.id} value={candidate.id}>
@@ -951,13 +1002,13 @@ function MembersTab({
               ))}
             </Select>
             <Select
-              aria-label="Role for the new member"
+              aria-label={t('settings.roleForNewMember')}
               value={addRole}
               onChange={(event) => setAddRole(event.target.value as ProjectRole)}
             >
               {(['viewer', 'user', 'admin'] as ProjectRole[]).map((role) => (
                 <option key={role} value={role}>
-                  {ROLE_LABELS[role]}
+                  {t(SHORT_ROLE_MESSAGE_KEYS[role])}
                 </option>
               ))}
             </Select>
@@ -967,67 +1018,64 @@ function MembersTab({
               onClick={addMember}
               disabled={!addUserId || saving || addableCandidates.length === 0}
             >
-              Add member
+              {t('settings.addMember')}
             </Button>
           </div>
         </div>
 
       <div className={styles.footer}>
         <Button onClick={() => void submit(false)} loading={saving} disabled={saving}>
-          Save permissions
+          {t('settings.savePermissions')}
         </Button>
         <Button variant="quiet" onClick={reset} disabled={saving}>
-          Cancel
+          {t('common.cancel')}
         </Button>
         <span className={styles.cardHint}>
-          {members.length} explicit grant{members.length === 1 ? '' : 's'}
-          {cascadeCandidates ? ' · reductions cascade over descendants' : ''}
+          {plural('plurals.explicitGrants', members.length)}
+          {cascadeCandidates ? t('settings.reductionsCascade') : ''}
         </span>
       </div>
 
       <Dialog
         open={confirmMessage !== null}
         onClose={() => setConfirmMessage(null)}
-        title="Restrict descendant access?"
+        title={t('settings.restrictTitle')}
         dismissible={!saving}
         footer={
           <div className={styles.footer}>
             <Button variant="danger" onClick={() => void submit(true)} loading={saving}>
-              Confirm and save
+              {t('settings.confirmAndSave')}
             </Button>
             <Button variant="quiet" onClick={() => setConfirmMessage(null)} disabled={saving}>
-              Cancel
+              {t('common.cancel')}
             </Button>
           </div>
         }
       >
         <p className={styles.cardHint}>{confirmMessage}</p>
         <p className={styles.cardHint}>
-          Descendant grants held by the affected accounts are overridden by the new role. Increases
-          do not propagate.
+          {t('settings.restrictHint')}
         </p>
       </Dialog>
 
       <Dialog
         open={privateConfirm}
         onClose={() => setPrivateConfirm(false)}
-        title="Make this project private?"
+        title={t('settings.makePrivateTitle')}
         dismissible={!saving}
         footer={
           <div className={styles.footer}>
             <Button variant="danger" loading={saving} onClick={() => void makePrivate()}>
-              Make private
+              {t('settings.makePrivate')}
             </Button>
             <Button variant="quiet" onClick={() => setPrivateConfirm(false)} disabled={saving}>
-              Cancel
+              {t('common.cancel')}
             </Button>
           </div>
         }
       >
         <p className={styles.cardHint}>
-          Switching to Custom access removes every other account&apos;s explicit grant to this
-          project. Descendant grants held by those accounts are restricted too. Only you and accounts
-          you re-add will have access.
+          {t('settings.makePrivateBody')}
         </p>
       </Dialog>
     </Card>
@@ -1047,20 +1095,26 @@ function ViewFieldListEditor({
   fields: ViewFieldKey[];
   onChange: (next: ViewFieldKey[]) => void;
 }) {
+  const { t } = useI18n();
   const available = VIEW_FIELD_KEYS.filter((key) => !fields.includes(key));
   return (
     <div className={styles.fieldListEditor}>
       <h4 className={styles.subheading}>{label}</h4>
-      {fields.length === 0 ? <p className={styles.cardHint}>Title only.</p> : null}
+      {fields.length === 0 ? (
+        <p className={styles.cardHint}>{t('common.titleOnly')}</p>
+      ) : null}
       <ul className={styles.fieldList}>
         {fields.map((field, index) => (
           <li key={field} className={styles.fieldListRow}>
-            <span>{VIEW_FIELD_LABELS[field]}</span>
+            <span>{t(VIEW_FIELD_MESSAGE_KEYS[field])}</span>
             <span className={styles.fieldListActions}>
               <button
                 type="button"
                 className={styles.iconButton}
-                aria-label={`Move ${VIEW_FIELD_LABELS[field]} up in ${label}`}
+                aria-label={t('common.moveNameUpIn', {
+                  name: t(VIEW_FIELD_MESSAGE_KEYS[field]),
+                  context: label,
+                })}
                 disabled={index === 0}
                 onClick={() => {
                   const next = [...fields];
@@ -1076,7 +1130,10 @@ function ViewFieldListEditor({
               <button
                 type="button"
                 className={styles.iconButton}
-                aria-label={`Move ${VIEW_FIELD_LABELS[field]} down in ${label}`}
+                aria-label={t('common.moveNameDownIn', {
+                  name: t(VIEW_FIELD_MESSAGE_KEYS[field]),
+                  context: label,
+                })}
                 disabled={index === fields.length - 1}
                 onClick={() => {
                   const next = [...fields];
@@ -1092,7 +1149,10 @@ function ViewFieldListEditor({
               <button
                 type="button"
                 className={styles.iconButton}
-                aria-label={`Hide ${VIEW_FIELD_LABELS[field]} in ${label}`}
+                aria-label={t('common.hideNameIn', {
+                  name: t(VIEW_FIELD_MESSAGE_KEYS[field]),
+                  context: label,
+                })}
                 onClick={() => onChange(fields.filter((entry) => entry !== field))}
               >
                 <Icon name="close" size={16} />
@@ -1104,17 +1164,17 @@ function ViewFieldListEditor({
       {available.length > 0 ? (
         <Select
           className={styles.addFieldSelect}
-          aria-label={`Add a property to ${label}`}
+          aria-label={t('settings.addPropertyTo', { context: label })}
           value=""
           onChange={(event) => {
             const value = event.target.value as ViewFieldKey;
             if (value) onChange([...fields, value]);
           }}
         >
-          <option value="">Add a property…</option>
+          <option value="">{t('settings.addProperty')}</option>
           {available.map((field) => (
             <option key={field} value={field}>
-              {VIEW_FIELD_LABELS[field]}
+              {t(VIEW_FIELD_MESSAGE_KEYS[field])}
             </option>
           ))}
         </Select>
@@ -1132,20 +1192,26 @@ function FieldListEditor({
   fields: ProjectFieldKey[];
   onChange: (next: ProjectFieldKey[]) => void;
 }) {
+  const { t } = useI18n();
   const available = PROJECT_FIELD_KEYS.filter((key) => !fields.includes(key));
   return (
     <div className={styles.fieldListEditor}>
       <h3 className={styles.subheading}>{label}</h3>
-      {fields.length === 0 ? <p className={styles.cardHint}>No fields selected.</p> : null}
+      {fields.length === 0 ? (
+        <p className={styles.cardHint}>{t('common.noFieldsSelected')}</p>
+      ) : null}
       <ul className={styles.fieldList}>
         {fields.map((field, index) => (
           <li key={field} className={styles.fieldListRow}>
-            <span>{PROJECT_FIELD_LABELS[field]}</span>
+            <span>{t(PROJECT_FIELD_MESSAGE_KEYS[field])}</span>
             <span className={styles.fieldListActions}>
               <button
                 type="button"
                 className={styles.iconButton}
-                aria-label={`Move ${PROJECT_FIELD_LABELS[field]} up in ${label}`}
+                aria-label={t('common.moveNameUpIn', {
+                  name: t(PROJECT_FIELD_MESSAGE_KEYS[field]),
+                  context: label,
+                })}
                 disabled={index === 0}
                 onClick={() => {
                   const next = [...fields];
@@ -1161,7 +1227,10 @@ function FieldListEditor({
               <button
                 type="button"
                 className={styles.iconButton}
-                aria-label={`Move ${PROJECT_FIELD_LABELS[field]} down in ${label}`}
+                aria-label={t('common.moveNameDownIn', {
+                  name: t(PROJECT_FIELD_MESSAGE_KEYS[field]),
+                  context: label,
+                })}
                 disabled={index === fields.length - 1}
                 onClick={() => {
                   const next = [...fields];
@@ -1177,7 +1246,10 @@ function FieldListEditor({
               <button
                 type="button"
                 className={styles.iconButton}
-                aria-label={`Remove ${PROJECT_FIELD_LABELS[field]} from ${label}`}
+                aria-label={t('common.removeNameFrom', {
+                  name: t(PROJECT_FIELD_MESSAGE_KEYS[field]),
+                  context: label,
+                })}
                 onClick={() => onChange(fields.filter((entry) => entry !== field))}
               >
                 <Icon name="close" size={16} />
@@ -1189,17 +1261,17 @@ function FieldListEditor({
       {available.length > 0 ? (
         <Select
           className={styles.addFieldSelect}
-          aria-label={`Add a field to ${label}`}
+          aria-label={t('settings.addFieldTo', { context: label })}
           value=""
           onChange={(event) => {
             const value = event.target.value as ProjectFieldKey;
             if (value) onChange([...fields, value]);
           }}
         >
-          <option value="">Add a field…</option>
+          <option value="">{t('settings.addField')}</option>
           {available.map((field) => (
             <option key={field} value={field}>
-              {PROJECT_FIELD_LABELS[field]}
+              {t(PROJECT_FIELD_MESSAGE_KEYS[field])}
             </option>
           ))}
         </Select>
@@ -1219,6 +1291,7 @@ function LayoutTab({
   notify: (message: string, tone?: 'success' | 'error' | 'info') => void;
   refresh: () => void;
 }) {
+  const { t } = useI18n();
   const project = data.project;
   const [inheritLayout, setInheritLayout] = useState(data.settings.inherit_layout);
   const [main, setMain] = useState<ProjectFieldKey[]>(data.layout.main);
@@ -1248,7 +1321,7 @@ function LayoutTab({
   const toggleView = (view: CollectionView) => {
     if (enabledViews.includes(view)) {
       if (enabledViews.length <= 1) {
-        setError('Keep at least one collection view enabled.');
+        setError(t('settings.keepOneView'));
         return;
       }
       const next = enabledViews.filter((entry) => entry !== view);
@@ -1262,7 +1335,7 @@ function LayoutTab({
 
   const save = async () => {
     if (asTemplate && main.length === 0 && sidebar.length === 0) {
-      setError('Choose at least one field for the layout template.');
+      setError(t('settings.chooseOneField'));
       return;
     }
     setError(null);
@@ -1280,30 +1353,30 @@ function LayoutTab({
       setError(result.message);
       return;
     }
-    notify('Layout settings saved.');
+    notify(t('settings.layoutSaved'));
     refresh();
   };
 
   return (
     <Card className={styles.card}>
-      <h2 className={styles.cardTitle}>Layout and views</h2>
+      <h2 className={styles.cardTitle}>{t('settings.layoutTitle')}</h2>
       <p className={styles.cardHint}>
-        Choose where project fields appear, which views are available and which statuses are hidden.
+        {t('settings.layoutHint')}
       </p>
       {error ? <Notice tone="error">{error}</Notice> : null}
       <div className={styles.fields}>
-        <Field label="Inheritance" htmlFor="layout-inherit">
+        <Field label={t('settings.inheritance')} htmlFor="layout-inherit">
           <Checkbox
             id="layout-inherit"
-            label="Inherit layout from the parent project"
+            label={t('settings.inheritLayout')}
             checked={inheritLayout}
             onChange={(event) => setInheritLayout(event.target.checked)}
           />
         </Field>
-        <Field label="Use as child template" htmlFor="layout-template">
+        <Field label={t('settings.useAsTemplate')} htmlFor="layout-template">
           <Checkbox
             id="layout-template"
-            label="Use this layout as the template for child projects"
+            label={t('settings.useAsTemplateLabel')}
             checked={asTemplate}
             onChange={(event) => setAsTemplate(event.target.checked)}
           />
@@ -1311,21 +1384,28 @@ function LayoutTab({
       </div>
 
       <div className={styles.layoutColumns}>
-        <FieldListEditor label="Main area" fields={main} onChange={setMain} />
-        <FieldListEditor label="Properties sidebar" fields={sidebar} onChange={setSidebar} />
+        <FieldListEditor
+          label={t('settings.mainArea')}
+          fields={main}
+          onChange={setMain}
+        />
+        <FieldListEditor
+          label={t('settings.propertiesSidebar')}
+          fields={sidebar}
+          onChange={setSidebar}
+        />
       </div>
 
       <div className={styles.viewFieldsBlock}>
-        <h3 className={styles.subheading}>View properties</h3>
+        <h3 className={styles.subheading}>{t('settings.viewProperties')}</h3>
         <p className={styles.cardHint}>
-          Compact properties shown on cards and rows for each collection view. Only core fields are
-          configurable in this iteration; add-on field slots are deferred with the add-on registry.
+          {t('settings.viewPropertiesHint')}
         </p>
         <div className={styles.viewFieldGroups}>
           {COLLECTION_VIEWS.map((view) => (
             <ViewFieldListEditor
               key={view}
-              label={COLLECTION_VIEW_LABELS[view]}
+              label={t(COLLECTION_VIEW_MESSAGE_KEYS[view])}
               fields={viewFields[view] ?? []}
               onChange={(next) => setViewFields((current) => ({ ...current, [view]: next }))}
             />
@@ -1334,7 +1414,7 @@ function LayoutTab({
       </div>
 
       <div className={styles.fields}>
-        <Field label="Default view" htmlFor="layout-default-view">
+        <Field label={t('settings.defaultView')} htmlFor="layout-default-view">
           <Select
             id="layout-default-view"
             value={defaultView}
@@ -1342,24 +1422,30 @@ function LayoutTab({
           >
             {enabledViews.map((view) => (
               <option key={view} value={view}>
-                {COLLECTION_VIEW_LABELS[view]}
+                {t(COLLECTION_VIEW_MESSAGE_KEYS[view])}
               </option>
             ))}
           </Select>
         </Field>
-        <FieldGroup legend="Enabled views" controlClassName={styles.checkList}>
+        <FieldGroup
+          legend={t('settings.enabledViews')}
+          controlClassName={styles.checkList}
+        >
             {COLLECTION_VIEWS.map((view) => (
               <Checkbox
                 key={view}
-                label={COLLECTION_VIEW_LABELS[view]}
+                label={t(COLLECTION_VIEW_MESSAGE_KEYS[view])}
                 checked={enabledViews.includes(view)}
                 onChange={() => toggleView(view)}
               />
             ))}
         </FieldGroup>
-        <FieldGroup legend="Hidden statuses" controlClassName={styles.checkList}>
+        <FieldGroup
+          legend={t('settings.hiddenStatuses')}
+          controlClassName={styles.checkList}
+        >
             {workflow.statuses.length === 0 ? (
-              <p className={styles.cardHint}>This project has no child workflow statuses yet.</p>
+              <p className={styles.cardHint}>{t('settings.noStatuses')}</p>
             ) : (
               workflow.statuses.map((status) => (
                 <Checkbox
@@ -1381,7 +1467,7 @@ function LayoutTab({
 
       <div className={styles.footer}>
         <Button onClick={() => void save()} loading={saving} disabled={saving}>
-          Save changes
+          {t('common.saveChanges')}
         </Button>
         <Button
           variant="quiet"
@@ -1398,7 +1484,7 @@ function LayoutTab({
           }}
           disabled={saving}
         >
-          Cancel
+          {t('common.cancel')}
         </Button>
       </div>
     </Card>

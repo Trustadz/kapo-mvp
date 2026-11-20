@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { cn } from '@/lib/cn';
+import { useI18n } from '@/i18n/client';
 import type { AuthUser, FavoriteProject } from '@/lib/types';
 import { MobileNav } from './MobileNav';
 import { ServiceWorkerRegister } from './ServiceWorkerRegister';
@@ -25,6 +26,7 @@ const SIDEBAR_STORAGE_KEY = 'kapo-sidebar-collapsed';
  * client-side.
  */
 export function AppShell({ user, favorites, rootProjectId, children }: AppShellProps) {
+  const { t } = useI18n();
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
@@ -50,7 +52,7 @@ export function AppShell({ user, favorites, rootProjectId, children }: AppShellP
   return (
     <div className={cn('app-shell', styles.shell)}>
       <a className="skip-link" href="#main-content">
-        Skip to content
+        {t('shell.skipToContent')}
       </a>
       <Sidebar
         user={user}

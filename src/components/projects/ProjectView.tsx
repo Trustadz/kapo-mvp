@@ -6,7 +6,9 @@ import { useEffect, useState } from 'react';
 import { Avatar, Badge, Button, Card, Icon, Menu, Notice, Select, Toast } from '@/components/ui';
 import type { MenuItem } from '@/components/ui';
 import { cn } from '@/lib/cn';
-import { formatDate, formatPersonName } from '@/lib/format';
+import { formatPersonName } from '@/lib/format';
+import { PROJECT_FIELD_MESSAGE_KEYS } from '@/i18n/domain-labels';
+import { useI18n } from '@/i18n/client';
 import { useToastMessage } from '@/components/ui/use-live-announcer';
 import { markFieldChanged } from '@/lib/changed-fields';
 import { useFieldChanged } from '@/lib/use-field-changed';
@@ -34,7 +36,6 @@ import type {
   ProjectLink,
   ProjectPageData,
 } from './types';
-import { PROJECT_FIELD_LABELS } from './types';
 import styles from './ProjectPage.module.css';
 
 type DialogState =
@@ -55,6 +56,7 @@ function LinkValue({ link }: { link: ProjectLink }) {
 }
 
 function FieldValue({ field, data }: { field: ProjectFieldKey; data: ProjectPageData }) {
+  const { t, formatDate } = useI18n();
   const project = data.project;
   switch (field) {
     case 'projectId':
@@ -92,6 +94,7 @@ function StatusControlInternal({
   data: ProjectPageData;
   onStatusChanged: (message: string, tone: 'success' | 'error') => void;
 }) {
+  const { t } = useI18n();
   const [saving, setSaving] = useState(false);
   const project = data.project;
   const options = [...data.parentStatuses].sort((a, b) => a.position - b.position);
@@ -99,7 +102,7 @@ function StatusControlInternal({
     <span className={styles.propertyValue}>
       <Select
         className={styles.propertySelect}
-        aria-label="Project status"
+        aria-label={t('project.statusAria')}
         value={project.statusId ?? ''}
         disabled={saving}
         onChange={(event) => {
@@ -115,7 +118,7 @@ function StatusControlInternal({
             }
             // Issue #56: keep a subtle marker on this field until a full load.
             markFieldChanged(project.id, 'status');
-            onStatusChanged(`Status changed to ${status.name}.`, 'success');
+            onStatusChanged(t('project.statusChanged', { status: status.name }), 'success');
           });
         }}
       >
@@ -131,6 +134,7 @@ function StatusControlInternal({
 
 export function ProjectView({ data }: { data: ProjectPageData }) {
   const router = useRouter();
+  const { t, formatDate } = useI18n();
   const [dialog, setDialog] = useState<DialogState>(null);
   const { toast, notify, dismiss } = useToastMessage();
   const [showArchivedSaving, setShowArchivedSaving] = useState(false);
@@ -160,7 +164,7 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
       data.children.find((child) => child.id === projectId) ??
       data.descendants.find((child) => child.id === projectId);
     const title =
-      projectId === project.id ? project.title : known?.title ?? 'this project';
+      projectId === project.id ? project.title : (known?.title ?? t('project.thisProject'));
     setDialog({ kind: 'move', projectId, projectTitle: title, destinationId });
   };
 
@@ -172,7 +176,7 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
       notify(result.message, 'error');
       return;
     }
-    notify(result.data.favorite ? 'Added to Favorites.' : 'Removed from Favorites.');
+    notify(result.data.favorite ? t('project.favoriteAdded') : t('project.favoriteRemoved'));
     refresh();
   };
 
@@ -192,25 +196,25 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
       notify(result.message, 'error');
       return;
     }
-    notify(next ? 'Archived projects are now shown.' : 'Archived projects are now hidden.');
+    notify(next ? t('project.archivedShown') : t('project.archivedHidden'));
     refresh();
   };
 
   const fallbackTitle =
     data.breadcrumb.find((ancestor) => `/p/${ancestor.id}` === project.fallbackHref)?.title ??
-    (project.fallbackHref === '/' ? 'the dashboard' : 'the nearest visible project');
+    (project.fallbackHref === '/' ? t('project.dashboardFallback') : t('project.nearestProject'));
 
   const toggleShowInbox = () => {
     const next = !showInbox;
     writeShowInboxPreference(project.id, next);
     setShowInboxState({ projectId: project.id, show: next });
-    notify(next ? 'Inbox items are now shown.' : 'Inbox items are now hidden.');
+    notify(next ? t('project.inboxShown') : t('project.inboxHidden'));
   };
 
   const menuItems: MenuItem[] = [];
   menuItems.push({
     id: 'show-archived',
-    label: 'Show archived',
+    label: t('project.showArchived'),
     icon: 'visibility',
     selected: data.showArchived,
     disabled: showArchivedSaving,
@@ -218,7 +222,7 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
   });
   menuItems.push({
     id: 'show-inbox',
-    label: 'Show Inbox items',
+    label: t('project.showInbox'),
     icon: 'inbox',
     selected: showInbox,
     onSelect: toggleShowInbox,
@@ -227,7 +231,7 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
     // Always useful to non-admins, who otherwise only see the per-user toggles.
     menuItems.push({
       id: 'open-parent',
-      label: 'Open parent project',
+      label: t('project.openParent'),
       icon: 'arrow_upward',
       href: `/p/${project.parent.id}`,
     });
@@ -236,7 +240,7 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
     menuItems.push({ id: 'sep-project', separator: true });
     menuItems.push({
       id: 'move',
-      label: 'Move…',
+      label: t('project.menuMove'),
       icon: 'drive_file_move',
       disabled: project.trashed,
       onSelect: () => openMove(project.id),
@@ -244,14 +248,14 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
     if (project.trashed) {
       menuItems.push({
         id: 'restore',
-        label: 'Restore…',
+        label: t('project.menuRestore'),
         icon: 'restore_from_trash',
         onSelect: () => setDialog({ kind: 'restore', projectId: project.id, projectTitle: project.title }),
       });
     } else {
       menuItems.push({
         id: 'archive',
-        label: project.archived ? 'Unarchive' : 'Archive…',
+        label: project.archived ? t('project.unarchive') : t('project.archive'),
         icon: project.archived ? 'unarchive' : 'archive',
         onSelect: () =>
           setDialog({
@@ -263,7 +267,7 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
       });
       menuItems.push({
         id: 'trash',
-        label: 'Move to Trash…',
+        label: t('project.moveToTrash'),
         icon: 'delete',
         danger: true,
         onSelect: () => setDialog({ kind: 'trash', projectId: project.id, projectTitle: project.title }),
@@ -274,7 +278,7 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
     menuItems.push({ id: 'sep-settings', separator: true });
     menuItems.push({
       id: 'project-settings',
-      label: 'Project settings',
+      label: t('project.projectSettings'),
       icon: 'settings',
       href: `/p/${project.id}/settings`,
     });
@@ -294,7 +298,9 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
           data-changed={statusChanged || undefined}
           key={field}
         >
-          <span className={styles.propertyLabel}>{PROJECT_FIELD_LABELS[field]}</span>
+          <span className={styles.propertyLabel}>
+            {t(PROJECT_FIELD_MESSAGE_KEYS[field])}
+          </span>
           {canEdit && !project.trashed && data.parentStatuses.length > 0 ? (
             <StatusControlInternal data={data} onStatusChanged={(message, tone) => {
               notify(message, tone);
@@ -309,7 +315,9 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
     if (field === 'reporter') {
       return (
         <div className={styles.propertyRow} key={field}>
-          <span className={styles.propertyLabel}>{PROJECT_FIELD_LABELS[field]}</span>
+          <span className={styles.propertyLabel}>
+            {t(PROJECT_FIELD_MESSAGE_KEYS[field])}
+          </span>
           <span className={styles.propertyValue}>
             <Avatar name={formatPersonName(project.reporter.username)} src={project.reporter.avatar ?? undefined} size={24} decorative />
             {formatPersonName(project.reporter.username)}
@@ -320,7 +328,7 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
     if (field === 'projectId') {
       return (
         <div className={styles.propertyRow} key={field}>
-          <span className={styles.propertyLabel}>Project ID</span>
+          <span className={styles.propertyLabel}>{t('project.projectId')}</span>
           <span className={styles.propertyValue}>{project.displayId}</span>
         </div>
       );
@@ -328,7 +336,7 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
     if (field === 'parent') {
       return (
         <div className={styles.propertyRow} key={field}>
-          <span className={styles.propertyLabel}>Parent</span>
+          <span className={styles.propertyLabel}>{t('project.parent')}</span>
           <span className={styles.propertyValue}>
             {project.parent ? <LinkValue link={project.parent} /> : '—'}
           </span>
@@ -337,7 +345,9 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
     }
     return (
       <div className={styles.propertyRow} key={field}>
-        <span className={styles.propertyLabel}>{PROJECT_FIELD_LABELS[field]}</span>
+        <span className={styles.propertyLabel}>
+          {t(PROJECT_FIELD_MESSAGE_KEYS[field])}
+        </span>
         <span className={styles.propertyValue}>
           {field === 'created' ? formatDate(project.createdAt) : formatDate(project.updatedAt)}
         </span>
@@ -362,11 +372,14 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
   return (
     <div className={styles.page}>
       <div>
-        <nav className={`${styles.breadcrumb} ${styles.breadcrumbNav}`} aria-label="Breadcrumb">
+        <nav
+          className={`${styles.breadcrumb} ${styles.breadcrumbNav}`}
+          aria-label={t('project.breadcrumb')}
+        >
           {project.isRoot ? (
-            <span>Projects</span>
+            <span>{t('project.projectsBreadcrumb')}</span>
           ) : data.breadcrumb.length === 0 ? (
-            <span>Projects</span>
+            <span>{t('project.projectsBreadcrumb')}</span>
           ) : (
             <>
               {data.breadcrumb.map((ancestor) => (
@@ -386,9 +399,15 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
             <div className={styles.titleGroup}>
               <div className={styles.titleRow}>
                 <h1 className={styles.title}>{project.title}</h1>
-                {project.trashed ? <Badge tone="danger">In Trash</Badge> : null}
-                {project.archived ? <Badge tone="archived">Archived</Badge> : null}
-                {project.inbox && !project.trashed ? <Badge tone="warning">Inbox</Badge> : null}
+                {project.trashed ? (
+                  <Badge tone="danger">{t('project.inTrash')}</Badge>
+                ) : null}
+                {project.archived ? (
+                  <Badge tone="archived">{t('common.archived')}</Badge>
+                ) : null}
+                {project.inbox && !project.trashed ? (
+                  <Badge tone="warning">{t('common.inboxBadge')}</Badge>
+                ) : null}
               </div>
             </div>
             <div className={styles.headerActions}>
@@ -401,11 +420,11 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
                   disabled={favoriteSaving}
                 >
                   <Icon name="star" size={20} filled={project.favorite} />
-                  <span>Favorite</span>
+                  <span>{t('project.favorite')}</span>
                 </button>
               ) : null}
               <Menu
-                label="Project actions"
+                label={t('project.actions')}
                 align="end"
                 trigger={({ ref, ...triggerProps }) => (
                   <button
@@ -413,8 +432,8 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
                     ref={ref}
                     type="button"
                     className={styles.iconButton}
-                    aria-label="Project actions"
-                    title="Project actions"
+                    aria-label={t('project.actions')}
+                    title={t('project.actions')}
                   >
                     <Icon name="settings" size={20} />
                   </button>
@@ -427,11 +446,12 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
       </div>
 
       {project.trashed ? (
-        <Notice tone="warning" title="This project is in Trash">
+        <Notice tone="warning" title={t('project.trashNoticeTitle')}>
           <div className={styles.trashNotice}>
             <span>
-              It is read-only and will be permanently deleted
-              {project.purgeDeadline ? ` on ${formatDate(project.purgeDeadline)}` : ' after 30 days'}.
+              {project.purgeDeadline
+                ? t('project.trashNoticeOn', { date: formatDate(project.purgeDeadline) })
+                : t('project.trashNoticeAfter')}
             </span>
             {canAdmin ? (
               <Button
@@ -442,7 +462,7 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
                   setDialog({ kind: 'restore', projectId: project.id, projectTitle: project.title })
                 }
               >
-                Restore
+                {t('project.restore')}
               </Button>
             ) : null}
           </div>
@@ -454,12 +474,14 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
       <div className={styles.overview}>
         <Card className={styles.detailsCard} as="section" aria-labelledby="details-heading">
           <h2 id="details-heading" className={styles.cardTitle}>
-            Details
+            {t('project.details')}
           </h2>
           <div className={styles.detailRows}>
             {visibleMainFields.map((field) => (
               <div className={styles.detailRow} key={field}>
-                <span className={styles.detailLabel}>{PROJECT_FIELD_LABELS[field]}</span>
+                <span className={styles.detailLabel}>
+                  {t(PROJECT_FIELD_MESSAGE_KEYS[field])}
+                </span>
                 <FieldValue field={field} data={data} />
               </div>
             ))}
@@ -468,7 +490,7 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
 
         <Card className={styles.propertiesCard} as="aside" aria-labelledby="properties-heading">
           <h2 id="properties-heading" className={styles.cardTitle}>
-            Properties
+            {t('project.properties')}
           </h2>
           <div className={styles.propertiesRows}>
             {visibleSidebarFields.map((field) => renderProperty(field))}
@@ -493,7 +515,7 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
           parentTitle={project.title}
           onClose={() => setDialog(null)}
           onCreated={(title) => {
-            notify(`Created “${title}” in the Inbox.`);
+            notify(t('project.createdToast', { title }));
             refresh();
           }}
         />
@@ -506,7 +528,7 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
           initialDestinationId={dialog.destinationId}
           onClose={() => setDialog(null)}
           onMoved={() => {
-            notify('Project moved.');
+            notify(t('project.movedToast'));
             refresh();
           }}
         />
@@ -518,7 +540,7 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
           projectTitle={dialog.projectTitle}
           onClose={() => setDialog(null)}
           onTrashed={() => {
-            notify('Moved to Trash.');
+            notify(t('project.trashedToast'));
             refresh();
             if (project.parent) router.push(`/p/${project.parent.id}`);
             else router.push('/');
@@ -537,12 +559,14 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
             if (mode === 'archive' && !data.showArchived) {
               // F22: do not leave the user on the hidden-archived dead end;
               // return to the parent with a confirmation.
-              notify('Project archived. Turn on “Show archived” to see it again.');
+              notify(t('project.archivedHiddenToast'));
               if (project.parent) router.push(`/p/${project.parent.id}`);
               else router.push('/');
               return;
             }
-            notify(mode === 'unarchive' ? 'Project unarchived.' : 'Project archived.');
+            notify(
+              mode === 'unarchive' ? t('project.unarchivedToast') : t('project.archivedToast'),
+            );
             refresh();
           }}
         />
@@ -563,7 +587,7 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
           projectTitle={dialog.projectTitle}
           onClose={() => setDialog(null)}
           onRestored={() => {
-            notify('Project restored.');
+            notify(t('project.restoredToast'));
             refresh();
           }}
         />

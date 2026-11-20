@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useId, useRef, type ReactNode, type RefObject } from 'react';
 import { Icon } from './Icon';
 import { cn } from '@/lib/cn';
+import { useI18n } from '@/i18n/client';
 import styles from './Dialog.module.css';
 
 const FOCUSABLE_SELECTOR = [
@@ -62,6 +63,7 @@ export function Dialog({
   className,
   initialFocusRef,
 }: DialogProps) {
+  const { t } = useI18n();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const descriptionId = useId();
@@ -215,7 +217,7 @@ export function Dialog({
             type="button"
             className={styles.close}
             onClick={onClose}
-            aria-label="Close dialog"
+            aria-label={t('common.closeDialog')}
             disabled={!dismissible}
           >
             <Icon name="close" size={20} />

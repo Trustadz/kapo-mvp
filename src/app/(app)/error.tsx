@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button, Card, Icon } from '@/components/ui';
+import { useI18n } from '@/i18n/client';
 import styles from './error.module.css';
 
 /**
@@ -20,6 +21,7 @@ export default function AppError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const { t } = useI18n();
   const pathname = usePathname();
   const isSearch = pathname === '/search';
 
@@ -30,20 +32,20 @@ export default function AppError({
           <Icon name="cloud_off" size={32} />
         </span>
         <h1 className={styles.title}>
-          {isSearch ? 'Search is unavailable' : 'This page couldn’t load'}
+          {isSearch ? t('error.searchTitle') : t('error.genericTitle')}
         </h1>
         <p className={styles.body}>
-          {isSearch
-            ? 'Your query is preserved. Retry when Kapo is available.'
-            : 'Something went wrong while loading this page. Retry, or use the navigation to keep working.'}
+          {isSearch ? t('error.searchBody') : t('error.genericBody')}
         </p>
-        {error.digest ? <p className={styles.digest}>Reference: {error.digest}</p> : null}
+        {error.digest ? (
+          <p className={styles.digest}>{t('error.reference', { digest: error.digest })}</p>
+        ) : null}
         <div className={styles.actions}>
           <Button onClick={() => reset()} icon={<Icon name="refresh" size={20} />}>
-            Retry
+            {t('error.retry')}
           </Button>
           <Link href="/" className={styles.secondary}>
-            Go to Home
+            {t('error.goHome')}
           </Link>
         </div>
       </Card>

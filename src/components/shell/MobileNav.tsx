@@ -11,6 +11,7 @@ import { Menu, type MenuItem } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import type { FavoriteProject } from '@/lib/types';
 import { CaptureForm } from './CaptureForm';
+import { useI18n } from '@/i18n/client';
 import styles from './MobileNav.module.css';
 
 export interface MobileNavProps {
@@ -37,6 +38,7 @@ function isActive(pathname: string, href: string): boolean {
 
 /** Mobile bottom bar: Home / Root / Add / Inbox / Favorites (build-spec §8). */
 export function MobileNav({ rootProjectId, favorites, canCapture }: MobileNavProps) {
+  const { t } = useI18n();
   const pathname = usePathname();
   const [addOpen, setAddOpen] = useState(false);
   const { announcement, announce } = useAnnouncer();
@@ -49,10 +51,10 @@ export function MobileNav({ rootProjectId, favorites, canCapture }: MobileNavPro
   const favoriteItems = favoriteMenuItems(favorites);
   const favoritesHeader = (
     <div className={styles.favoritesMenuHeader}>
-      <span className={styles.favoritesMenuTitle}>Favorites</span>
+      <span className={styles.favoritesMenuTitle}>{t('common.favorites')}</span>
       {favorites.length === 0 ? (
         <p className={styles.favoritesMenuHint}>
-          No favorites yet. Open a project and tap Favorite.
+          {t('shell.noFavorites')}
         </p>
       ) : null}
     </div>
@@ -60,14 +62,14 @@ export function MobileNav({ rootProjectId, favorites, canCapture }: MobileNavPro
 
   return (
     <>
-      <nav className={styles.bar} aria-label="Mobile navigation">
+      <nav className={styles.bar} aria-label={t('shell.mobileNavigation')}>
         <Link
           href="/"
           className={cn(styles.tab, pathname === '/' && styles.active)}
           aria-current={pathname === '/' ? 'page' : undefined}
         >
           <Icon name="home" size={22} />
-          <span className={styles.label}>Home</span>
+          <span className={styles.label}>{t('common.home')}</span>
         </Link>
         {rootProjectId ? (
           <Link
@@ -76,7 +78,7 @@ export function MobileNav({ rootProjectId, favorites, canCapture }: MobileNavPro
             aria-current={isActive(pathname, `/p/${rootProjectId}`) ? 'page' : undefined}
           >
             <Icon name="account_tree" size={22} />
-            <span className={styles.label}>Root</span>
+            <span className={styles.label}>{t('common.root')}</span>
           </Link>
         ) : null}
         {canCapture ? (
@@ -84,11 +86,11 @@ export function MobileNav({ rootProjectId, favorites, canCapture }: MobileNavPro
             type="button"
             className={cn(styles.tab, styles.addTab)}
             onClick={() => setAddOpen(true)}
-            aria-label="Add a project to Root"
+            aria-label={t('shell.captureForm')}
             aria-haspopup="dialog"
           >
             <Icon name="add" size={24} />
-            <span className={styles.label}>Add</span>
+            <span className={styles.label}>{t('shell.add')}</span>
           </button>
         ) : null}
         <Link
@@ -97,11 +99,11 @@ export function MobileNav({ rootProjectId, favorites, canCapture }: MobileNavPro
           aria-current={isActive(pathname, '/inbox') ? 'page' : undefined}
         >
           <Icon name="inbox" size={22} />
-          <span className={styles.label}>Inbox</span>
+          <span className={styles.label}>{t('common.inbox')}</span>
         </Link>
         <Menu
           className={styles.favoritesMenu}
-          label="Favorites"
+          label={t('common.favorites')}
           align="end"
           side="top"
           header={favoritesHeader}
@@ -118,7 +120,7 @@ export function MobileNav({ rootProjectId, favorites, canCapture }: MobileNavPro
               )}
             >
               <Icon name="star" size={22} filled={favoritesActive} />
-              <span className={styles.label}>Favorites</span>
+              <span className={styles.label}>{t('common.favorites')}</span>
             </button>
           )}
         />
@@ -129,8 +131,8 @@ export function MobileNav({ rootProjectId, favorites, canCapture }: MobileNavPro
         <Dialog
           open={addOpen}
           onClose={close}
-          title="Add a project"
-          description="Creates a Root child in Inbox."
+          title={t('shell.addProjectTitle')}
+          description={t('shell.addProjectDescription')}
           size="sm"
         >
           <CaptureForm
@@ -141,7 +143,7 @@ export function MobileNav({ rootProjectId, favorites, canCapture }: MobileNavPro
             onSuccess={(title) => {
               // The dialog unmounts on success, so announce from the shell that
               // stays mounted instead of the form's own live region.
-              announce(`Added "${title}" to Inbox.`);
+              announce(t('shell.captureSuccess', { title }));
               close();
             }}
             onCancel={close}

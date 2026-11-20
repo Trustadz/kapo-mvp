@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react';
 import { Button, Icon, Menu } from '@/components/ui';
 import type { MenuItem } from '@/components/ui';
-import { COLLECTION_VIEW_LABELS, type CollectionView } from '@/lib/types';
+import { type CollectionView } from '@/lib/types';
+import { COLLECTION_VIEW_MESSAGE_KEYS } from '@/i18n/domain-labels';
+import { useI18n } from '@/i18n/client';
 import { CollectionViewSwitch } from '@/components/views/CollectionViews';
 import type { CollectionViewContext } from '@/components/views/types';
 import {
@@ -50,6 +52,7 @@ export function ChildProjects({
   refresh,
   notify,
 }: ChildProjectsProps) {
+  const { t, plural } = useI18n();
   const availableViews = data.settings.enabled_views.length
     ? data.settings.enabled_views
     : (['kanban'] as CollectionView[]);
@@ -130,7 +133,7 @@ export function ChildProjects({
 
   const toolItems: MenuItem[] = availableViews.map((option) => ({
     id: option,
-    label: COLLECTION_VIEW_LABELS[option],
+    label: t(COLLECTION_VIEW_MESSAGE_KEYS[option]),
     selected: option === view,
     onSelect: () => selectView(option),
   }));
@@ -156,8 +159,8 @@ export function ChildProjects({
   const clearFilters = () => setFilters(EMPTY_PROJECT_FILTERS);
 
   return (
-    <section aria-label="Child projects">
-      <h2 className="visually-hidden">Child projects</h2>
+    <section aria-label={t('project.childProjects')}>
+      <h2 className="visually-hidden">{t('project.childProjects')}</h2>
       {hasChildren ? (
         <ProjectFilterBar
           filters={filters}
@@ -172,7 +175,7 @@ export function ChildProjects({
         <div className={styles.sectionActions}>
           {hasChildren ? (
             <Menu
-              label="Collection view"
+              label={t('project.collectionView')}
               align="end"
               trigger={({ ref, ...triggerProps }) => (
                 <button
@@ -180,9 +183,11 @@ export function ChildProjects({
                   ref={ref}
                   type="button"
                   className={styles.viewTrigger}
-                  aria-label={`Collection view: ${COLLECTION_VIEW_LABELS[view]}`}
+                  aria-label={t('project.collectionViewWith', {
+                    view: t(COLLECTION_VIEW_MESSAGE_KEYS[view]),
+                  })}
                 >
-                  <span>{COLLECTION_VIEW_LABELS[view]}</span>
+                  <span>{t(COLLECTION_VIEW_MESSAGE_KEYS[view])}</span>
                   <Icon name="expand_more" size={18} />
                 </button>
               )}
@@ -191,7 +196,7 @@ export function ChildProjects({
           ) : null}
           {canCreate ? (
             <Button icon={<Icon name="add" size={20} />} onClick={onAddProject}>
-              Add child project
+              {t('project.addChild')}
             </Button>
           ) : null}
         </div>
@@ -205,9 +210,9 @@ export function ChildProjects({
           <CollectionViewSwitch ctx={ctx} />
         ) : (
           <div className={styles.filterEmpty} role="status">
-            <span className={styles.filterEmptyText}>No projects match these filters</span>
+            <span className={styles.filterEmptyText}>{t('project.noMatchFilters')}</span>
             <Button size="sm" variant="quiet" onClick={clearFilters}>
-              Clear filters
+              {t('project.clearFilters')}
             </Button>
           </div>
         )

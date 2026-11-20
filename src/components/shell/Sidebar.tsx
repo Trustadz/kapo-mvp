@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/ui/Icon';
 import type { AuthUser, FavoriteProject } from '@/lib/types';
 import { cn } from '@/lib/cn';
+import { useI18n } from '@/i18n/client';
 import { AccountMenu } from './AccountMenu';
 import styles from './Sidebar.module.css';
 
@@ -49,11 +50,12 @@ function SidebarLink({ href, icon, label, active }: SidebarLinkProps) {
  */
 export function Sidebar({ user, favorites, rootProjectId, collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const { t } = useI18n();
 
   return (
-    <aside className={styles.sidebar} aria-label="Sidebar" data-collapsed={collapsed || undefined}>
+    <aside className={styles.sidebar} aria-label={t('shell.sidebar')} data-collapsed={collapsed || undefined}>
       <div className={styles.brandRow}>
-        <Link href="/" className={styles.brand} aria-label="Kapo — Home">
+        <Link href="/" className={styles.brand} aria-label={t('shell.kapoHome')}>
           <span className={styles.logoPlate}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.svg" alt="" width={28} height={28} className={styles.logo} />
@@ -62,18 +64,18 @@ export function Sidebar({ user, favorites, rootProjectId, collapsed, onToggle }:
         </Link>
       </div>
 
-      <nav className={styles.nav} aria-label="Main">
-        <SidebarLink href="/" icon="home" label="Home" active={pathname === '/'} />
+      <nav className={styles.nav} aria-label={t('shell.mainNavigation')}>
+        <SidebarLink href="/" icon="home" label={t('common.home')} active={pathname === '/'} />
         {rootProjectId ? (
           <SidebarLink
             href={`/p/${rootProjectId}`}
             icon="account_tree"
-            label="Root"
+            label={t('common.root')}
             active={isActivePath(pathname, `/p/${rootProjectId}`)}
           />
         ) : null}
-        <SidebarLink href="/inbox" icon="inbox" label="Inbox" active={isActivePath(pathname, '/inbox')} />
-        <SidebarLink href="/search" icon="search" label="Search" active={isActivePath(pathname, '/search')} />
+        <SidebarLink href="/inbox" icon="inbox" label={t('common.inbox')} active={isActivePath(pathname, '/inbox')} />
+        <SidebarLink href="/search" icon="search" label={t('common.search')} active={isActivePath(pathname, '/search')} />
       </nav>
 
       {favorites.length > 0 ? (
@@ -81,7 +83,7 @@ export function Sidebar({ user, favorites, rootProjectId, collapsed, onToggle }:
           <div className={styles.divider} />
           <section className={styles.favorites} aria-labelledby="favorites-heading">
             <h2 id="favorites-heading" className={styles.sectionLabel}>
-              Favorites
+              {t('common.favorites')}
             </h2>
             <ul className={styles.favoriteList}>
               {favorites.map((favorite) => (
@@ -105,12 +107,12 @@ export function Sidebar({ user, favorites, rootProjectId, collapsed, onToggle }:
           className={styles.collapseButton}
           onClick={onToggle}
           aria-pressed={collapsed}
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          data-tooltip={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={collapsed ? t('shell.expandSidebar') : t('shell.collapseSidebar')}
+          data-tooltip={collapsed ? t('shell.expandSidebar') : t('shell.collapseSidebar')}
         >
           <Icon name={collapsed ? 'left_panel_open' : 'left_panel_close'} size={20} />
           <span className={styles.collapseLabel}>
-            {collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            {collapsed ? t('shell.expandSidebar') : t('shell.collapseSidebar')}
           </span>
         </button>
         <div className={styles.account}>

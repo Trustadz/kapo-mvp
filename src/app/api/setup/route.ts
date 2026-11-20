@@ -4,6 +4,7 @@ import { hashPassword } from '@/server/auth/password';
 import { createRootProject, insertDefaultSettings } from '@/server/db/bootstrap';
 import { getDb } from '@/server/db/connection';
 import { newId, nowIso } from '@/server/db/util';
+import { getI18n } from '@/i18n/server';
 import {
   isSameOrigin,
   jsonError,
@@ -39,6 +40,8 @@ function usersExist(): boolean {
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) return rejectCrossOrigin();
 
+  const { t, locale } = await getI18n();
+
   const body = await readJsonBody(request);
   if (!body.ok) return body.response;
   const data = body.data;
@@ -49,20 +52,24 @@ export async function POST(request: Request) {
   const confirmation = readStringField(data, 'confirmation');
 
   const fields: Record<string, string> = {};
-  const usernameError = validateUsername(username);
-  const emailError = validateEmail(email);
-  const passwordError = validatePassword(password);
-  const confirmationError = validatePasswordConfirmation(password, confirmation);
+  const usernameError = validateUsername(username, locale);
+  const emailError = validateEmail(email, locale);
+  const passwordError = validatePassword(password, locale);
+  const confirmationError = validatePasswordConfirmation(
+    password,
+    confirmation,
+    locale,
+  );
   if (usernameError) fields.username = usernameError;
   if (emailError) fields.email = emailError;
   if (passwordError) fields.password = passwordError;
   if (confirmationError) fields.confirmation = confirmationError;
   if (Object.keys(fields).length > 0) {
-    return jsonError(422, 'validation_failed', 'Check the highlighted fields.', fields);
+    return jsonError(422, 'validation_failed', t('common.checkFields'), fields);
   }
 
   if (usersExist()) {
-    return jsonError(409, 'setup_complete', 'This installation already has an account.');
+    return jsonError(409, 'setup_complete', t('auth.setupComplete'));
   }
 
   const passwordHash = await hashPassword(password);
@@ -95,13 +102,12 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     if (error instanceof SetupCompleteError) {
-      return jsonError(409, 'setup_complete', 'This installation already has an account.');
+      return jsonError(409, 'setup_complete', t('auth.setupComplete'));
     }
     const code = (error as { code?: string }).code;
     if (code === 'SQLITE_CONSTRAINT_UNIQUE' || code === 'SQLITE_CONSTRAINT') {
-      return jsonError(409, 'username_taken', 'That username is already taken.', {
-        username: 'That username is already taken.',
-      });
+      const message = t('users.usernameTaken');
+      return jsonError(409, 'username_taken', message, { username: message });
     }
     throw error;
   }

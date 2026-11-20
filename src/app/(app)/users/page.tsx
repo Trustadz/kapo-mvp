@@ -4,8 +4,12 @@ import { requireAdmin } from '@/server/auth/current-user';
 import { getDb } from '@/server/db/connection';
 import { getDefaultAccountRole } from '@/server/domain/settings';
 import { listUsers } from '@/server/domain/users';
+import { getI18n } from '@/i18n/server';
 
-export const metadata: Metadata = { title: 'User management' };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t('users.heading') };
+}
 export const dynamic = 'force-dynamic';
 
 /** /users — account list and role management (Admin only). */
@@ -14,13 +18,14 @@ export default async function UsersPage() {
   const db = getDb();
   const users = listUsers(db);
   const defaultRole = getDefaultAccountRole(db);
+  const { t } = await getI18n();
 
   return (
     <div>
       <div className="page-heading">
         <div className="page-heading-text">
-          <h1>User management</h1>
-          <p className="page-subtitle">Application Admin only</p>
+          <h1>{t('users.heading')}</h1>
+          <p className="page-subtitle">{t('users.subtitle')}</p>
         </div>
       </div>
       <UsersManager users={users} defaultRole={defaultRole} />

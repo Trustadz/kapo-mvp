@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { ProjectSettingsPage } from '@/components/projects/ProjectSettingsPage';
 import { requireUser } from '@/server/auth/current-user';
@@ -8,10 +9,14 @@ import {
 } from '@/server/domain/permissions';
 import { getProjectPageData } from '@/server/domain/projects';
 import { getWorkflowData } from '@/server/domain/workflow';
+import { getI18n } from '@/i18n/server';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata = { title: 'Project settings · Kapo' };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t('settings.projectSettings') };
+}
 
 const TABS = ['general', 'workflow', 'members', 'layout'] as const;
 type TabId = (typeof TABS)[number];

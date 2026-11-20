@@ -17,8 +17,9 @@ import type { MenuItem } from '@/components/ui';
 import type { Status } from '@/lib/types';
 import type { ProjectCard, ProjectWithParent } from '@/components/projects/types';
 import type { ViewFieldKey } from '@/lib/projects';
-import { VIEW_FIELD_LABELS } from '@/lib/projects';
-import { formatDate, formatPersonName } from '@/lib/format';
+import { VIEW_FIELD_MESSAGE_KEYS } from '@/i18n/domain-labels';
+import { useI18n, type I18nContextValue } from '@/i18n/client';
+import { formatPersonName } from '@/lib/format';
 import {
   dropZoneAt,
   insertionIndexAt,
@@ -77,6 +78,7 @@ async function changeStatus(
   ctx: CollectionViewContext,
   project: ProjectCard,
   statusId: string,
+  t: I18nContextValue['t'],
 ): Promise<void> {
   const status = ctx.statuses.find((entry) => entry.id === statusId);
   if (!status || status.id === project.statusId) return;
@@ -85,7 +87,7 @@ async function changeStatus(
     ctx.notify(result.message, 'error');
     return;
   }
-  ctx.notify(`Moved “${project.title}” to ${status.name}.`);
+  ctx.notify(t('views.movedTo', { title: project.title, status: status.name }));
   ctx.refresh();
 }
 
@@ -93,6 +95,7 @@ async function reorderBefore(
   ctx: CollectionViewContext,
   project: ProjectCard,
   beforeId: string | null,
+  t: I18nContextValue['t'],
 ): Promise<void> {
   if (!project.statusId) return;
   const result = await reorderProjectRequest(project.id, {
@@ -103,7 +106,7 @@ async function reorderBefore(
     ctx.notify(result.message, 'error');
     return;
   }
-  ctx.notify(`Reordered “${project.title}”.`);
+  ctx.notify(t('views.reordered', { title: project.title }));
   ctx.refresh();
 }
 
@@ -144,6 +147,7 @@ export function ProjectActionsMenu({
   allSiblings,
   canReparent,
 }: ProjectActionsMenuProps) {
+  const { t } = useI18n();
   const columnIndex = siblings.findIndex((sibling) => sibling.id === project.id);
   const previousInColumn = columnIndex > 0 ? siblings[columnIndex - 1] : undefined;
   const nextInColumn =
@@ -164,50 +168,55 @@ export function ProjectActionsMenu({
       if (status.id === project.statusId) continue;
       items.push({
         id: `status-${status.id}`,
-        label: `Move to “${status.name}”`,
+        label: t('views.moveToStatus', { status: status.name }),
         icon: 'swap_horiz',
         onSelect: () => {
-          void changeStatus(ctx, project, status.id);
+          void changeStatus(ctx, project, status.id, t);
         },
       });
     }
     if (items.length > 0) items.push({ id: 'sep-status', separator: true });
     items.push({
       id: 'priority-earlier',
-      label: 'Move earlier',
+      label: t('views.moveEarlier'),
       icon: 'arrow_upward',
       disabled: !previousInColumn,
       onSelect: () => {
         if (previousInColumn) {
-          void reorderBefore(ctx, project, previousInColumn.id);
+          void reorderBefore(ctx, project, previousInColumn.id, t);
         }
       },
     });
     items.push({
       id: 'priority-later',
-      label: 'Move later',
+      label: t('views.moveLater'),
       icon: 'arrow_downward',
       disabled: !nextInColumn,
       onSelect: () => {
-        void reorderBefore(ctx, project, beforeSiblingForLater?.id ?? null);
+        void reorderBefore(ctx, project, beforeSiblingForLater?.id ?? null, t);
       },
     });
     items.push({ id: 'sep-move', separator: true });
     if (canReparent ?? ctx.canEdit) {
       items.push({
         id: 'move-parent',
-        label: 'Move to another project…',
+        label: t('views.moveToAnother'),
         icon: 'drive_file_move',
         onSelect: () => ctx.openMoveDialog(project.id),
       });
     }
     items.push({ id: 'sep-open', separator: true });
   }
-  items.push({ id: 'open', label: 'Open project', icon: 'open_in_new', href: `/p/${project.id}` });
+  items.push({
+    id: 'open',
+    label: t('views.openProject'),
+    icon: 'open_in_new',
+    href: `/p/${project.id}`,
+  });
 
   return (
     <Menu
-      label={`Actions for ${project.title}`}
+      label={t('views.actionsFor', { title: project.title })}
       align="end"
       // Fixed positioning keeps the panel out of the Kanban grid's
       // `overflow-x: auto` clip box (issue #20); the shared Menu clamps it to
@@ -219,8 +228,8 @@ export function ProjectActionsMenu({
           ref={ref}
           type="button"
           className={styles.iconButton}
-          aria-label={`Actions for ${project.title}`}
-          title={`Actions for ${project.title}`}
+          aria-label={t('views.actionsFor', { title: project.title })}
+          title={t('views.actionsFor', { title: project.title })}
         >
           <Icon name="more_vert" size={20} />
         </button>
@@ -239,17 +248,18 @@ function StatusControl({
   project: ProjectCard;
   label?: string;
 }) {
+  const { t } = useI18n();
   if (!ctx.canEdit) {
     return <span className={styles.readonlyStatus}>{project.statusName ?? '—'}</span>;
   }
   return (
     <Select
       className={styles.statusSelect}
-      aria-label={label ?? `Status for ${project.title}`}
+      aria-label={label ?? t('views.statusFor', { title: project.title })}
       value={project.statusId ?? ''}
       onChange={(event) => {
         const value = event.target.value;
-        void changeStatus(ctx, project, value);
+        void changeStatus(ctx, project, value, t);
       }}
     >
       {sortStatuses(ctx.statuses).map((status) => (
@@ -264,6 +274,8 @@ function StatusControl({
 function viewMetaParts(
   project: ProjectCard,
   fields: readonly ViewFieldKey[] | undefined,
+  t: I18nContextValue['t'],
+  formatDate: I18nContextValue['formatDate'],
 ): string[] {
   if (!fields || fields.length === 0) return [];
   const parts: string[] = [];
@@ -288,7 +300,7 @@ function viewMetaParts(
       default:
         value = null;
     }
-    if (value) parts.push(`${VIEW_FIELD_LABELS[field]}: ${value}`);
+    if (value) parts.push(`${t(VIEW_FIELD_MESSAGE_KEYS[field])}: ${value}`);
   }
   return parts;
 }
@@ -301,7 +313,8 @@ function ViewMeta({
   project: ProjectCard;
   fields: readonly ViewFieldKey[] | undefined;
 }) {
-  const parts = viewMetaParts(project, fields);
+  const { t, formatDate } = useI18n();
+  const parts = viewMetaParts(project, fields, t, formatDate);
   if (parts.length === 0) return null;
   return (
     <span className={styles.viewMeta}>
@@ -313,7 +326,10 @@ function ViewMeta({
 }
 
 function ArchivedBadge({ project }: { project: ProjectCard }) {
-  return project.archived ? <Badge tone="archived">Archived</Badge> : null;
+  const { t } = useI18n();
+  return project.archived ? (
+    <Badge tone="archived">{t('common.archived')}</Badge>
+  ) : null;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -355,6 +371,7 @@ function KanbanPlaceholder() {
 }
 
 export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
+  const { t, plural } = useI18n();
   const [dragging, setDragging] = useState<ProjectCard | null>(null);
   const [dropTarget, setDropTarget] = useState<KanbanDropTarget | null>(null);
   const [pendingPressId, setPendingPressId] = useState<string | null>(null);
@@ -451,7 +468,7 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
 
   const finishDrop = (project: ProjectCard, target: KanbanDropTarget): void => {
     if (project.statusId !== target.statusId) {
-      void changeStatus(ctx, project, target.statusId);
+      void changeStatus(ctx, project, target.statusId, t);
       return;
     }
     const plan = planIndexReorder(
@@ -459,7 +476,7 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
       project.id,
       target.index,
     );
-    if (plan) void reorderBefore(ctx, project, plan.beforeId);
+    if (plan) void reorderBefore(ctx, project, plan.beforeId, t);
   };
 
   /** Finish the active pointer drag exactly once, from the latest position. */
@@ -668,7 +685,7 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
         ref={scrollerRef}
         className={styles.kanban}
         role="list"
-        aria-label="Kanban columns"
+        aria-label={t('views.kanbanColumnsAria')}
         aria-describedby={ctx.canEdit ? 'kanban-drag-hint' : undefined}
         data-kanban-scroller=""
         data-pointer-drag={pointerDrag ? '' : undefined}
@@ -703,7 +720,9 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
               className={styles.column}
               data-over={activeTarget ? '' : undefined}
               data-kanban-status-id={status.id}
-              aria-label={`${status.name}, ${cards.length} project${cards.length === 1 ? '' : 's'}`}
+              aria-label={plural('plurals.columnCount', cards.length, {
+                status: status.name,
+              })}
               onDragOver={(event) => {
                 event.preventDefault();
                 event.dataTransfer.dropEffect = 'move';
@@ -739,7 +758,7 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
                   gapIndex === 0 ? (
                     <KanbanPlaceholder />
                   ) : (
-                    <p className={styles.columnEmpty}>No projects</p>
+                    <p className={styles.columnEmpty}>{t('views.noProjects')}</p>
                   )
                 ) : (
                   <>
@@ -829,7 +848,9 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
                           />
                           <div className={styles.cardMeta}>
                             <ArchivedBadge project={project} />
-                            {project.inbox ? <Badge tone="warning">Inbox</Badge> : null}
+                            {project.inbox ? (
+                              <Badge tone="warning">{t('common.inboxBadge')}</Badge>
+                            ) : null}
                           </div>
                         </article>
                       </Fragment>
@@ -859,10 +880,7 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
         : null}
       {ctx.canEdit ? (
         <p className={styles.hint} id="kanban-drag-hint">
-          Drag a card onto a column to change its status, or between cards to reorder it.
-          The highlighted gap shows where it will land. On touch, press and hold a card,
-          then drag. Keyboard and menu users: open Actions on a card to move it earlier,
-          later, or to another status or project.
+          {t('views.kanbanHint')}
         </p>
       ) : null}
     </>
@@ -874,6 +892,7 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
 /* ------------------------------------------------------------------------- */
 
 export function CardView({ ctx }: { ctx: CollectionViewContext }) {
+  const { t } = useI18n();
   const ordered = orderedChildren(ctx.children);
   const listRef = useRef<HTMLUListElement | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -921,7 +940,7 @@ export function CardView({ ctx }: { ctx: CollectionViewContext }) {
       zone,
     );
     if (!plan) return;
-    void reorderBefore(ctx, dragged, plan.beforeId);
+    void reorderBefore(ctx, dragged, plan.beforeId, t);
   };
 
   return (
@@ -929,7 +948,7 @@ export function CardView({ ctx }: { ctx: CollectionViewContext }) {
       <ul
         ref={listRef}
         className={styles.cardList}
-        aria-label="Projects as cards"
+        aria-label={t('views.cardListAria')}
         aria-describedby={ctx.canEdit ? 'card-drag-hint' : undefined}
       >
         {ordered.map((project) => (
@@ -982,12 +1001,14 @@ export function CardView({ ctx }: { ctx: CollectionViewContext }) {
                           ctx.notify(result.message, 'error');
                           return;
                         }
-                        ctx.notify(`Released “${project.title}” to the start status.`);
+                        ctx.notify(t('views.released', { title: project.title }));
                         ctx.refresh();
                       });
                     }}
                   >
-                    Release to {project.statusName ?? 'the start status'}
+                    {t('views.releaseTo', {
+                      status: project.statusName ?? t('inbox.startStatus'),
+                    })}
                   </Button>
                 ) : null}
                 <Link
@@ -996,10 +1017,12 @@ export function CardView({ ctx }: { ctx: CollectionViewContext }) {
                   draggable={false}
                 >
                   <Icon name="open_in_new" size={18} />
-                  <span>Open</span>
+                  <span>{t('views.open')}</span>
                 </Link>
                 <ArchivedBadge project={project} />
-                {project.inbox ? <Badge tone="warning">Inbox</Badge> : null}
+                {project.inbox ? (
+                              <Badge tone="warning">{t('common.inboxBadge')}</Badge>
+                            ) : null}
               </div>
             </article>
           </li>
@@ -1007,9 +1030,7 @@ export function CardView({ ctx }: { ctx: CollectionViewContext }) {
       </ul>
       {ctx.canEdit ? (
         <p className={styles.hint} id="card-drag-hint">
-          Drag a card onto another card to move it inside that project; drop between cards to
-          reorder. Keyboard and menu users: open Actions on a card to move it earlier, later,
-          to another status, or to another project.
+          {t('views.cardHint')}
         </p>
       ) : null}
     </>
@@ -1021,6 +1042,7 @@ export function CardView({ ctx }: { ctx: CollectionViewContext }) {
 /* ------------------------------------------------------------------------- */
 
 export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
+  const { t, plural } = useI18n();
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ id: string; zone: DropZone } | null>(null);
@@ -1174,7 +1196,7 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
             );
             const plan = planSiblingReorder(siblingIds, id, project.id, zone);
             if (!plan) return;
-            void reorderBefore(ctx, dragged, plan.beforeId);
+            void reorderBefore(ctx, dragged, plan.beforeId, t);
           }}
           data-drop={dropTarget?.id === project.id ? dropTarget.zone : undefined}
         >
@@ -1182,15 +1204,19 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
             <td className={styles.treeSelectCell} data-no-drag>
               <Checkbox
                 id={`tree-select-${project.id}`}
-                label={<span className="visually-hidden">Select {project.title}</span>}
+                label={
+                  <span className="visually-hidden">
+                    {t('views.selectProject', { title: project.title })}
+                  </span>
+                }
                 checked={selected.has(project.id)}
                 disabled={!project.canAdmin || contextRow}
                 title={
                   contextRow
-                    ? 'Shown for context; clear the filters to select it'
+                    ? t('views.contextOnly')
                     : project.canAdmin
                       ? undefined
-                      : 'Only project Admins can bulk-edit this project'
+                      : t('views.adminOnly')
                 }
                 onChange={(event) => toggleSelection(project.id, event.target.checked)}
               />
@@ -1205,7 +1231,11 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
                 <button
                   type="button"
                   className={styles.chevronButton}
-                  aria-label={`${isCollapsed ? 'Expand' : 'Collapse'} ${project.title}`}
+                  aria-label={
+                    isCollapsed
+                      ? t('common.expandName', { title: project.title })
+                      : t('common.collapseName', { title: project.title })
+                  }
                   aria-expanded={!isCollapsed}
                   onClick={() => toggle(project.id)}
                 >
@@ -1221,9 +1251,13 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
               >
                 {project.title}
               </Link>
-              {contextRow ? <Badge tone="neutral">Context</Badge> : null}
+              {contextRow ? (
+                <Badge tone="neutral">{t('common.context')}</Badge>
+              ) : null}
               <ArchivedBadge project={project} />
-              {project.inbox ? <Badge tone="warning">Inbox</Badge> : null}
+              {project.inbox ? (
+                              <Badge tone="warning">{t('common.inboxBadge')}</Badge>
+                            ) : null}
               <ViewMeta project={project} fields={ctx.settings.view_fields.tree} />
             </div>
           </th>
@@ -1231,7 +1265,11 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
             {contextRow ? (
               <span className={styles.readonlyStatus}>{project.statusName ?? '—'}</span>
             ) : (
-              <StatusControl ctx={ctx} project={project} label={`Status for ${project.title}`} />
+              <StatusControl
+                ctx={ctx}
+                project={project}
+                label={t('views.statusFor', { title: project.title })}
+              />
             )}
           </td>
           {ctx.canEdit ? (
@@ -1262,28 +1300,28 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
   return (
     <div className={styles.treeWrap}>
       {selectedProjects.length > 0 ? (
-        <div className={styles.bulkToolbar} role="region" aria-label="Bulk actions">
+        <div className={styles.bulkToolbar} role="region" aria-label={t('views.bulkActions')}>
           <span className={styles.bulkCount}>
-            {selectedProjects.length} selected
+            {t('views.selectedCount', { count: selectedProjects.length })}
           </span>
           <Button size="sm" variant="quiet" onClick={() => setBulkDialog('move')}>
-            Bulk move
+            {t('views.bulkMove')}
           </Button>
           <Button size="sm" variant="quiet" onClick={() => setBulkDialog('trash')}>
-            Bulk trash
+            {t('views.bulkTrash')}
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
-            Clear
+            {t('common.clear')}
           </Button>
         </div>
       ) : null}
       <table
         className={styles.treeTable}
-        aria-label="Child projects"
+        aria-label={t('views.treeTableAria')}
         aria-describedby="tree-drag-hint"
       >
         <caption className="visually-hidden">
-          Child projects with status, selection and row actions
+          {t('views.treeCaption')}
         </caption>
         <thead>
           <tr>
@@ -1294,19 +1332,21 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
                   ref={(node) => {
                     if (node) node.indeterminate = someSelected && !allSelected;
                   }}
-                  label={<span className="visually-hidden">Select all loaded projects</span>}
+                  label={
+                    <span className="visually-hidden">{t('views.selectAll')}</span>
+                  }
                   checked={allSelected}
                   onChange={toggleAll}
                 />
               </th>
             ) : null}
-            <th scope="col">Project</th>
+            <th scope="col">{t('views.columnProject')}</th>
             <th scope="col" className={styles.treeStatusHeader}>
-              Status
+              {t('views.columnStatus')}
             </th>
             {ctx.canEdit ? (
               <th scope="col" className={styles.treeActionHeader}>
-                <span className="visually-hidden">Actions</span>
+                <span className="visually-hidden">{t('views.columnActions')}</span>
               </th>
             ) : null}
           </tr>
@@ -1314,21 +1354,18 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
         <tbody ref={tbodyRef}>{rows}</tbody>
       </table>
       <p className={styles.hint} id="tree-drag-hint">
-        Drag a project onto another row to move it inside that project. Drag between two rows to
-        reorder it among siblings of the same parent; dropping between rows of a different parent
-        opens the move dialog. Select rows to move or trash several projects together. Keyboard
-        and menu users: open Actions on a row to move it earlier, later, to another status, or to
-        another project.
+        {t('views.treeHint')}
       </p>
       {ctx.contextIds && ctx.contextIds.size > 0 ? (
         <p className={styles.hint}>
-          Rows marked Context are ancestors kept visible so matching descendants stay connected;
-          they are read-only while filters are active.
+          {t('views.treeContextHint')}
         </p>
       ) : null}
       <p className="visually-hidden" aria-live="polite">
-        {allSiblings.length} direct child project{allSiblings.length === 1 ? '' : 's'}.
-        {selectedProjects.length > 0 ? ` ${selectedProjects.length} selected.` : ''}
+        {plural('plurals.directChildren', allSiblings.length)}
+        {selectedProjects.length > 0
+          ? ` ${t('views.selectedCount', { count: selectedProjects.length })}.`
+          : ''}
       </p>
 
       <BulkMoveDialog
@@ -1336,7 +1373,7 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
         projects={selectedProjects}
         onClose={() => setBulkDialog(null)}
         onMoved={(moved) => {
-          ctx.notify(`Moved ${moved.length} project${moved.length === 1 ? '' : 's'}.`);
+          ctx.notify(plural('plurals.movedCount', moved.length));
           setSelected(new Set());
           ctx.refresh();
         }}
@@ -1346,7 +1383,7 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
         projects={selectedProjects}
         onClose={() => setBulkDialog(null)}
         onTrashed={(count) => {
-          ctx.notify(`Moved ${count} project${count === 1 ? '' : 's'} to Trash.`);
+          ctx.notify(plural('plurals.trashedCount', count));
           setSelected(new Set());
           ctx.refresh();
         }}
@@ -1360,6 +1397,7 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
 /* ------------------------------------------------------------------------- */
 
 export function ListView({ ctx }: { ctx: CollectionViewContext }) {
+  const { t } = useI18n();
   const ordered = orderedChildren(ctx.children);
   const finish = ctx.statuses.find((status) => status.isFinish) ?? null;
   const start = ctx.statuses.find((status) => status.isStart) ?? null;
@@ -1380,10 +1418,10 @@ export function ListView({ ctx }: { ctx: CollectionViewContext }) {
   const toggle = (project: ProjectCard, checked: boolean) => {
     const target = checked ? finish : start;
     if (!target) {
-      ctx.notify('This workflow has no complete status.', 'error');
+      ctx.notify(t('views.noCompleteStatus'), 'error');
       return;
     }
-    void changeStatus(ctx, project, target.id);
+    void changeStatus(ctx, project, target.id, t);
   };
 
   return (
@@ -1391,7 +1429,7 @@ export function ListView({ ctx }: { ctx: CollectionViewContext }) {
       <ul
         ref={listRef}
         className={styles.list}
-        aria-label="Projects checklist"
+        aria-label={t('views.checklistAria')}
         aria-describedby={ctx.canEdit ? 'list-drag-hint' : undefined}
       >
         {ordered.map((project) => {
@@ -1449,7 +1487,7 @@ export function ListView({ ctx }: { ctx: CollectionViewContext }) {
                   edge,
                 );
                 if (!plan) return;
-                void reorderBefore(ctx, dragged, plan.beforeId);
+                void reorderBefore(ctx, dragged, plan.beforeId, t);
               }}
             >
               <Checkbox
@@ -1470,7 +1508,7 @@ export function ListView({ ctx }: { ctx: CollectionViewContext }) {
                 draggable={false}
               >
                 <Icon name="open_in_new" size={18} />
-                <span>Open</span>
+                <span>{t('views.open')}</span>
               </Link>
               <ArchivedBadge project={project} />
               {ctx.canEdit ? (
@@ -1489,8 +1527,7 @@ export function ListView({ ctx }: { ctx: CollectionViewContext }) {
       </ul>
       {ctx.canEdit ? (
         <p className={styles.hint} id="list-drag-hint">
-          Drag a row above or below another row to reorder it. Keyboard and menu users: open
-          Actions on a row to move it earlier, later, to another status, or to another project.
+          {t('views.listHint')}
         </p>
       ) : null}
     </>

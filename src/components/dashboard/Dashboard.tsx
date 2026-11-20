@@ -14,12 +14,14 @@ import { Toast } from '@/components/ui/Toast';
 import { useToastMessage } from '@/components/ui/use-live-announcer';
 import { requestJson } from '@/lib/api-client';
 import {
-  DASHBOARD_WIDGET_LABELS,
   isDashboardWidgetPayload,
   type DashboardInboxWidget,
+  type DashboardRecentEvent,
   type DashboardRecentWidget,
 } from '@/lib/dashboard';
-import { formatDayTime } from '@/lib/format';
+import { AUDIT_ACTIONS } from '@/lib/audit';
+import { DASHBOARD_WIDGET_MESSAGE_KEYS } from '@/i18n/domain-labels';
+import { useI18n, type I18nContextValue } from '@/i18n/client';
 import {
   DEFAULT_DASHBOARD,
   isKnownDashboardWidgetId,
@@ -74,6 +76,7 @@ function knownPreferences(prefs: DashboardPreference[]): KnownDashboardPreferenc
  */
 export function Dashboard({ user }: DashboardProps) {
   const router = useRouter();
+  const { t } = useI18n();
   const [savedPrefs, setSavedPrefs] = useState<DashboardPreference[]>(() =>
     sanitizePreferences(user.dashboard),
   );
@@ -142,11 +145,11 @@ export function Dashboard({ user }: DashboardProps) {
       }
       setSavedPrefs(sanitizePreferences(result.data.user.dashboard));
       setEditing(false);
-      notify('Dashboard saved.');
+      notify(t('dashboard.saved'));
       // Refresh the RSC cache so navigating away and back keeps the new order.
       router.refresh();
     } catch {
-      setEditError('Could not reach the server. Check your connection and try again.');
+      setEditError(t('common.networkError'));
     } finally {
       setSaving(false);
     }
@@ -165,7 +168,7 @@ export function Dashboard({ user }: DashboardProps) {
     <>
       <div className="page-heading">
         <div className="page-heading-text">
-          <h1>{editing ? 'Edit dashboard' : 'Home'}</h1>
+          <h1>{editing ? t('dashboard.editTitle') : t('dashboard.title')}</h1>
         </div>
         {editing ? null : (
           <Button
@@ -174,17 +177,17 @@ export function Dashboard({ user }: DashboardProps) {
             onClick={openEditor}
             className={styles.editButton}
           >
-            Edit dashboard
+            {t('dashboard.edit')}
           </Button>
         )}
       </div>
 
       {editing ? (
         <Card>
-          <CardHeader title="Visible widgets and order" />
-          <ul className={styles.editorList} aria-label="Dashboard widgets">
+          <CardHeader title={t('dashboard.visibleWidgets')} />
+          <ul className={styles.editorList} aria-label={t('dashboard.widgetsAria')}>
             {knownDraft.map((entry, index) => {
-              const label = DASHBOARD_WIDGET_LABELS[entry.id];
+              const label = t(DASHBOARD_WIDGET_MESSAGE_KEYS[entry.id]);
               return (
                 <li key={entry.id} className={styles.editorRow}>
                   <Checkbox
@@ -200,7 +203,7 @@ export function Dashboard({ user }: DashboardProps) {
                       className={styles.moveButton}
                       onClick={() => moveKnown(index, -1)}
                       disabled={index === 0}
-                      aria-label={`Move ${label} up`}
+                      aria-label={t('common.moveNameUp', { name: label })}
                     >
                       <Icon name="arrow_upward" size={20} />
                     </button>
@@ -209,7 +212,7 @@ export function Dashboard({ user }: DashboardProps) {
                       className={styles.moveButton}
                       onClick={() => moveKnown(index, 1)}
                       disabled={index === knownDraft.length - 1}
-                      aria-label={`Move ${label} down`}
+                      aria-label={t('common.moveNameDown', { name: label })}
                     >
                       <Icon name="arrow_downward" size={20} />
                     </button>
@@ -219,7 +222,7 @@ export function Dashboard({ user }: DashboardProps) {
             })}
           </ul>
           <p className={styles.editorHint}>
-            One of each widget. Show/hide and reorder; the layout adapts to your device.
+            {t('dashboard.editorHint')}
           </p>
           {editError ? (
             <div className={styles.editorError}>
@@ -228,15 +231,15 @@ export function Dashboard({ user }: DashboardProps) {
           ) : null}
           <div className={styles.editorActions}>
             <Button onClick={() => void save()} loading={saving} className={styles.saveButton}>
-              Save dashboard
+              {t('dashboard.save')}
             </Button>
             <Button variant="ghost" onClick={cancel} disabled={saving}>
-              Cancel
+              {t('common.cancel')}
             </Button>
           </div>
           <div className={styles.editorSecondary}>
             <Button variant="ghost" size="sm" onClick={restoreDefaults} disabled={saving}>
-              Restore defaults
+              {t('dashboard.restoreDefaults')}
             </Button>
           </div>
         </Card>
@@ -244,9 +247,9 @@ export function Dashboard({ user }: DashboardProps) {
         <div className={styles.emptyDashboard} role="status">
           <Icon name="info" size={20} className={styles.emptyIcon} />
           <div>
-            <p className={styles.emptyTitle}>Your dashboard is empty</p>
+            <p className={styles.emptyTitle}>{t('dashboard.emptyTitle')}</p>
             <p className={styles.emptyDescription}>
-              Choose Edit dashboard to show the widgets you find useful.
+              {t('dashboard.emptyDescription')}
             </p>
           </div>
         </div>
@@ -280,7 +283,8 @@ type WidgetState =
 
 /** One widget, one request: a failure is local to this card. */
 function DashboardWidget({ widgetId }: DashboardWidgetProps) {
-  const label = DASHBOARD_WIDGET_LABELS[widgetId];
+  const { t } = useI18n();
+  const label = t(DASHBOARD_WIDGET_MESSAGE_KEYS[widgetId]);
   const [state, setState] = useState<WidgetState>({ status: 'loading' });
   const [reloadToken, setReloadToken] = useState(0);
 
@@ -308,7 +312,7 @@ function DashboardWidget({ widgetId }: DashboardWidgetProps) {
             payload !== null &&
             typeof (payload as { error?: { message?: unknown } }).error?.message === 'string'
               ? (payload as { error: { message: string } }).error.message
-              : 'This widget could not load.';
+              : t('dashboard.widgetLoadFailed');
           setState({ status: 'error', message });
           return;
         }
@@ -319,7 +323,7 @@ function DashboardWidget({ widgetId }: DashboardWidgetProps) {
         if (!isDashboardWidgetPayload(widget) || widget.id !== widgetId) {
           setState({
             status: 'error',
-            message: 'This widget returned an unexpected response.',
+            message: t('dashboard.unexpectedResponse'),
           });
           return;
         }
@@ -329,7 +333,7 @@ function DashboardWidget({ widgetId }: DashboardWidgetProps) {
         if (error instanceof DOMException && error.name === 'AbortError') return;
         setState({
           status: 'error',
-          message: 'Could not reach the server. Check your connection and try again.',
+          message: t('common.networkError'),
         });
       }
     };
@@ -344,7 +348,7 @@ function DashboardWidget({ widgetId }: DashboardWidgetProps) {
   const heading =
     state.status === 'ready' && state.data.id === 'inbox' ? (
       <>
-        Inbox
+        {t('dashboard.inboxLabel')}
         <span className={styles.widgetCount}> · {state.data.total}</span>
       </>
     ) : (
@@ -356,7 +360,7 @@ function DashboardWidget({ widgetId }: DashboardWidgetProps) {
       <CardHeader title={heading} />
       {state.status === 'loading' ? (
         <div className={styles.widgetLoading}>
-          <Spinner label={`Loading ${label}`} />
+          <Spinner label={t('dashboard.loadingWidget', { name: label })} />
         </div>
       ) : null}
       {state.status === 'error' ? (
@@ -364,9 +368,11 @@ function DashboardWidget({ widgetId }: DashboardWidgetProps) {
           <div className={styles.widgetError} role="alert">
             <Icon name="error_outline" size={20} className={styles.widgetErrorIcon} />
             <div>
-              <p className={styles.widgetErrorTitle}>{label} could not load</p>
+              <p className={styles.widgetErrorTitle}>
+                {t('dashboard.widgetErrorTitle', { name: label })}
+              </p>
               <p className={styles.widgetErrorText}>
-                Other widgets remain available. Retry this widget.
+                {t('dashboard.widgetErrorText')}
               </p>
             </div>
           </div>
@@ -375,7 +381,7 @@ function DashboardWidget({ widgetId }: DashboardWidgetProps) {
             className={styles.retryButton}
             onClick={() => setReloadToken((token) => token + 1)}
           >
-            Retry
+            {t('common.retry')}
           </Button>
         </div>
       ) : null}
@@ -390,10 +396,13 @@ function DashboardWidget({ widgetId }: DashboardWidgetProps) {
 }
 
 function InboxWidgetBody({ data }: { data: DashboardInboxWidget }) {
+  const { t } = useI18n();
+  const readinessLabel = (readiness: DashboardInboxWidget['items'][number]['readiness']) =>
+    readiness === 'ready' ? t('dashboard.readyToDo') : t('dashboard.needsProperties');
   return (
     <div className={styles.widgetBody}>
       {data.items.length === 0 ? (
-        <p className={styles.widgetEmpty}>Your Inbox is empty.</p>
+        <p className={styles.widgetEmpty}>{t('dashboard.inboxEmpty')}</p>
       ) : (
         <ul className={styles.inboxList}>
           {data.items.map((item) => (
@@ -402,24 +411,59 @@ function InboxWidgetBody({ data }: { data: DashboardInboxWidget }) {
                 {item.title}
               </Link>
               <p className={styles.inboxMeta}>
-                {item.parentTitle ? `${item.parentTitle} · ${item.readinessText}` : item.readinessText}
+                {item.parentTitle
+                  ? `${item.parentTitle} · ${readinessLabel(item.readiness)}`
+                  : readinessLabel(item.readiness)}
               </p>
             </li>
           ))}
         </ul>
       )}
       <Link href={data.openHref} className={styles.widgetLink}>
-        Open Inbox
+        {t('dashboard.openInbox')}
       </Link>
     </div>
   );
 }
 
+function recentSummary(event: DashboardRecentEvent, t: I18nContextValue['t']): string {
+  const actor = event.actorName === 'Someone' ? t('common.someone') : event.actorName;
+  const project = event.projectTitle;
+  switch (event.action) {
+    case AUDIT_ACTIONS.projectCreated:
+      return t('dashboard.recent.created', { actor, project });
+    case AUDIT_ACTIONS.projectRenamed:
+    case AUDIT_ACTIONS.projectStatusChanged:
+      return t('dashboard.recent.updated', { actor, project });
+    case AUDIT_ACTIONS.projectPriorityChanged:
+      return t('dashboard.recent.reordered', { actor, project });
+    case AUDIT_ACTIONS.projectArchived:
+      return t('dashboard.recent.archived', { actor, project });
+    case AUDIT_ACTIONS.projectUnarchived:
+      return t('dashboard.recent.unarchived', { actor, project });
+    case AUDIT_ACTIONS.projectMoved:
+      return t('dashboard.recent.moved', { actor, project });
+    case AUDIT_ACTIONS.projectRestored:
+      return t('dashboard.recent.restored', { actor, project });
+    case AUDIT_ACTIONS.projectTrashed:
+      return t('dashboard.recent.trashed', { actor, project });
+    case AUDIT_ACTIONS.childCreated:
+      return event.targetTitle
+        ? t('dashboard.recent.childCreated', { actor, target: event.targetTitle })
+        : t('dashboard.recent.childCreatedGeneric', { actor });
+    case AUDIT_ACTIONS.childTrashed:
+      return t('dashboard.recent.childTrashed', { actor });
+    default:
+      return t('dashboard.recent.updated', { actor, project });
+  }
+}
+
 function RecentWidgetBody({ data }: { data: DashboardRecentWidget }) {
+  const { t, formatDayTime } = useI18n();
   return (
     <div className={styles.widgetBody}>
       {data.items.length === 0 ? (
-        <p className={styles.widgetEmpty}>No recent changes.</p>
+        <p className={styles.widgetEmpty}>{t('dashboard.noRecent')}</p>
       ) : (
         <ul className={styles.recentList}>
           {data.items.map((event) => (
@@ -427,7 +471,7 @@ function RecentWidgetBody({ data }: { data: DashboardRecentWidget }) {
               <Link href={event.href} className={styles.recentRow}>
                 <Avatar name={event.actorName} size={32} decorative />
                 <span className={styles.recentText}>
-                  <span className={styles.recentSummary}>{event.summary}</span>
+                  <span className={styles.recentSummary}>{recentSummary(event, t)}</span>
                   <span className={styles.recentTime}>{formatDayTime(event.createdAt)}</span>
                 </span>
               </Link>
@@ -435,7 +479,7 @@ function RecentWidgetBody({ data }: { data: DashboardRecentWidget }) {
           ))}
         </ul>
       )}
-      <p className={styles.recentFooter}>Open a project to see its Activity.</p>
+      <p className={styles.recentFooter}>{t('dashboard.recentFooter')}</p>
     </div>
   );
 }

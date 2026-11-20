@@ -16,6 +16,8 @@ import { useToastMessage } from '@/components/ui/use-live-announcer';
 import { requestJson } from '@/lib/api-client';
 import { formatPersonName } from '@/lib/format';
 import { APP_ROLES, type AppRole } from '@/lib/types';
+import { SHORT_ROLE_MESSAGE_KEYS } from '@/i18n/domain-labels';
+import { useI18n } from '@/i18n/client';
 import {
   normalizeEmail,
   normalizeUsername,
@@ -31,12 +33,6 @@ export interface UsersManagerProps {
   defaultRole: AppRole;
 }
 
-const ROLE_SHORT_LABELS: Record<AppRole, string> = {
-  admin: 'Admin',
-  user: 'User',
-  viewer: 'Viewer',
-};
-
 function sortUsers(users: AccountUser[]): AccountUser[] {
   return [...users].sort((a, b) => a.username.localeCompare(b.username, undefined, { sensitivity: 'base' }));
 }
@@ -47,6 +43,7 @@ function sortUsers(users: AccountUser[]): AccountUser[] {
  * the last application Admin cannot be demoted.
  */
 export function UsersManager({ users, defaultRole }: UsersManagerProps) {
+  const { t } = useI18n();
   const router = useRouter();
   const [list, setList] = useState<AccountUser[]>(() => sortUsers(users));
   const [roleSavingId, setRoleSavingId] = useState<string | null>(null);
@@ -73,10 +70,15 @@ export function UsersManager({ users, defaultRole }: UsersManagerProps) {
       setList((current) =>
         sortUsers(current.map((entry) => (entry.id === account.id ? result.data.user : entry))),
       );
-      notify(`${formatPersonName(account.username)} is now ${ROLE_SHORT_LABELS[appRole]}.`);
+      notify(
+        t('users.roleChanged', {
+          name: formatPersonName(account.username),
+          role: t(SHORT_ROLE_MESSAGE_KEYS[appRole]),
+        }),
+      );
       router.refresh();
     } catch {
-      setListError('Could not reach the server. Check your connection and try again.');
+      setListError(t('common.networkError'));
     } finally {
       setRoleSavingId(null);
     }
@@ -90,8 +92,8 @@ export function UsersManager({ users, defaultRole }: UsersManagerProps) {
     setDialog(null);
     notify(
       mode === 'add'
-        ? `Account ${formatPersonName(user.username)} created.`
-        : 'Account saved.',
+        ? t('users.accountCreated', { name: formatPersonName(user.username) })
+        : t('users.accountSaved'),
     );
     router.refresh();
   };
@@ -100,8 +102,8 @@ export function UsersManager({ users, defaultRole }: UsersManagerProps) {
     <>
       <Card className={styles.card}>
         <CardHeader
-          title="Users"
-          description="Application roles do not grant access to private projects."
+          title={t('users.users')}
+          description={t('users.description')}
         />
 
         {listError ? (
@@ -110,7 +112,7 @@ export function UsersManager({ users, defaultRole }: UsersManagerProps) {
           </div>
         ) : null}
 
-        <ul className={styles.userList} aria-label="Accounts">
+        <ul className={styles.userList} aria-label={t('users.accountsAria')}>
           {list.map((account) => {
             const saving = roleSavingId === account.id;
             return (
@@ -125,7 +127,9 @@ export function UsersManager({ users, defaultRole }: UsersManagerProps) {
                   <span className={styles.username}>{formatPersonName(account.username)}</span>
                 </div>
                 <Select
-                  aria-label={`Application role for ${formatPersonName(account.username)}`}
+                  aria-label={t('users.roleFor', {
+                    name: formatPersonName(account.username),
+                  })}
                   value={account.appRole}
                   disabled={saving}
                   onChange={(event) => {
@@ -135,7 +139,7 @@ export function UsersManager({ users, defaultRole }: UsersManagerProps) {
                 >
                   {APP_ROLES.map((role) => (
                     <option key={role} value={role}>
-                      {ROLE_SHORT_LABELS[role]}
+                      {t(SHORT_ROLE_MESSAGE_KEYS[role])}
                     </option>
                   ))}
                 </Select>
@@ -143,21 +147,23 @@ export function UsersManager({ users, defaultRole }: UsersManagerProps) {
                   variant="ghost"
                   size="sm"
                   icon={<Icon name="edit" size={18} />}
-                  aria-label={`Edit ${formatPersonName(account.username)}`}
+                  aria-label={t('users.editName', {
+                    name: formatPersonName(account.username),
+                  })}
                   onClick={() => {
                     setListError(null);
                     setDialog({ mode: 'edit', user: account });
                   }}
                   className={styles.editButton}
                 >
-                  Edit
+                  {t('common.edit')}
                 </Button>
               </li>
             );
           })}
         </ul>
 
-        <p className={styles.helper}>At least one application Admin must remain.</p>
+        <p className={styles.helper}>{t('users.helper')}</p>
 
         <div className={styles.actions}>
           <Button
@@ -167,10 +173,10 @@ export function UsersManager({ users, defaultRole }: UsersManagerProps) {
               setDialog({ mode: 'add' });
             }}
           >
-            Add user
+            {t('users.addUser')}
           </Button>
           <LinkButton href="/" variant="quiet">
-            Cancel
+            {t('common.cancel')}
           </LinkButton>
         </div>
       </Card>
@@ -216,6 +222,7 @@ interface UserValues {
 
 /** Add/edit dialog. Add requires an initial password; edit can reset it. */
 function UserDialog({ open, mode, user, defaultRole, onClose, onSaved }: UserDialogProps) {
+  const { locale, t } = useI18n();
   const [values, setValues] = useState<UserValues>(() => ({
     username: user?.username ?? '',
     email: user?.email ?? '',
@@ -235,15 +242,15 @@ function UserDialog({ open, mode, user, defaultRole, onClose, onSaved }: UserDia
     if (saving) return;
 
     const errors: Record<string, string> = {};
-    const usernameError = validateUsername(values.username);
-    const emailError = validateEmail(values.email);
+    const usernameError = validateUsername(values.username, locale);
+    const emailError = validateEmail(values.email, locale);
     if (usernameError) errors.username = usernameError;
     if (emailError) errors.email = emailError;
     if (mode === 'add') {
-      const passwordError = validatePassword(values.password);
+      const passwordError = validatePassword(values.password, locale);
       if (passwordError) errors.password = passwordError;
     } else if (values.password.length > 0) {
-      const passwordError = validatePassword(values.password);
+      const passwordError = validatePassword(values.password, locale);
       if (passwordError) errors.password = passwordError;
     }
     setFieldErrors(errors);
@@ -270,7 +277,7 @@ function UserDialog({ open, mode, user, defaultRole, onClose, onSaved }: UserDia
       }
       onSaved(result.data.user, mode);
     } catch {
-      setFormError('Could not reach the server. Check your connection and try again.');
+      setFormError(t('common.networkError'));
     } finally {
       setSaving(false);
     }
@@ -280,16 +287,16 @@ function UserDialog({ open, mode, user, defaultRole, onClose, onSaved }: UserDia
     <Dialog
       open={open}
       onClose={onClose}
-      title={mode === 'add' ? 'Add user' : 'Edit user'}
-      description="Application administration"
+      title={mode === 'add' ? t('users.addUser') : t('users.editUser')}
+      description={t('users.dialogDescription')}
       dismissible={!saving}
       footer={
         <>
           <Button type="submit" form="user-dialog-form" loading={saving}>
-            {mode === 'add' ? 'Create user' : 'Save account'}
+            {mode === 'add' ? t('users.createUser') : t('users.saveAccount')}
           </Button>
           <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>
-            Cancel
+            {t('common.cancel')}
           </Button>
         </>
       }
@@ -299,12 +306,12 @@ function UserDialog({ open, mode, user, defaultRole, onClose, onSaved }: UserDia
         className={styles.dialogForm}
         onSubmit={handleSubmit}
         noValidate
-        aria-label={mode === 'add' ? 'Add user' : 'Edit user'}
+        aria-label={mode === 'add' ? t('users.addUser') : t('users.editUser')}
       >
         {formError ? <Notice tone="error">{formError}</Notice> : null}
 
         <Field
-          label="Username"
+          label={t('auth.username')}
           htmlFor="user-dialog-username"
           error={fieldErrors.username}
           required
@@ -323,7 +330,7 @@ function UserDialog({ open, mode, user, defaultRole, onClose, onSaved }: UserDia
         </Field>
 
         <Field
-          label="Email"
+          label={t('auth.email')}
           htmlFor="user-dialog-email"
           error={fieldErrors.email}
           required
@@ -342,7 +349,7 @@ function UserDialog({ open, mode, user, defaultRole, onClose, onSaved }: UserDia
         </Field>
 
         <Field
-          label="Application role"
+          label={t('users.applicationRole')}
           htmlFor="user-dialog-role"
           error={fieldErrors.appRole}
           required
@@ -357,17 +364,17 @@ function UserDialog({ open, mode, user, defaultRole, onClose, onSaved }: UserDia
           >
             {APP_ROLES.map((role) => (
               <option key={role} value={role}>
-                {ROLE_SHORT_LABELS[role]}
+                {t(SHORT_ROLE_MESSAGE_KEYS[role])}
               </option>
             ))}
           </Select>
         </Field>
 
         <Field
-          label="Initial / reset password"
+          label={t('users.initialResetPassword')}
           htmlFor="user-dialog-password"
           error={fieldErrors.password}
-          hint={mode === 'edit' ? 'Leave blank to keep the current password.' : undefined}
+          hint={mode === 'edit' ? t('users.leaveBlank') : undefined}
           required={mode === 'add'}
           labelWidth={160}
         >
@@ -383,9 +390,8 @@ function UserDialog({ open, mode, user, defaultRole, onClose, onSaved }: UserDia
           />
         </Field>
 
-        <Notice tone="info" title="Roles do not grant private access">
-          Changing an application role does not bypass project permissions. A change that removes
-          the last effective Admin is rejected.
+        <Notice tone="info" title={t('users.rolesNoticeTitle')}>
+          {t('users.rolesNoticeBody')}
         </Notice>
       </form>
     </Dialog>
