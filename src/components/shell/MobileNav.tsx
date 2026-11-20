@@ -5,14 +5,27 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { Dialog } from '@/components/ui/Dialog';
 import { Icon } from '@/components/ui/Icon';
+import { Menu, type MenuItem } from '@/components/ui';
 import { cn } from '@/lib/cn';
+import type { FavoriteProject } from '@/lib/types';
 import { CaptureForm } from './CaptureForm';
 import styles from './MobileNav.module.css';
 
 export interface MobileNavProps {
   rootProjectId: string | null;
+  favorites: FavoriteProject[];
   /** Application Viewers are read-only; the Add capture action is hidden. */
   canCapture: boolean;
+}
+
+/** Menu items for the mobile Favorites pop-over. */
+export function favoriteMenuItems(favorites: FavoriteProject[]): MenuItem[] {
+  return favorites.map((favorite) => ({
+    id: favorite.id,
+    label: favorite.title,
+    icon: 'star',
+    href: `/p/${favorite.id}`,
+  }));
 }
 
 function isActive(pathname: string, href: string): boolean {
@@ -20,12 +33,27 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-/** Mobile bottom bar: Home / Root / Add / Inbox / Search (build-spec §8). */
-export function MobileNav({ rootProjectId, canCapture }: MobileNavProps) {
+/** Mobile bottom bar: Home / Root / Add / Inbox / Favorites (build-spec §8). */
+export function MobileNav({ rootProjectId, favorites, canCapture }: MobileNavProps) {
   const pathname = usePathname();
   const [addOpen, setAddOpen] = useState(false);
 
   const close = () => setAddOpen(false);
+  const favoriteProjectActive = favorites.some((favorite) =>
+    isActive(pathname, `/p/${favorite.id}`),
+  );
+  const favoritesActive = favoriteProjectActive;
+  const favoriteItems = favoriteMenuItems(favorites);
+  const favoritesHeader = (
+    <div className={styles.favoritesMenuHeader}>
+      <span className={styles.favoritesMenuTitle}>Favorites</span>
+      {favorites.length === 0 ? (
+        <p className={styles.favoritesMenuHint}>
+          No favorites yet. Open a project and tap Favorite.
+        </p>
+      ) : null}
+    </div>
+  );
 
   return (
     <>
@@ -68,15 +96,31 @@ export function MobileNav({ rootProjectId, canCapture }: MobileNavProps) {
           <Icon name="inbox" size={22} />
           <span className={styles.label}>Inbox</span>
         </Link>
-        <Link
-          href="/search"
-          className={cn(styles.tab, isActive(pathname, '/search') && styles.active)}
-          aria-current={isActive(pathname, '/search') ? 'page' : undefined}
-        >
-          <Icon name="search" size={22} />
-          <span className={styles.label}>Search</span>
-        </Link>
+        <Menu
+          className={styles.favoritesMenu}
+          label="Favorites"
+          align="end"
+          side="top"
+          header={favoritesHeader}
+          items={favoriteItems}
+          trigger={({ ref, ...triggerProps }) => (
+            <button
+              {...triggerProps}
+              ref={ref}
+              type="button"
+              className={cn(
+                styles.tab,
+                styles.favoritesTab,
+                favoritesActive && styles.active,
+              )}
+            >
+              <Icon name="star" size={22} filled={favoritesActive} />
+              <span className={styles.label}>Favorites</span>
+            </button>
+          )}
+        />
       </nav>
+
 
       {canCapture ? (
         <Dialog

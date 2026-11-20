@@ -61,16 +61,21 @@ describe('desktop top bar capture', () => {
 
 describe('mobile bottom bar', () => {
   it('hides the Add action from an application Viewer', () => {
-    const html = renderToStaticMarkup(<MobileNav rootProjectId={ROOT_ID} canCapture={false} />);
+    const html = renderToStaticMarkup(
+      <MobileNav rootProjectId={ROOT_ID} favorites={[]} canCapture={false} />,
+    );
     expect(html).not.toContain('Add a project to Root');
     expect(html).not.toContain('>Add<');
-    // The read-only tabs remain.
+    // The read-only tabs remain; Search lives in the top header instead.
     expect(html).toContain('/inbox');
-    expect(html).toContain('/search');
+    expect(html).toContain('>Favorites<');
+    expect(html).not.toContain('/search');
   });
 
   it('renders the Add action when capture is allowed', () => {
-    const html = renderToStaticMarkup(<MobileNav rootProjectId={ROOT_ID} canCapture />);
+    const html = renderToStaticMarkup(
+      <MobileNav rootProjectId={ROOT_ID} favorites={[]} canCapture />,
+    );
     expect(html).toContain('Add a project to Root');
     expect(html).toContain('>Add<');
   });

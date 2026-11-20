@@ -56,6 +56,79 @@
   color: var(--color-text);
 }
 
+.favoritesMenu {
+  flex: 1;
+  min-width: 0;
+}
+
+.favoritesTab {
+  width: 100%;
+}
+
+.favoritesMenuHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.favoritesMenuTitle {
+  color: var(--color-text);
+  font-size: var(--font-size-body);
+  font-weight: 600;
+}
+
+.favoritesMenuHint {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--font-size-small);
+}
+
+.addTab {
+  color: var(--color-text);
+}
+
+.favoriteList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.favoriteLink {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-size: var(--font-size-body);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.favoriteLink:hover {
+  background: var(--color-surface-alt);
+  text-decoration: none;
+}
+
+.favoriteLink:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.favoriteIcon {
+  flex: none;
+  color: var(--color-accent);
+}
+
+.favoriteTitle {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .addTab :global(.material-symbols-outlined) {
   display: inline-flex;
   align-items: center;
