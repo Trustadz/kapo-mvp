@@ -80,16 +80,22 @@
   gap: var(--space-4);
 }
 
-/* Desktop: the release rail sits to the left of the cards; on phones the
+/* Desktop: the release rail sits to the right of the cards; on phones the
    rail stacks on top. */
 .cardLayout {
   display: grid;
-  grid-template-columns: minmax(200px, 240px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(200px, 240px);
+  grid-template-areas: 'cards rail';
   gap: var(--space-4);
   align-items: start;
 }
 
+.cardLayout > .list {
+  grid-area: cards;
+}
+
 .dropRail {
+  grid-area: rail;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -502,6 +508,7 @@
 
   .cardLayout {
     grid-template-columns: 1fr;
+    grid-template-areas: 'rail' 'cards';
   }
 
   .cardLayout .dropZone {
