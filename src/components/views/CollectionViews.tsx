@@ -1,7 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { Fragment, useMemo, useState, type DragEvent, type ReactElement } from 'react';
+import {
+  Fragment,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactElement,
+} from 'react';
+import { createPortal } from 'react-dom';
 import { Badge, Button, Checkbox, Icon, Menu, Select } from '@/components/ui';
 import type { MenuItem } from '@/components/ui';
 import type { Status } from '@/lib/types';
@@ -19,6 +29,12 @@ import {
   type DropZone,
   type ReorderEdge,
 } from '@/lib/reorder';
+import {
+  KANBAN_LONG_PRESS_MS,
+  autoscrollVelocity,
+  isTouchLikePointer,
+  movedBeyondTouchTolerance,
+} from '@/lib/kanban-drag';
 import { releaseInboxProject } from '@/components/projects/api';
 import {
   reorderProjectRequest,
@@ -293,6 +309,23 @@ interface KanbanDropTarget {
   index: number;
 }
 
+interface KanbanPointerDrag {
+  pointerId: number;
+  project: ProjectCard;
+  x: number;
+  y: number;
+  /** Autoscroll waits for the first move so a long press near an edge is still. */
+  moved: boolean;
+}
+
+interface KanbanPendingPress {
+  pointerId: number;
+  project: ProjectCard;
+  startX: number;
+  startY: number;
+  timer: number;
+}
+
 /** The gap that reserves the landing position (issue #25). */
 function KanbanPlaceholder() {
   return (
@@ -307,6 +340,11 @@ function KanbanPlaceholder() {
 export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
   const [dragging, setDragging] = useState<ProjectCard | null>(null);
   const [dropTarget, setDropTarget] = useState<KanbanDropTarget | null>(null);
+  const [pendingPressId, setPendingPressId] = useState<string | null>(null);
+  const [pointerDrag, setPointerDrag] = useState<KanbanPointerDrag | null>(null);
+  const pointerDragRef = useRef<KanbanPointerDrag | null>(null);
+  const pendingPressRef = useRef<KanbanPendingPress | null>(null);
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
 
   const hidden = new Set(ctx.settings.hidden_statuses);
   const visibleStatuses = sortStatuses(ctx.statuses).filter((status) => !hidden.has(status.id));
@@ -317,14 +355,27 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
     ordered.filter((project) => project.statusId === statusId);
 
   const resetDrag = () => {
+    const pending = pendingPressRef.current;
+    if (pending) window.clearTimeout(pending.timer);
+    pendingPressRef.current = null;
+    pointerDragRef.current = null;
+    setPendingPressId(null);
+    setPointerDrag(null);
     setDragging(null);
     setDropTarget(null);
   };
 
+  const clearPendingPress = () => {
+    const pending = pendingPressRef.current;
+    if (pending) window.clearTimeout(pending.timer);
+    pendingPressRef.current = null;
+    setPendingPressId(null);
+  };
+
   /**
    * Classify the pointer against one column. Cards are measured from the DOM so
-   * the same rule works for the desktop drag events and (later) pointer drags.
-   * The dragged card is excluded: the gap describes the list after the move.
+   * the same rule works for HTML5 drag events and pointer drags. The dragged
+   * card is excluded: the gap describes the list after the move.
    */
   const targetAt = (
     clientY: number,
@@ -350,6 +401,30 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
     return { statusId, index: insertionIndexAt(clientY, bounds) };
   };
 
+  /** Resolve a viewport point to the column and slot under a touch pointer. */
+  const pointerTargetAt = (
+    clientX: number,
+    clientY: number,
+    project: ProjectCard,
+  ): KanbanDropTarget | null => {
+    if (typeof document === 'undefined') return null;
+    const element = document.elementFromPoint(clientX, clientY);
+    const column = element?.closest<HTMLElement>('[data-kanban-status-id]');
+    const statusId = column?.dataset.kanbanStatusId;
+    if (!column || !statusId) return null;
+    return targetAt(clientY, statusId, column, project);
+  };
+
+  const updatePointerTarget = (x: number, y: number, project: ProjectCard): void => {
+    const next = pointerTargetAt(x, y, project);
+    setDropTarget((current) => {
+      if (!next) return current === null ? current : null;
+      return current?.statusId === next.statusId && current.index === next.index
+        ? current
+        : next;
+    });
+  };
+
   const finishDrop = (project: ProjectCard, target: KanbanDropTarget): void => {
     if (project.statusId !== target.statusId) {
       void changeStatus(ctx, project, target.statusId);
@@ -361,6 +436,24 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
       target.index,
     );
     if (plan) void reorderBefore(ctx, project, plan.beforeId);
+  };
+
+  /** Finish the active pointer drag exactly once, from the latest position. */
+  const completePointerDrag = (
+    clientX: number,
+    clientY: number,
+    pointerId: number,
+  ): void => {
+    const current = pointerDragRef.current;
+    if (!current || current.pointerId !== pointerId) return;
+    const target = pointerTargetAt(clientX, clientY, current.project);
+    const project = current.project;
+    resetDrag();
+    if (target) finishDrop(project, target);
+  };
+
+  const cancelPointerDrag = (pointerId: number): void => {
+    if (pointerDragRef.current?.pointerId === pointerId) resetDrag();
   };
 
   const handleDrop = (event: DragEvent<HTMLElement>, statusId: string): void => {
@@ -376,13 +469,183 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
     finishDrop(project, target);
   };
 
+  /**
+   * Arm the long-press gesture. Deliberately does not preventDefault: until the
+   * press activates, the browser must still be able to scroll the page/strip.
+   */
+  const startPointerPress = (
+    event: ReactPointerEvent<HTMLElement>,
+    project: ProjectCard,
+  ): void => {
+    if (!ctx.canEdit || !isTouchLikePointer(event.pointerType)) return;
+    if (event.button !== 0) return;
+    if (typeof window === 'undefined' || !('PointerEvent' in window)) return;
+    if (dragging || pendingPressRef.current || pointerDragRef.current) return;
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('a, button, select, input, textarea, [data-no-drag]')) return;
+
+    const { pointerId, clientX, clientY } = event;
+    const element = event.currentTarget;
+    try {
+      element.setPointerCapture(pointerId);
+    } catch {
+      // Synthetic events and older browsers may not allow capture; the window
+      // listeners below still receive the bubbled moves.
+    }
+    const timer = window.setTimeout(() => {
+      const pending = pendingPressRef.current;
+      if (!pending || pending.pointerId !== pointerId) return;
+      pendingPressRef.current = null;
+      setPendingPressId(null);
+      const next: KanbanPointerDrag = {
+        pointerId,
+        project,
+        x: clientX,
+        y: clientY,
+        moved: false,
+      };
+      pointerDragRef.current = next;
+      setPointerDrag(next);
+      setDragging(project);
+      setDropTarget(null);
+      updatePointerTarget(clientX, clientY, project);
+    }, KANBAN_LONG_PRESS_MS);
+    pendingPressRef.current = {
+      pointerId,
+      project,
+      startX: clientX,
+      startY: clientY,
+      timer,
+    };
+    setPendingPressId(project.id);
+  };
+
+  // Clear a pending timer if the view unmounts mid-press.
+  useEffect(
+    () => () => {
+      const pending = pendingPressRef.current;
+      if (pending) window.clearTimeout(pending.timer);
+      pendingPressRef.current = null;
+      pointerDragRef.current = null;
+    },
+    [],
+  );
+
+  // Before activation, movement means the user is scrolling, not dragging.
+  useEffect(() => {
+    if (!pendingPressId) return;
+    const onMove = (event: PointerEvent) => {
+      const pending = pendingPressRef.current;
+      if (!pending || pending.pointerId !== event.pointerId) return;
+      if (
+        movedBeyondTouchTolerance(
+          pending.startX,
+          pending.startY,
+          event.clientX,
+          event.clientY,
+        )
+      ) {
+        clearPendingPress();
+      }
+    };
+    const onEnd = (event: PointerEvent) => {
+      if (pendingPressRef.current?.pointerId === event.pointerId) clearPendingPress();
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') clearPendingPress();
+    };
+    window.addEventListener('pointermove', onMove, { passive: true });
+    window.addEventListener('pointerup', onEnd);
+    window.addEventListener('pointercancel', onEnd);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onEnd);
+      window.removeEventListener('pointercancel', onEnd);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [pendingPressId]);
+
+  // Active pointer drag: track the finger, block scrolling, finish or cancel.
+  const activePointerId = pointerDrag?.pointerId;
+  useEffect(() => {
+    if (activePointerId === undefined) return;
+    const onMove = (event: PointerEvent) => {
+      const current = pointerDragRef.current;
+      if (!current || current.pointerId !== event.pointerId) return;
+      event.preventDefault();
+      const next: KanbanPointerDrag = {
+        ...current,
+        x: event.clientX,
+        y: event.clientY,
+        moved: true,
+      };
+      pointerDragRef.current = next;
+      setPointerDrag(next);
+      updatePointerTarget(next.x, next.y, next.project);
+    };
+    const onUp = (event: PointerEvent) =>
+      completePointerDrag(event.clientX, event.clientY, event.pointerId);
+    const onCancel = (event: PointerEvent) => cancelPointerDrag(event.pointerId);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      resetDrag();
+    };
+    const stopTouchScroll = (event: TouchEvent) => event.preventDefault();
+    const stopContextMenu = (event: MouseEvent) => event.preventDefault();
+    const previousUserSelect = document.body.style.userSelect;
+    document.body.style.userSelect = 'none';
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onCancel);
+    window.addEventListener('keydown', onKeyDown);
+    document.addEventListener('touchmove', stopTouchScroll, { passive: false });
+    document.addEventListener('contextmenu', stopContextMenu, true);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onCancel);
+      window.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('touchmove', stopTouchScroll);
+      document.removeEventListener('contextmenu', stopContextMenu, true);
+      document.body.style.userSelect = previousUserSelect;
+    };
+  }, [activePointerId]);
+
+  // Horizontal autoscroll while the finger is parked near a strip edge.
+  useEffect(() => {
+    if (activePointerId === undefined) return;
+    let frame = 0;
+    const tick = () => {
+      const scroller = scrollerRef.current;
+      const current = pointerDragRef.current;
+      if (scroller && current?.moved) {
+        const rect = scroller.getBoundingClientRect();
+        const delta = autoscrollVelocity(current.x, rect.left, rect.right);
+        if (delta !== 0) {
+          const previous = scroller.scrollLeft;
+          scroller.scrollLeft = previous + delta;
+          if (scroller.scrollLeft !== previous) {
+            updatePointerTarget(current.x, current.y, current.project);
+          }
+        }
+      }
+      frame = window.requestAnimationFrame(tick);
+    };
+    frame = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frame);
+  }, [activePointerId]);
+
   return (
     <>
       <div
+        ref={scrollerRef}
         className={styles.kanban}
         role="list"
         aria-label="Kanban columns"
         data-kanban-scroller=""
+        data-pointer-drag={pointerDrag ? '' : undefined}
       >
         {columns.map((status) => {
           const cards = cardsFor(status.id);
@@ -464,11 +727,58 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
                           className={styles.kanbanCard}
                           data-archived={project.archived || undefined}
                           data-dragging={dragging?.id === project.id || undefined}
+                          data-pressing={pendingPressId === project.id || undefined}
                           data-kanban-card-id={project.id}
                           draggable={ctx.canEdit}
+                          onPointerDown={(event) => startPointerPress(event, project)}
+                          onPointerMove={(event) => {
+                            const pending = pendingPressRef.current;
+                            if (!pending || pending.pointerId !== event.pointerId) return;
+                            if (
+                              movedBeyondTouchTolerance(
+                                pending.startX,
+                                pending.startY,
+                                event.clientX,
+                                event.clientY,
+                              )
+                            ) {
+                              clearPendingPress();
+                            }
+                          }}
+                          onPointerUp={(event) => {
+                            if (pendingPressRef.current?.pointerId === event.pointerId) {
+                              clearPendingPress();
+                              return;
+                            }
+                            completePointerDrag(
+                              event.clientX,
+                              event.clientY,
+                              event.pointerId,
+                            );
+                          }}
+                          onPointerCancel={(event) => {
+                            if (pendingPressRef.current?.pointerId === event.pointerId) {
+                              clearPendingPress();
+                              return;
+                            }
+                            cancelPointerDrag(event.pointerId);
+                          }}
+                          onContextMenu={(event) => {
+                            if (
+                              pendingPressRef.current?.project.id === project.id ||
+                              pointerDragRef.current?.project.id === project.id
+                            ) {
+                              event.preventDefault();
+                            }
+                          }}
                           onDragStart={(event) => {
+                            if (pointerDragRef.current) {
+                              event.preventDefault();
+                              return;
+                            }
                             event.dataTransfer.setData('text/plain', project.id);
                             event.dataTransfer.effectAllowed = 'move';
+                            clearPendingPress();
                             setDragging(project);
                             setDropTarget(null);
                           }}
@@ -504,6 +814,21 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
           );
         })}
       </div>
+      {pointerDrag && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              className={styles.kanbanGhost}
+              data-kanban-ghost=""
+              aria-hidden="true"
+              style={{
+                transform: `translate3d(${pointerDrag.x + 14}px, ${pointerDrag.y + 14}px, 0)`,
+              }}
+            >
+              {pointerDrag.project.title}
+            </div>,
+            document.body,
+          )
+        : null}
       {ctx.canEdit ? (
         <p className={styles.hint}>
           Drag a card onto a column to change its status, or between cards to reorder it.
