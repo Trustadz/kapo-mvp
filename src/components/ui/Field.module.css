@@ -16,7 +16,11 @@
   line-height: 1.4;
 }
 
-.required {
+/* Decorative required marker: the asterisk is drawn by CSS so it never
+ * becomes part of the control's accessible name (the native `required`
+ * attribute carries the state). */
+.required::after {
+  content: ' *';
   color: var(--color-warning);
 }
 

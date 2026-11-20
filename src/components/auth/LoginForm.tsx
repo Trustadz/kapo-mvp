@@ -56,13 +56,19 @@ export function LoginForm() {
   };
 
   return (
-    <form className={styles.form} onSubmit={handleSubmit} noValidate>
+    <form className={styles.form} onSubmit={handleSubmit} noValidate aria-label="Sign in">
       <h1 className={styles.heading}>Sign in</h1>
 
       {formError ? <Notice tone="error">{formError}</Notice> : null}
 
       <div className={styles.fields}>
-        <Field label="Username" htmlFor="login-username" error={fieldErrors.username} labelWidth={190}>
+        <Field
+          label="Username"
+          htmlFor="login-username"
+          error={fieldErrors.username}
+          required
+          labelWidth={190}
+        >
           <Input
             ref={usernameRef}
             id="login-username"
@@ -74,10 +80,15 @@ export function LoginForm() {
             onChange={(event) => setUsername(event.target.value)}
             invalid={Boolean(fieldErrors.username)}
             className={styles.input}
-            aria-describedby={fieldErrors.username ? 'login-username-error' : undefined}
           />
         </Field>
-        <Field label="Password" htmlFor="login-password" error={fieldErrors.password} labelWidth={190}>
+        <Field
+          label="Password"
+          htmlFor="login-password"
+          error={fieldErrors.password}
+          required
+          labelWidth={190}
+        >
           <Input
             id="login-password"
             name="password"

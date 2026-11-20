@@ -7,6 +7,7 @@ import { Avatar, Badge, Button, Card, Icon, Menu, Notice, Select, Toast } from '
 import type { MenuItem } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { formatDate, formatPersonName } from '@/lib/format';
+import { useToastMessage } from '@/components/ui/use-live-announcer';
 import { markFieldChanged } from '@/lib/changed-fields';
 import { useFieldChanged } from '@/lib/use-field-changed';
 import { ActivityPanel } from './ActivityPanel';
@@ -44,11 +45,6 @@ type DialogState =
   | { kind: 'hideArchived' }
   | { kind: 'restore'; projectId: string; projectTitle: string }
   | null;
-
-interface ToastState {
-  message: string;
-  tone: 'success' | 'error' | 'info';
-}
 
 function LinkValue({ link }: { link: ProjectLink }) {
   return (
@@ -136,7 +132,7 @@ function StatusControlInternal({
 export function ProjectView({ data }: { data: ProjectPageData }) {
   const router = useRouter();
   const [dialog, setDialog] = useState<DialogState>(null);
-  const [toast, setToast] = useState<ToastState | null>(null);
+  const { toast, notify, dismiss } = useToastMessage();
   const [showArchivedSaving, setShowArchivedSaving] = useState(false);
   const [favoriteSaving, setFavoriteSaving] = useState(false);
   // Default off, matching the server-rendered markup (the saved preference is
@@ -156,9 +152,6 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
       show: readShowInboxPreference(project.id),
     });
   }, [project.id]);
-  const notify = (message: string, tone: 'success' | 'error' | 'info' = 'success') =>
-    setToast({ message, tone });
-
   const canAdmin = project.canAdmin;
   const canEdit = project.canEdit;
 
@@ -384,7 +377,7 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
                   <span className={styles.breadcrumbSeparator}>/</span>
                 </span>
               ))}
-              <span>{project.title}</span>
+              <span aria-current="page">{project.title}</span>
             </>
           )}
         </nav>
@@ -580,7 +573,8 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
         open={toast !== null}
         message={toast?.message ?? ''}
         tone={toast?.tone ?? 'success'}
-        onClose={() => setToast(null)}
+        announcementKey={toast?.sequence}
+        onClose={dismiss}
       />
     </div>
   );

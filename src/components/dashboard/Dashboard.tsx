@@ -11,6 +11,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Notice } from '@/components/ui/Notice';
 import { Spinner } from '@/components/ui/Spinner';
 import { Toast } from '@/components/ui/Toast';
+import { useToastMessage } from '@/components/ui/use-live-announcer';
 import { requestJson } from '@/lib/api-client';
 import {
   DASHBOARD_WIDGET_LABELS,
@@ -82,7 +83,7 @@ export function Dashboard({ user }: DashboardProps) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const { toast, notify, dismiss } = useToastMessage();
 
   const openEditor = () => {
     setDraft(savedPrefs.map((entry) => ({ ...entry })));
@@ -141,7 +142,7 @@ export function Dashboard({ user }: DashboardProps) {
       }
       setSavedPrefs(sanitizePreferences(result.data.user.dashboard));
       setEditing(false);
-      setToast('Dashboard saved.');
+      notify('Dashboard saved.');
       // Refresh the RSC cache so navigating away and back keeps the new order.
       router.refresh();
     } catch {
@@ -181,7 +182,7 @@ export function Dashboard({ user }: DashboardProps) {
       {editing ? (
         <Card>
           <CardHeader title="Visible widgets and order" />
-          <ul className={styles.editorList}>
+          <ul className={styles.editorList} aria-label="Dashboard widgets">
             {knownDraft.map((entry, index) => {
               const label = DASHBOARD_WIDGET_LABELS[entry.id];
               return (
@@ -257,7 +258,13 @@ export function Dashboard({ user }: DashboardProps) {
         </div>
       )}
 
-      <Toast open={toast !== null} message={toast ?? ''} onClose={() => setToast(null)} />
+      <Toast
+        open={toast !== null}
+        message={toast?.message ?? ''}
+        tone={toast?.tone ?? 'success'}
+        announcementKey={toast?.sequence}
+        onClose={dismiss}
+      />
     </>
   );
 }

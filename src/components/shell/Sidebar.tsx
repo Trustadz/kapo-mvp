@@ -51,7 +51,7 @@ export function Sidebar({ user, favorites, rootProjectId, collapsed, onToggle }:
   const pathname = usePathname();
 
   return (
-    <aside className={styles.sidebar} data-collapsed={collapsed || undefined}>
+    <aside className={styles.sidebar} aria-label="Sidebar" data-collapsed={collapsed || undefined}>
       <div className={styles.brandRow}>
         <Link href="/" className={styles.brand} aria-label="Kapo — Home">
           <span className={styles.logoPlate}>

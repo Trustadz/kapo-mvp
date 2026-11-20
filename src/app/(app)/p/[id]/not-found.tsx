@@ -5,6 +5,7 @@ import { Button, EmptyState } from '@/components/ui';
 export default function ProjectNotFound() {
   return (
     <EmptyState
+      level={1}
       icon="lock"
       title="Project not available"
       description="It may not exist, or you may not have access to it."

@@ -5,6 +5,8 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { Dialog } from '@/components/ui/Dialog';
 import { Icon } from '@/components/ui/Icon';
+import { LiveRegion } from '@/components/ui/LiveRegion';
+import { useAnnouncer } from '@/components/ui/use-live-announcer';
 import { Menu, type MenuItem } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import type { FavoriteProject } from '@/lib/types';
@@ -37,6 +39,7 @@ function isActive(pathname: string, href: string): boolean {
 export function MobileNav({ rootProjectId, favorites, canCapture }: MobileNavProps) {
   const pathname = usePathname();
   const [addOpen, setAddOpen] = useState(false);
+  const { announcement, announce } = useAnnouncer();
 
   const close = () => setAddOpen(false);
   const favoriteProjectActive = favorites.some((favorite) =>
@@ -134,11 +137,18 @@ export function MobileNav({ rootProjectId, favorites, canCapture }: MobileNavPro
             rootProjectId={rootProjectId}
             variant="mobile"
             autoFocus
-            onSuccess={close}
+            announceSuccess={false}
+            onSuccess={(title) => {
+              // The dialog unmounts on success, so announce from the shell that
+              // stays mounted instead of the form's own live region.
+              announce(`Added "${title}" to Inbox.`);
+              close();
+            }}
             onCancel={close}
           />
         </Dialog>
       ) : null}
+      <LiveRegion message={announcement.message} sequence={announcement.sequence} />
     </>
   );
 }
