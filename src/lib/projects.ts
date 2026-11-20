@@ -276,6 +276,27 @@ export interface InboxItem {
   canChangeParent: boolean;
 }
 
+/**
+ * One row of the application-wide Inbox Tree (issue #54).
+ *
+ * The server only returns projects the viewer may read and see (active). When a
+ * project's parent is not itself returned — because the viewer cannot read it,
+ * or it is trashed/archived-hidden — `parentId` is `null` so the row renders as
+ * a top-level direct-access entry instead of leaking the parent title.
+ */
+export interface InboxTreeNode {
+  id: string;
+  title: string;
+  parentId: string | null;
+  statusName: string | null;
+  inbox: boolean;
+  archived: boolean;
+  canEdit: boolean;
+  canAdmin: boolean;
+  /** Global project priority; siblings render in ascending order. */
+  priority: number;
+}
+
 export interface SearchMatch {
   field: string;
   text: string;

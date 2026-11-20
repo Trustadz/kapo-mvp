@@ -565,6 +565,65 @@ describe('GET /api/inbox and release', () => {
     expect(releasedPayload.project.statusId).toBe(project.statusId);
   });
 
+  it('returns the application-wide tree with Inbox rows and no inaccessible parents', async () => {
+    signIn(db, household.tristan.id);
+    // Earlier tests in this file mutate the shared fixture, so assert the tree
+    // against a capture created here rather than a fixed seed row.
+    const captured = await capture(
+      request('/api/projects', {
+        method: 'POST',
+        body: { parentId: household.home.id, title: 'Tree capture' },
+      }),
+    );
+    const capturedProject = (
+      await json<{ project: { id: string } }>(captured)
+    ).project;
+
+    const payload = await json<{
+      tree: Array<{
+        id: string;
+        title: string;
+        parentId: string | null;
+        statusName: string | null;
+        inbox: boolean;
+        archived: boolean;
+        canEdit: boolean;
+        canAdmin: boolean;
+        priority: number;
+      }>;
+    }>(await inboxGet());
+    const byId = new Map(payload.tree.map((node) => [node.id, node]));
+    expect(byId.get(household.root.id)?.parentId).toBeNull();
+    expect(byId.get(household.home.id)?.parentId).toBe(household.root.id);
+    expect(byId.get(capturedProject.id)).toMatchObject({
+      parentId: household.home.id,
+      inbox: true,
+      canEdit: true,
+      canAdmin: true,
+    });
+    const priorities = payload.tree.map((node) => node.priority);
+    expect(priorities).toEqual([...priorities].sort((a, b) => a - b));
+
+    // Maya can read a capture she was granted directly, but Personal is Custom
+    // and private from her: the capture must surface at the top level and the
+    // parent title must not leak through the tree payload.
+    const directCapture = createFixtureProject(db, {
+      title: 'Maya direct capture',
+      parentId: household.personal.id,
+      reporterId: household.tristan.id,
+      inbox: true,
+    });
+    grantRole(db, directCapture.id, household.maya.id, 'user');
+    signIn(db, household.maya.id);
+    const mayaPayload = await json<{
+      tree: Array<{ id: string; title: string; parentId: string | null }>;
+    }>(await inboxGet());
+    const directNode = mayaPayload.tree.find((node) => node.id === directCapture.id);
+    expect(directNode).toBeDefined();
+    expect(directNode?.parentId).toBeNull();
+    expect(mayaPayload.tree.some((node) => node.title === 'Personal')).toBe(false);
+  });
+
   it('does not leak Inbox items to users without access', async () => {
     const outsider = await createUser(db, { username: 'inbox-outsider' });
     signIn(db, outsider.id);

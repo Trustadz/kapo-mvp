@@ -1,15 +1,18 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, type DragEvent } from 'react';
+import { useMemo, useState, type DragEvent } from 'react';
 import { Badge, Button, Checkbox, EmptyState, Icon, InlineError } from '@/components/ui';
-import type { InboxItem, ProjectCard } from '@/components/projects/types';
+import type { InboxItem, InboxTreeNode, ProjectCard } from '@/components/projects/types';
 import { releaseInboxProject } from '@/components/projects/api';
+import { flattenInboxTree, indexInboxTree } from '@/lib/inbox-tree';
 import { ChangeParentDialog } from './ChangeParentDialog';
 import styles from './inbox.module.css';
 
 export interface InboxPageProps {
   initialItems: InboxItem[];
+  /** Every active project the viewer can read (issue #54). */
+  initialTree?: InboxTreeNode[];
 }
 
 type InboxView = 'card' | 'tree';
@@ -47,7 +50,7 @@ function ParentContext({ item }: { item: InboxItem }) {
 
 /**
  * Compact presentation switcher: Card is the default browse/refine view and
- * Tree is the Inbox-specific mass-release table (product.md §4/§5).
+ * Tree is the application-wide overview (product.md §4/§5, issue #54).
  */
 function InboxViewSwitch({
   view,
@@ -82,6 +85,7 @@ function InboxViewSwitch({
 
 export interface InboxTreeProps {
   items: InboxItem[];
+  tree: InboxTreeNode[];
   pulled: ReadonlySet<string>;
   selected: ReadonlySet<string>;
   bulkPending: boolean;
@@ -93,13 +97,17 @@ export interface InboxTreeProps {
 }
 
 /**
- * Inbox-specific Tree view. Unlike the project TreeView this is a flat table:
- * Inbox captures can live under different parents, so there is no single
- * hierarchy root and no drag requirement. Selection drives one bulk action,
- * releasing every chosen capture to its own parent's start status.
+ * Application-wide Tree view (issue #54).
+ *
+ * Root sits at the top and every readable, active project nests under its
+ * parent in global priority order. Non-Inbox rows are read-only context: muted,
+ * compact, no checkbox and no actions beyond the navigable title. Inbox rows are
+ * highlighted and actionable (bulk selection, status display, Open). Every
+ * branch can be collapsed; branches start expanded.
  */
 export function InboxTree({
   items,
+  tree,
   pulled,
   selected,
   bulkPending,
@@ -109,37 +117,60 @@ export function InboxTree({
   onReleaseSelected,
   onClearSelection,
 }: InboxTreeProps) {
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const index = useMemo(() => indexInboxTree(tree), [tree]);
+  const rows = flattenInboxTree(index, collapsed);
+  const itemById = useMemo(
+    () => new Map(items.map((item) => [item.project.id, item])),
+    [items],
+  );
+
   const selectable = items.filter((item) => isSelectable(item, pulled));
   const selectedItems = selectable.filter((item) => selected.has(item.project.id));
   const allSelected = selectable.length > 0 && selectedItems.length === selectable.length;
   const someSelected = selectedItems.length > 0;
 
+  const toggleBranch = (projectId: string) => {
+    setCollapsed((current) => {
+      const next = new Set(current);
+      if (next.has(projectId)) next.delete(projectId);
+      else next.add(projectId);
+      return next;
+    });
+  };
+
   return (
-    <div className={styles.treeWrap}>
-      <div className={styles.bulkToolbar} role="region" aria-label="Bulk release">
-        <span className={styles.bulkCount}>
-          {selectedItems.length > 0
-            ? `${selectedItems.length} selected`
-            : 'Select captures to release them together'}
-        </span>
-        <Button
-          size="sm"
-          variant="quiet"
-          onClick={onReleaseSelected}
-          loading={bulkPending}
-          disabled={selectedItems.length === 0 || anyPending}
-        >
-          Release selected
-        </Button>
-        {selectedItems.length > 0 ? (
-          <Button size="sm" variant="ghost" onClick={onClearSelection} disabled={anyPending}>
-            Clear
+    <div className={styles.treeWrap} role="region" aria-label="Application tree">
+      {items.length > 0 ? (
+        <div className={styles.bulkToolbar} role="region" aria-label="Bulk release">
+          <span className={styles.bulkCount}>
+            {selectedItems.length > 0
+              ? `${selectedItems.length} selected`
+              : 'Select captures to release them together'}
+          </span>
+          <Button
+            size="sm"
+            variant="quiet"
+            onClick={onReleaseSelected}
+            loading={bulkPending}
+            disabled={selectedItems.length === 0 || anyPending}
+          >
+            Release selected
           </Button>
-        ) : null}
-      </div>
+          {selectedItems.length > 0 ? (
+            <Button size="sm" variant="ghost" onClick={onClearSelection} disabled={anyPending}>
+              Clear
+            </Button>
+          ) : null}
+        </div>
+      ) : (
+        <p className={styles.treeEmptyNotice}>
+          No Inbox captures right now — showing every project you can read.
+        </p>
+      )}
 
       <div className={styles.treeScroll}>
-        <table className={styles.treeTable}>
+        <table className={styles.treeTable} aria-label="Application projects">
           <thead>
             <tr>
               <th scope="col" className={styles.treeSelectHeader}>
@@ -159,10 +190,7 @@ export function InboxTree({
                   onChange={onToggleAll}
                 />
               </th>
-              <th scope="col">Title</th>
-              <th scope="col" className={styles.treeParentHeader}>
-                Parent
-              </th>
+              <th scope="col">Project</th>
               <th scope="col" className={styles.treeStatusHeader}>
                 Status
               </th>
@@ -172,61 +200,83 @@ export function InboxTree({
             </tr>
           </thead>
           <tbody>
-            {items.map((item) => {
-              const isPulled = pulled.has(item.project.id);
-              const selectableItem = isSelectable(item, pulled);
-              const checkboxDisabled = !selectableItem;
+            {rows.map(({ node, depth, hasChildren }) => {
+              const item = itemById.get(node.id);
+              const isPulled = pulled.has(node.id);
+              const inboxRow = node.inbox || Boolean(item) || isPulled;
+              const selectableItem = item ? isSelectable(item, pulled) : false;
+              const expanded = !collapsed.has(node.id);
               return (
                 <tr
-                  key={item.project.id}
+                  key={node.id}
                   className={styles.treeRow}
+                  data-inbox={inboxRow || undefined}
+                  data-context={!inboxRow || undefined}
                   data-pulled={isPulled || undefined}
-                  data-archived={item.project.archived || undefined}
+                  data-archived={node.archived || undefined}
                 >
                   <td className={styles.treeSelectCell}>
-                    <Checkbox
-                      id={`inbox-tree-select-${item.project.id}`}
-                      label={
-                        <span className="visually-hidden">
-                          Select {item.project.title}
-                        </span>
-                      }
-                      checked={selectableItem && selected.has(item.project.id)}
-                      disabled={checkboxDisabled}
-                      title={
-                        isPulled
-                          ? 'Already released'
-                          : !item.canRelease
-                            ? 'You need edit access to release this capture'
-                            : undefined
-                      }
-                      onChange={(event) => onToggle(item.project.id, event.target.checked)}
-                    />
+                    {inboxRow ? (
+                      <Checkbox
+                        id={`inbox-tree-select-${node.id}`}
+                        label={
+                          <span className="visually-hidden">Select {node.title}</span>
+                        }
+                        checked={selectableItem && selected.has(node.id)}
+                        disabled={!selectableItem}
+                        title={
+                          isPulled
+                            ? 'Already released'
+                            : !item?.canRelease
+                              ? 'You need edit access to release this capture'
+                              : undefined
+                        }
+                        onChange={(event) => onToggle(node.id, event.target.checked)}
+                      />
+                    ) : null}
                   </td>
                   <td className={styles.treeNameCell}>
-                    <div className={styles.treeName}>
-                      <Link href={`/p/${item.project.id}`} className={styles.treeTitle}>
-                        {item.project.title}
-                      </Link>
-                      <ReleasedBadges item={item} pulled={pulled} />
-                    </div>
-                    <p className={styles.treeInlineContext}>
-                      <ParentContext item={item} />
-                    </p>
-                  </td>
-                  <td className={styles.treeParentCell}>
-                    <ParentContext item={item} />
-                  </td>
-                  <td className={styles.treeStatusCell}>{item.project.statusName ?? '—'}</td>
-                  <td className={styles.treeActionCell}>
-                    <Link
-                      href={`/p/${item.project.id}`}
-                      className={styles.open}
-                      aria-label={`Open ${item.project.title}`}
+                    <div
+                      className={styles.treeName}
+                      style={{ paddingInlineStart: depth * 14 }}
                     >
-                      <Icon name="open_in_new" size={18} />
-                      <span className={styles.openLabel}>Open</span>
-                    </Link>
+                      {hasChildren ? (
+                        <button
+                          type="button"
+                          className={styles.chevronButton}
+                          aria-label={`${expanded ? 'Collapse' : 'Expand'} ${node.title}`}
+                          aria-expanded={expanded}
+                          onClick={() => toggleBranch(node.id)}
+                        >
+                          <Icon name={expanded ? 'expand_more' : 'chevron_right'} size={18} />
+                        </button>
+                      ) : (
+                        <span className={styles.chevronSpacer} aria-hidden="true" />
+                      )}
+                      <Link href={`/p/${node.id}`} className={styles.treeTitle}>
+                        {node.title}
+                      </Link>
+                      {isPulled ? <Badge tone="pulled">Pulled</Badge> : null}
+                      {node.archived ? <Badge tone="archived">Archived</Badge> : null}
+                      {inboxRow ? (
+                        <span className={styles.treeInlineStatus} aria-hidden="true">
+                          {node.statusName ?? '—'}
+                        </span>
+                      ) : null}
+                    </div>
+                  </td>
+                  <td className={styles.treeStatusCell}>{node.statusName ?? '—'}</td>
+                  <td className={styles.treeActionCell}>
+                    {inboxRow ? (
+                      <Link
+                        href={`/p/${node.id}`}
+                        className={styles.open}
+                        aria-label={`Open ${node.title}`}
+                      >
+                        <Icon name="open_in_new" size={18} />
+                        <span className={styles.openLabel}>Open</span>
+                      </Link>
+                    ) : null}
                   </td>
                 </tr>
               );
@@ -236,8 +286,9 @@ export function InboxTree({
       </div>
 
       <p className={styles.hint}>
-        Select captures and release them together; each one moves to its parent’s start status.
-        Released captures stay listed as Pulled until you leave Inbox.
+        Inbox captures are highlighted and can be selected for bulk release; every other row is
+        read-only context. Use the chevron to expand or collapse a branch — all branches start
+        expanded.
       </p>
     </div>
   );
@@ -248,13 +299,14 @@ export function InboxTree({
  * release action labelled with the parent's start status, and Open. Released
  * projects stay visible and marked Pulled until the user leaves Inbox.
  *
- * Tree is an Inbox-specific table for bulk refinement: every visible capture
- * is listed flat (parents can differ), selectable, and releasable in one go.
- * Cards can also be dragged onto the drop area above the Card list; the
- * per-card Release button stays the keyboard-accessible path.
+ * Tree is the application-wide overview: every readable project nests by parent
+ * and Inbox captures are the only actionable rows. Cards can still be dragged
+ * onto the drop area above the Card list; the per-card Release button stays the
+ * keyboard-accessible path.
  */
-export function InboxPage({ initialItems }: InboxPageProps) {
+export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
   const [items, setItems] = useState<InboxItem[]>(initialItems);
+  const [tree, setTree] = useState<InboxTreeNode[]>(initialTree);
   const [pulled, setPulled] = useState<Set<string>>(new Set());
   const [view, setView] = useState<InboxView>('card');
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -285,6 +337,11 @@ export function InboxPage({ initialItems }: InboxPageProps) {
         released.has(entry.project.id)
           ? { ...entry, project: { ...entry.project, inbox: false } }
           : entry,
+      ),
+    );
+    setTree((current) =>
+      current.map((node) =>
+        released.has(node.id) ? { ...node, inbox: false } : node,
       ),
     );
     setSelected((current) => {
@@ -380,6 +437,23 @@ export function InboxPage({ initialItems }: InboxPageProps) {
           : entry,
       ),
     );
+    setTree((current) => {
+      const ids = new Set(current.map((node) => node.id));
+      return current.map((node) =>
+        node.id === updated.id
+          ? {
+              ...node,
+              parentId:
+                updated.parentId !== null && ids.has(updated.parentId)
+                  ? updated.parentId
+                  : null,
+              statusName: updated.statusName,
+              archived: updated.archived,
+              inbox: updated.inbox,
+            }
+          : node,
+      );
+    });
   };
 
   const handleDrop = (event: DragEvent<HTMLElement>) => {
@@ -401,7 +475,7 @@ export function InboxPage({ initialItems }: InboxPageProps) {
             Review captured projects and move them into work.
           </p>
         </div>
-        {items.length > 0 ? <InboxViewSwitch view={view} onChange={setView} /> : null}
+        <InboxViewSwitch view={view} onChange={setView} />
       </header>
 
       <p className="visually-hidden" aria-live="polite" aria-atomic="true">
@@ -414,15 +488,10 @@ export function InboxPage({ initialItems }: InboxPageProps) {
         </div>
       ) : null}
 
-      {items.length === 0 ? (
-        <EmptyState
-          icon="inbox"
-          title="Inbox is empty"
-          description="New projects captured from the top bar appear here for refinement."
-        />
-      ) : view === 'tree' ? (
+      {view === 'tree' ? (
         <InboxTree
           items={items}
+          tree={tree}
           pulled={pulled}
           selected={selected}
           bulkPending={bulkPending}
@@ -431,6 +500,12 @@ export function InboxPage({ initialItems }: InboxPageProps) {
           onToggleAll={toggleAll}
           onReleaseSelected={() => void releaseSelected()}
           onClearSelection={() => setSelected(new Set())}
+        />
+      ) : items.length === 0 ? (
+        <EmptyState
+          icon="inbox"
+          title="Inbox is empty"
+          description="New projects captured from the top bar appear here for refinement."
         />
       ) : (
         <div className={styles.cardLayout}>
