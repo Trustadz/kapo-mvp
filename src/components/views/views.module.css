@@ -107,6 +107,45 @@
   pointer-events: none;
 }
 
+/* Issue #29: long-press feedback before the drag activates. */
+.kanbanCard[data-pressing] {
+  outline: 2px solid var(--color-brand);
+  outline-offset: -2px;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.kanbanCard[data-dragging] {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* A touch drag disables scroll snapping so edge autoscroll is not snapped back. */
+.kanban[data-pointer-drag] {
+  scroll-snap-type: none;
+}
+
+/* Floating label that follows the finger; the insertion gap is the real
+   drop preview, this is only extra confirmation of what is being dragged. */
+.kanbanGhost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 70;
+  max-width: min(280px, calc(100vw - 32px));
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-brand);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  user-select: none;
+}
+
 /* Drag reorder affordances (issue #28): a clear line between rows/cards for
    "insert here", and the existing brand outline for "drop inside". */
 .projectCard {

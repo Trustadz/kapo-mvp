@@ -75,7 +75,7 @@ export default defineConfig({
     },
     {
       name: 'mobile',
-      testMatch: /mobile(-favorites)?\.spec\.ts/,
+      testMatch: /mobile(-favorites|-kanban-drag)?\.spec\.ts/,
       dependencies: ['first-install'],
       use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 } },
     },
