@@ -93,8 +93,13 @@ export interface ProjectLayoutTemplate {
   sidebar: ProjectFieldKey[];
 }
 
+/**
+ * Default Details card is intentionally empty (PO issue #17): fields are
+ * opt-in through the layout settings. The sidebar keeps the two most useful
+ * properties, so a default project page is not blank.
+ */
 export const DEFAULT_LAYOUT_TEMPLATE: ProjectLayoutTemplate = {
-  main: ['projectId', 'parent', 'reporter'],
+  main: [],
   sidebar: ['status', 'reporter'],
 };
 

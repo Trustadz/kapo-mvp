@@ -453,21 +453,14 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
           <h2 id="details-heading" className={styles.cardTitle}>
             Details
           </h2>
-          {project.isRoot ? (
-            <div className={styles.rootNotes}>
-              <p className={styles.rootNote}>All projects start here.</p>
-              <p className={styles.rootNote}>Root has no parent or status.</p>
-            </div>
-          ) : (
-            <div className={styles.detailRows}>
-              {visibleMainFields.map((field) => (
-                <div className={styles.detailRow} key={field}>
-                  <span className={styles.detailLabel}>{PROJECT_FIELD_LABELS[field]}</span>
-                  <FieldValue field={field} data={data} />
-                </div>
-              ))}
-            </div>
-          )}
+          <div className={styles.detailRows}>
+            {visibleMainFields.map((field) => (
+              <div className={styles.detailRow} key={field}>
+                <span className={styles.detailLabel}>{PROJECT_FIELD_LABELS[field]}</span>
+                <FieldValue field={field} data={data} />
+              </div>
+            ))}
+          </div>
         </Card>
 
         <Card className={styles.propertiesCard} as="aside" aria-labelledby="properties-heading">
