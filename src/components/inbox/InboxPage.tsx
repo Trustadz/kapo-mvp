@@ -433,7 +433,8 @@ export function InboxPage({ initialItems }: InboxPageProps) {
           onClearSelection={() => setSelected(new Set())}
         />
       ) : (
-        <>
+        <div className={styles.cardLayout}>
+          <div className={styles.dropRail}>
           <section
             className={styles.dropZone}
             data-active={dropActive || undefined}
@@ -494,6 +495,7 @@ export function InboxPage({ initialItems }: InboxPageProps) {
                 }.`
               : ''}
           </p>
+          </div>
 
           <ul className={styles.list} aria-label="Projects in the Inbox">
             {items.map((item) => {
@@ -561,7 +563,7 @@ export function InboxPage({ initialItems }: InboxPageProps) {
               );
             })}
           </ul>
-        </>
+        </div>
       )}
 
       <ChangeParentDialog
