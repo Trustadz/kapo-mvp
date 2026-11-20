@@ -128,10 +128,12 @@ export function Menu({
     const root = rootRef.current;
     if (!trigger || !panel || !root) return;
     const triggerRect = trigger.getBoundingClientRect();
-    const panelRect = panel.getBoundingClientRect();
+    // Use the layout box rather than the bounding rect: the entry animation
+    // scales the panel for a few frames and getBoundingClientRect() would
+    // measure that temporary transform and anchor the menu a few pixels off.
     const next = computeMenuPosition(
       triggerRect,
-      { width: panelRect.width, height: panelRect.height },
+      { width: panel.offsetWidth, height: panel.offsetHeight },
       viewportSize(),
       { align, side },
     );
@@ -330,6 +332,8 @@ export function Menu({
           role="menu"
           aria-label={label}
           className={cn(styles.panel, fixed && styles.panelFixed)}
+          data-side={side}
+          data-align={align}
           style={position ? { top: position.top, left: position.left } : undefined}
           onKeyDown={handlePanelKeyDown}
         >

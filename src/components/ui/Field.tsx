@@ -10,6 +10,8 @@ export interface FieldProps {
   required?: boolean;
   /** Optional fixed label column width on desktop (defaults to 180px). */
   labelWidth?: number;
+  /** Session-scoped "changed in this visit" emphasis (issue #56). */
+  changed?: boolean;
   className?: string;
   children: ReactNode;
 }
@@ -25,12 +27,14 @@ export function Field({
   error,
   required = false,
   labelWidth,
+  changed = false,
   className,
   children,
 }: FieldProps) {
   return (
     <div
-      className={cn(styles.field, error && styles.hasError, className)}
+      className={cn(styles.field, error && styles.hasError, changed && 'changed-field', className)}
+      data-changed={changed || undefined}
       style={labelWidth ? { ['--field-label-width' as string]: `${labelWidth}px` } : undefined}
     >
       <label className={styles.label} htmlFor={htmlFor}>

@@ -5,7 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Avatar, Badge, Button, Card, Icon, Menu, Notice, Select, Toast } from '@/components/ui';
 import type { MenuItem } from '@/components/ui';
+import { cn } from '@/lib/cn';
 import { formatDate, formatPersonName } from '@/lib/format';
+import { markFieldChanged } from '@/lib/changed-fields';
+import { useFieldChanged } from '@/lib/use-field-changed';
 import { ActivityPanel } from './ActivityPanel';
 import { ChildProjects } from './ChildProjects';
 import {
@@ -114,6 +117,8 @@ function StatusControlInternal({
               onStatusChanged(result.message, 'error');
               return;
             }
+            // Issue #56: keep a subtle marker on this field until a full load.
+            markFieldChanged(project.id, 'status');
             onStatusChanged(`Status changed to ${status.name}.`, 'success');
           });
         }}
@@ -142,6 +147,7 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
     showInboxState.projectId === data.project.id ? showInboxState.show : false;
 
   const project = data.project;
+  const statusChanged = useFieldChanged(project.id, 'status');
   const refresh = () => router.refresh();
 
   useEffect(() => {
@@ -290,7 +296,11 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
     if (field === 'status') {
       if (project.isRoot) return null;
       return (
-        <div className={styles.propertyRow} key={field}>
+        <div
+          className={cn(styles.propertyRow, statusChanged && 'changed-field')}
+          data-changed={statusChanged || undefined}
+          key={field}
+        >
           <span className={styles.propertyLabel}>{PROJECT_FIELD_LABELS[field]}</span>
           {canEdit && !project.trashed && data.parentStatuses.length > 0 ? (
             <StatusControlInternal data={data} onStatusChanged={(message, tone) => {

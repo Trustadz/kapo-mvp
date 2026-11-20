@@ -14,6 +14,33 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-none);
+  /* Issue #56: pop in from the trigger side. Focus handling is unaffected —
+   * the panel is mounted and focusable immediately. */
+  --menu-enter-y: -4px;
+  --menu-origin-x: left;
+  --menu-origin-y: top;
+  transform-origin: var(--menu-origin-y) var(--menu-origin-x);
+  animation: menu-enter var(--motion-fast) var(--ease-out);
+}
+
+.panel[data-side='top'] {
+  --menu-enter-y: 4px;
+  --menu-origin-y: bottom;
+}
+
+.panel[data-align='end'] {
+  --menu-origin-x: right;
+}
+
+@keyframes menu-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--menu-enter-y)) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* Top/left are set inline after measuring the trigger and panel. Keeping the
@@ -123,6 +150,20 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
+  /* Issue #56: submenus slide out of their parent panel's trigger edge. */
+  transform-origin: left top;
+  animation: submenu-enter var(--motion-fast) var(--ease-out);
+}
+
+@keyframes submenu-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .submenuItem {
@@ -133,5 +174,26 @@
   .submenuPanel {
     left: auto;
     right: calc(100% + var(--space-1));
+    transform-origin: right top;
+    animation-name: submenu-enter-left;
+  }
+}
+
+@keyframes submenu-enter-left {
+  from {
+    opacity: 0;
+    transform: translateX(4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Reduced motion: the panels still appear, just with no motion. */
+@media (prefers-reduced-motion: reduce) {
+  .panel,
+  .submenuPanel {
+    animation: none;
   }
 }

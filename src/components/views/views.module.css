@@ -98,13 +98,41 @@
 }
 
 /* Issue #25: reserve the landing slot while a card is dragged. The gap is a
-   real flex child, so the surrounding cards move aside before release. */
+   real flex child, so the surrounding cards move aside before release.
+   Issue #56: grow/fade the gap in so the reserved space is noticed. */
 .kanbanPlaceholder {
   min-height: 84px;
   border: 2px dashed var(--color-brand);
   border-radius: var(--radius-md);
   background: var(--color-brand-light);
   pointer-events: none;
+  transform-origin: center;
+  animation: kanban-gap-in var(--motion-fast) var(--ease-out);
+}
+
+@keyframes kanban-gap-in {
+  from {
+    opacity: 0;
+    transform: scaleY(0.55);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Lift the card being dragged with an outline, never a shadow. */
+.kanbanCard[data-dragging] {
+  opacity: 0.7;
+  transform: scale(1.01);
+  outline: 1px solid var(--color-brand);
+  outline-offset: -1px;
+}
+
+.projectCard[data-dragging] {
+  transform: scale(1.01);
+  outline: 1px solid var(--color-border);
+  outline-offset: -1px;
 }
 
 /* Issue #29: long-press feedback before the drag activates. */
@@ -175,6 +203,19 @@
   border-radius: 2px;
   background: var(--color-brand);
   pointer-events: none;
+  transform-origin: left center;
+  animation: insertion-line-in var(--motion-fast) var(--ease-out);
+}
+
+@keyframes insertion-line-in {
+  from {
+    opacity: 0;
+    transform: scaleX(0.2);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .projectCard[data-drop="before"]::before {
@@ -197,10 +238,24 @@
 
 .treeRow[data-drop="before"] td {
   box-shadow: inset 0 2px 0 0 var(--color-brand);
+  animation: tree-line-top var(--motion-fast) var(--ease-out);
 }
 
 .treeRow[data-drop="after"] td {
   box-shadow: inset 0 -2px 0 0 var(--color-brand);
+  animation: tree-line-bottom var(--motion-fast) var(--ease-out);
+}
+
+@keyframes tree-line-top {
+  from {
+    box-shadow: inset 0 0 0 0 transparent;
+  }
+}
+
+@keyframes tree-line-bottom {
+  from {
+    box-shadow: inset 0 0 0 0 transparent;
+  }
 }
 
 .cardTop {

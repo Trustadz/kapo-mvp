@@ -132,6 +132,9 @@
 
 .card[data-dragging] {
   opacity: 0.65;
+  transform: scale(1.005);
+  outline: 1px solid var(--color-border);
+  outline-offset: -1px;
 }
 
 .card[draggable='true'] {
@@ -143,13 +146,27 @@
 }
 
 /* Reorder insertion line (issue #53). The release rail is a separate target, so
-   this line only ever means "drop here to reorder". */
+   this line only ever means "drop here to reorder". Issue #56 animates it in. */
 .card[data-drop='before'] {
   box-shadow: 0 -3px 0 0 var(--color-brand);
+  animation: inbox-card-line-top var(--motion-fast) var(--ease-out);
 }
 
 .card[data-drop='after'] {
   box-shadow: 0 3px 0 0 var(--color-brand);
+  animation: inbox-card-line-bottom var(--motion-fast) var(--ease-out);
+}
+
+@keyframes inbox-card-line-top {
+  from {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+@keyframes inbox-card-line-bottom {
+  from {
+    box-shadow: 0 0 0 0 transparent;
+  }
 }
 
 .cardHeading {
@@ -407,10 +424,24 @@
 
 .treeRow[data-drop='before'] td {
   border-top: 2px solid var(--color-brand);
+  animation: inbox-tree-line-top var(--motion-fast) var(--ease-out);
 }
 
 .treeRow[data-drop='after'] td {
   border-bottom: 2px solid var(--color-brand);
+  animation: inbox-tree-line-bottom var(--motion-fast) var(--ease-out);
+}
+
+@keyframes inbox-tree-line-top {
+  from {
+    border-top-color: transparent;
+  }
+}
+
+@keyframes inbox-tree-line-bottom {
+  from {
+    border-bottom-color: transparent;
+  }
 }
 
 .treeRow[data-drop='inside'] td {

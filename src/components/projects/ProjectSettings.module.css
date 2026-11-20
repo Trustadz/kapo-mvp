@@ -65,6 +65,13 @@
   gap: var(--space-4);
 }
 
+/* Issue #56: a saved workflow keeps a quiet brand tint until a full reload. */
+.card[data-changed] {
+  border-color: var(--color-accent);
+  background-color: var(--color-brand-light);
+  transition: background-color var(--motion-fast) var(--ease-out);
+}
+
 .cardTitle {
   font-size: var(--font-size-title);
   font-weight: 600;
