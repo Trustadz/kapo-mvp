@@ -84,6 +84,12 @@
 .body {
   overflow-y: auto;
   min-height: 0;
+  /* Focus rings paint 4px outside the control (2px outline + 2px offset).
+     Pad the scrollport by that much so edge fields are not clipped, then
+     pull the same amount back with a negative margin so the surface spacing
+     and the fields' positions stay exactly where they were. */
+  padding: var(--space-1);
+  margin: calc(var(--space-1) * -1);
 }
 
 .footer {
