@@ -71,13 +71,19 @@ export default defineConfig({
       name: 'desktop',
       testMatch: /(app|login|motion|views-reorder|project-filters|kanban-placeholder|inbox-tree|inbox-drag)\.spec\.ts/,
       dependencies: ['first-install'],
-      use: { ...devices['Desktop Chrome'] },
+      // Drag/reorder specs should measure stable rects; the motion spec opts
+      // back into animation explicitly.
+      use: { ...devices['Desktop Chrome'], reducedMotion: 'reduce' },
     },
     {
       name: 'mobile',
       testMatch: /mobile(-favorites|-kanban-drag)?\.spec\.ts/,
       dependencies: ['first-install'],
-      use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 } },
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 390, height: 844 },
+        reducedMotion: 'reduce',
+      },
     },
   ],
 });

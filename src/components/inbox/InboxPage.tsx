@@ -16,7 +16,7 @@ import {
   planSequenceMove,
 } from '@/lib/inbox-tree';
 import { dropZoneAt, reorderEdgeAt, type DropZone, type ReorderEdge } from '@/lib/reorder';
-import { useFlipReorder } from '@/lib/use-flip-reorder';
+import { cancelFlipAnimations, useFlipReorder } from '@/lib/use-flip-reorder';
 import { ChangeParentDialog } from './ChangeParentDialog';
 import styles from './inbox.module.css';
 
@@ -262,6 +262,7 @@ export function InboxTree({
                       event.preventDefault();
                       return;
                     }
+                    cancelFlipAnimations();
                     event.dataTransfer.setData('text/plain', node.id);
                     event.dataTransfer.effectAllowed = 'move';
                     setDraggingId(node.id);
@@ -814,6 +815,7 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
                     }
                     draggable={canDrag}
                     onDragStart={(event) => {
+                      cancelFlipAnimations();
                       event.dataTransfer.setData('text/plain', item.project.id);
                       event.dataTransfer.effectAllowed = 'move';
                       setDraggingId(item.project.id);

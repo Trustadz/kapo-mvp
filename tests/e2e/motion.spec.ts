@@ -43,6 +43,9 @@ async function openProject(page: Page, title: string): Promise<void> {
 test('flow-over menus animate in and respect reduced motion', async ({ page }) => {
   await login(page, 'tristan');
   await openProject(page, 'Home improvement');
+  // The shared e2e projects default to reduced motion for stable drag rects;
+  // this spec explicitly exercises the animated path.
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
 
   const trigger = page.getByRole('button', { name: 'Project actions' });
   await trigger.click();

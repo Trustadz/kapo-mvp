@@ -95,6 +95,7 @@ test('Card view reorders Inbox cards globally and keeps the release rail separat
   await expect(page.getByText(`Reordered “${first}”.`)).toBeVisible();
   const reordered = await titles();
   expect(reordered.indexOf(second)).toBeLessThan(reordered.indexOf(first));
+  await page.waitForTimeout(200); // FLIP settle before measuring the rail drag source
 
   // The rail is still a release target, not a reorder target.
   const rail = page.getByRole('region', { name: 'Release drop area' });
@@ -152,6 +153,7 @@ test('Tree view reparents on a row middle and reorders between rows', async ({ p
   expect(parentPayload.project.inbox).toBe(true);
   expect(parentPayload.project.parent?.id).toBe(householdId);
   expect(parentPayload.project.statusName).toBe('To do');
+  await page.waitForTimeout(200); // FLIP settle before the next tree drag
 
   // Between rows = reorder globally after the target (Book boiler service is a
   // different-parent Inbox row, so this is a genuine cross-branch reorder).

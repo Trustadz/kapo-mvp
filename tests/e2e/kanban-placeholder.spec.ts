@@ -47,8 +47,15 @@ async function ensureInboxVisible(page: Page): Promise<void> {
     .getByRole('menu', { name: 'Project actions' })
     .getByRole('menuitemradio', { name: 'Show Inbox items' });
   if ((await item.count()) > 0) {
-    if ((await item.getAttribute('aria-checked')) !== 'true') await item.click();
-    else await page.keyboard.press('Escape');
+    if ((await item.getAttribute('aria-checked')) !== 'true') {
+      await item.click();
+      // The toggle triggers a router refresh; wait for it to settle before
+      // measuring/dragging collection cards.
+      await expect(page.getByRole('status')).toContainText('Inbox items are now shown.');
+      await page.waitForTimeout(250);
+    } else {
+      await page.keyboard.press('Escape');
+    }
   } else {
     await page.keyboard.press('Escape');
   }
@@ -113,6 +120,7 @@ test('reserves the gap at the within-column landing slot', async ({ page }) => {
   await page.mouse.up();
   await expect(page.getByRole('status')).toContainText('Reordered “Garden beds”.');
   await expect(cards.last()).toContainText('Garden beds');
+  await page.waitForTimeout(200); // let the 160ms FLIP settle before measuring again
 
   // Restore the seeded order: Garden beds before Fix kitchen tap.
   const fixBox = await cardIn(doing, 'Fix kitchen tap').boundingBox();

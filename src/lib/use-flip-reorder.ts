@@ -35,6 +35,16 @@ export function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
+/** Stop any in-flight FLIP movement before a new drag starts measuring rects. */
+export function cancelFlipAnimations(root?: ParentNode | null): void {
+  if (typeof document === 'undefined') return;
+  const scope = root ?? document;
+  for (const node of scope.querySelectorAll<HTMLElement>('[data-flip-key]')) {
+    if (typeof node.getAnimations !== 'function') continue;
+    for (const animation of node.getAnimations()) animation.cancel();
+  }
+}
+
 export function useFlipReorder(
   containerRef: RefObject<HTMLElement | null>,
   signature: string,

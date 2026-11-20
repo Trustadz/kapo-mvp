@@ -57,8 +57,15 @@ async function ensureInboxVisible(page: Page): Promise<void> {
     .getByRole('menu', { name: 'Project actions' })
     .getByRole('menuitemradio', { name: 'Show Inbox items' });
   if ((await item.count()) > 0) {
-    if ((await item.getAttribute('aria-checked')) !== 'true') await item.click();
-    else await page.keyboard.press('Escape');
+    if ((await item.getAttribute('aria-checked')) !== 'true') {
+      await item.click();
+      // The toggle triggers a router refresh; wait for it to settle before
+      // measuring/dragging collection cards.
+      await expect(page.getByRole('status')).toContainText('Inbox items are now shown.');
+      await page.waitForTimeout(250);
+    } else {
+      await page.keyboard.press('Escape');
+    }
   } else {
     await page.keyboard.press('Escape');
   }
@@ -111,11 +118,13 @@ test('Card view reorders siblings between cards and opens Move on a card body', 
   await dragBetween(card('Garden beds'), card('Renovate basement'), 'before', { x: 4, y: 4 });
   await expect(page.getByRole('status')).toContainText('Reordered “Garden beds”.');
   await expect(cards.first()).toContainText('Garden beds');
+  await page.waitForTimeout(200); // FLIP settle
 
   // Restore the seeded order by dropping after Install hall shelf.
   await dragBetween(card('Garden beds'), card('Install hall shelf'), 'after', { x: 4, y: 4 });
   await expect(cards.first()).toContainText('Renovate basement');
   await expect(cards.nth(3)).toContainText('Garden beds');
+  await page.waitForTimeout(200); // FLIP settle
 
   // Dropping on a card body (its centre) still opens the Move dialog.
   await card('Paint hallway').dragTo(card('Garden beds'), {
@@ -145,11 +154,13 @@ test('Tree view reorders same-parent rows and falls back to Move across parents'
   await dragBetween(row('Garden beds'), row('Renovate basement'), 'before', { x: 300, y: 6 });
   await expect(page.getByRole('status')).toContainText('Reordered “Garden beds”.');
   await expect(rows.first()).toContainText('Garden beds');
+  await page.waitForTimeout(200); // FLIP settle
 
   // Restore: after Install hall shelf (still a direct child of Home improvement).
   await dragBetween(row('Garden beds'), row('Install hall shelf'), 'after', { x: 300, y: 6 });
   await expect(rows.first()).toContainText('Renovate basement');
   await expect(rows.nth(4)).toContainText('Garden beds');
+  await page.waitForTimeout(200); // FLIP settle
 
   // Different parent: Garden beds -> between Renovate basement's children.
   // The sibling reorder API cannot express this, so the Move dialog opens.
@@ -176,6 +187,7 @@ test('List view reorders rows', async ({ page }) => {
   await dragBetween(row('Garden beds'), row('Renovate basement'), 'before', { x: 300, y: 6 });
   await expect(page.getByRole('status')).toContainText('Reordered “Garden beds”.');
   await expect(rows.first()).toContainText('Garden beds');
+  await page.waitForTimeout(200); // FLIP settle
 
   // Restore the seeded order.
   await dragBetween(row('Garden beds'), row('Install hall shelf'), 'after', { x: 300, y: 6 });

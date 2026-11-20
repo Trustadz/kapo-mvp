@@ -41,7 +41,7 @@ import {
   updateProjectFields,
 } from '@/components/projects/api';
 import { BulkMoveDialog, BulkTrashDialog } from '@/components/projects/ProjectDialogs';
-import { useFlipReorder } from '@/lib/use-flip-reorder';
+import { cancelFlipAnimations, useFlipReorder } from '@/lib/use-flip-reorder';
 import type { CollectionViewContext } from './types';
 import styles from './views.module.css';
 
@@ -491,6 +491,7 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
     if (dragging || pendingPressRef.current || pointerDragRef.current) return;
     const target = event.target as HTMLElement | null;
     if (target?.closest('a, button, select, input, textarea, [data-no-drag]')) return;
+    cancelFlipAnimations();
 
     const { pointerId, clientX, clientY } = event;
     const element = event.currentTarget;
@@ -785,6 +786,7 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
                               event.preventDefault();
                               return;
                             }
+                            cancelFlipAnimations();
                             event.dataTransfer.setData('text/plain', project.id);
                             event.dataTransfer.effectAllowed = 'move';
                             clearPendingPress();
@@ -916,6 +918,7 @@ export function CardView({ ctx }: { ctx: CollectionViewContext }) {
               data-drop={dropTarget?.id === project.id ? dropTarget.zone : undefined}
               draggable={ctx.canEdit}
               onDragStart={(event) => {
+                cancelFlipAnimations();
                 event.dataTransfer.setData('text/plain', project.id);
                 event.dataTransfer.effectAllowed = 'move';
                 setDraggingId(project.id);
@@ -1088,6 +1091,7 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
               event.preventDefault();
               return;
             }
+            cancelFlipAnimations();
             event.dataTransfer.setData('text/plain', project.id);
             event.dataTransfer.effectAllowed = 'move';
             setDraggingId(project.id);
@@ -1339,6 +1343,7 @@ export function ListView({ ctx }: { ctx: CollectionViewContext }) {
               data-drop={dropTarget?.id === project.id ? dropTarget.edge : undefined}
               draggable={ctx.canEdit}
               onDragStart={(event) => {
+                cancelFlipAnimations();
                 event.dataTransfer.setData('text/plain', project.id);
                 event.dataTransfer.effectAllowed = 'move';
                 setDraggingId(project.id);
