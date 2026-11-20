@@ -13,7 +13,7 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: () => {}, push: () => {}, replace: () => {}, prefetch: () => {} }),
 }));
 
-const { MobileNav } = await import('@/components/shell/MobileNav');
+const { MobileNav, favoriteMenuItems } = await import('@/components/shell/MobileNav');
 
 const ROOT_ID = '00000000-0000-4000-8000-000000000001';
 
@@ -33,7 +33,7 @@ describe('mobile bottom bar Favorites', () => {
     const html = render(FAVORITES);
     expect(html).toContain('aria-label="Mobile navigation"');
     expect(html).toContain('>Favorites<');
-    expect(html).toContain('aria-haspopup="dialog"');
+    expect(html).toContain('aria-haspopup="menu"');
     expect(html).toContain('aria-expanded="false"');
     expect(html).not.toContain('href="/search"');
     // The four remaining navigation destinations stay intact.
@@ -42,18 +42,25 @@ describe('mobile bottom bar Favorites', () => {
     expect(html).toContain('href="/inbox"');
   });
 
-  it('lists every favorite as a project link with its title', () => {
-    const html = render(FAVORITES);
-    for (const favorite of FAVORITES) {
-      expect(html).toContain(`href="/p/${favorite.id}"`);
-      expect(html).toContain(favorite.title);
-    }
+  it('builds a favorite menu item with a project link and title', () => {
+    const items = favoriteMenuItems(FAVORITES);
+    expect(items).toEqual([
+      {
+        id: FAVORITES[0]!.id,
+        label: 'Home improvement',
+        icon: 'star',
+        href: `/p/${FAVORITES[0]!.id}`,
+      },
+      {
+        id: FAVORITES[1]!.id,
+        label: 'Household',
+        icon: 'star',
+        href: `/p/${FAVORITES[1]!.id}`,
+      },
+    ]);
   });
 
-  it('shows a clear empty state when the user has no favorites', () => {
-    const html = render([]);
-    expect(html).toContain('No favorites yet');
-    expect(html).toContain('Open a project and tap Favorite to keep it here.');
-    expect(html).not.toContain('href="/p/00000000-0000-4000-8000-000000000010"');
+  it('builds no items for an empty favorites list', () => {
+    expect(favoriteMenuItems([])).toEqual([]);
   });
 });

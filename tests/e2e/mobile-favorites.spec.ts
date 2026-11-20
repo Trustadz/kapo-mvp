@@ -34,26 +34,27 @@ test.describe('mobile favorites', () => {
 
     const trigger = nav.getByRole('button', { name: 'Favorites' });
     await expect(trigger).toBeVisible();
-    await expect(trigger).toHaveAttribute('aria-haspopup', 'dialog');
+    await expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
     await expect(trigger).toHaveAttribute('aria-expanded', 'false');
 
     await trigger.click();
     await expect(trigger).toHaveAttribute('aria-expanded', 'true');
 
-    const dialog = page.getByRole('dialog', { name: 'Favorites', exact: true });
-    await expect(dialog.getByRole('heading', { name: 'Favorites', exact: true })).toBeVisible();
-    const homeLink = dialog.getByRole('link', { name: 'Home improvement', exact: true });
-    await expect(homeLink).toBeVisible();
-    await expect(dialog.getByRole('link', { name: 'Household', exact: true })).toBeVisible();
-    await expect(dialog.getByRole('link', { name: 'Personal', exact: true })).toBeVisible();
-    await expect(homeLink).toHaveAttribute('href', /^\/p\//);
+    const menu = page.getByRole('menu', { name: 'Favorites', exact: true });
+    await expect(menu).toBeVisible();
+    await expect(menu.getByText('Favorites', { exact: true })).toBeVisible();
+    const homeItem = menu.getByRole('menuitem', { name: 'Home improvement', exact: true });
+    await expect(homeItem).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: 'Household', exact: true })).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: 'Personal', exact: true })).toBeVisible();
+    await expect(homeItem).toHaveAttribute('href', /^\/p\//);
 
-    await homeLink.click();
+    await homeItem.click();
     await expect(page).toHaveURL(/\/p\/[^/]+$/);
     await expect(
       page.getByRole('heading', { level: 1, name: 'Home improvement' }),
     ).toBeVisible();
-    await expect(page.getByRole('dialog', { name: 'Favorites', exact: true })).toBeHidden();
+    await expect(menu).toBeHidden();
 
     // The trigger stays highlighted while a favorite project is open.
     await expect(trigger).toHaveClass(/active/);
@@ -64,12 +65,9 @@ test.describe('mobile favorites', () => {
     const nav = page.getByRole('navigation', { name: 'Mobile navigation' });
     await nav.getByRole('button', { name: 'Favorites' }).click();
 
-    const dialog = page.getByRole('dialog', { name: 'Favorites', exact: true });
-    await expect(dialog.getByRole('heading', { name: 'Favorites', exact: true })).toBeVisible();
-    await expect(dialog.getByText('No favorites yet')).toBeVisible();
-    await expect(
-      dialog.getByText('Open a project and tap Favorite to keep it here.'),
-    ).toBeVisible();
-    await expect(dialog.getByRole('link')).toHaveCount(0);
+    const menu = page.getByRole('menu', { name: 'Favorites', exact: true });
+    await expect(menu).toBeVisible();
+    await expect(menu.getByText('No favorites yet. Open a project and tap Favorite.')).toBeVisible();
+    await expect(menu.getByRole('menuitem')).toHaveCount(0);
   });
 });
