@@ -597,6 +597,14 @@
   overflow-wrap: anywhere;
 }
 
+@media (min-width: 900px) {
+  /* Keep the release rail reachable while dragging a card from further down. */
+  .dropRail {
+    position: sticky;
+    top: calc(var(--topbar-height) + var(--space-4));
+  }
+}
+
 @media (max-width: 899px) {
   .title {
     font-size: 26px;

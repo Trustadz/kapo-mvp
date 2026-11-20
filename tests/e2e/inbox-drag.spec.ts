@@ -12,6 +12,9 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 
 test.describe.configure({ mode: 'serial' });
 
+// Keep both the dragged card and the sticky release rail comfortably in view.
+test.use({ viewport: { width: 1440, height: 1200 } });
+
 const PASSWORD = 'kapo1234';
 
 async function login(page: Page, username: string): Promise<void> {
@@ -84,6 +87,10 @@ test('Card view reorders Inbox cards globally and keeps the release rail separat
   expect(before.indexOf(first)).toBeLessThan(before.indexOf(second));
 
   // Drop the first card after the second: the global sequence swaps them.
+  // The full suite may already have more Inbox cards than this spec creates;
+  // bring both endpoints into view instead of relying on drag auto-scroll.
+  await card(first).scrollIntoViewIfNeeded();
+  await card(second).scrollIntoViewIfNeeded();
   await dragBetween(card(first), card(second), 'after', { x: 12, y: 12 });
   await expect(page.getByText(`Reordered “${first}”.`)).toBeVisible();
   const reordered = await titles();
@@ -91,6 +98,7 @@ test('Card view reorders Inbox cards globally and keeps the release rail separat
 
   // The rail is still a release target, not a reorder target.
   const rail = page.getByRole('region', { name: 'Release drop area' });
+  await card(first).scrollIntoViewIfNeeded();
   await card(first).dragTo(rail, { sourcePosition: { x: 12, y: 12 } });
   await expect(card(first).getByText('Pulled')).toBeVisible();
 
@@ -110,7 +118,7 @@ test('Tree view reparents on a row middle and reorders between rows', async ({ p
   await capture(page, first);
   await capture(page, second);
   const firstId = await findProjectId(page, first);
-  const homeId = await findProjectId(page, 'Home improvement');
+  const householdId = await findProjectId(page, 'Household');
 
   await page.goto('/inbox');
   await page.getByRole('button', { name: 'Tree' }).click();
@@ -118,23 +126,23 @@ test('Tree view reparents on a row middle and reorders between rows', async ({ p
   const row = (title: string) => tree.getByRole('row', { name: new RegExp(title) });
   const firstRow = row(first);
   const secondRow = row(second);
-  const homeRow = row('Home improvement');
+  const householdRow = row('Household');
 
   await expect(firstRow).toBeVisible();
   await expect(secondRow).toBeVisible();
   // Inbox rows are draggable; the non-Inbox parent only receives drops.
   await expect(firstRow).toHaveAttribute('draggable', 'true');
-  await expect(homeRow).toHaveAttribute('draggable', 'false');
+  await expect(householdRow).toHaveAttribute('draggable', 'false');
 
   // Middle of another row = reparent under it, keeping the Inbox flag.
-  const homeBox = await homeRow.boundingBox();
-  if (!homeBox) throw new Error('Home improvement row is not visible');
-  await firstRow.dragTo(homeRow, {
+  const householdBox = await householdRow.boundingBox();
+  if (!householdBox) throw new Error('Household row is not visible');
+  await firstRow.dragTo(householdRow, {
     sourcePosition: { x: 300, y: 6 },
-    targetPosition: { x: 200, y: homeBox.height / 2 },
+    targetPosition: { x: 200, y: householdBox.height / 2 },
   });
   await expect(
-    page.getByText(`Moved “${first}” under Home improvement; it stays in the Inbox.`),
+    page.getByText(`Moved “${first}” under Household; it stays in the Inbox.`),
   ).toBeVisible();
 
   const parentResponse = await page.request.get(`/api/projects/${firstId}`);
@@ -142,7 +150,7 @@ test('Tree view reparents on a row middle and reorders between rows', async ({ p
     project: { inbox: boolean; parent: { id: string } | null; statusName: string | null };
   };
   expect(parentPayload.project.inbox).toBe(true);
-  expect(parentPayload.project.parent?.id).toBe(homeId);
+  expect(parentPayload.project.parent?.id).toBe(householdId);
   expect(parentPayload.project.statusName).toBe('To do');
 
   // Between rows = reorder globally after the target (Book boiler service is a
