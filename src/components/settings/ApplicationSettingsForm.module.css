@@ -57,6 +57,69 @@
   font-size: var(--font-size-small);
 }
 
+.backupFieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.backupFields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.timeInput {
+  width: 140px;
+}
+
+.numberInput {
+  width: 100px;
+}
+
+.backupStatus {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-small);
+}
+
+.backupStatusRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.backupStatusRow dt {
+  min-width: 120px;
+  color: var(--color-muted-strong);
+  font-weight: 600;
+}
+
+.backupStatusRow dd {
+  margin: 0;
+  color: var(--color-text);
+}
+
+.backupName {
+  color: var(--color-muted);
+  font-family: var(--font-mono, monospace);
+}
+
+.backupPath {
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono, monospace);
+  font-size: var(--font-size-small);
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;

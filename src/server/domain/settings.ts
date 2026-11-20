@@ -5,13 +5,22 @@ import {
   type AppRole,
   type CollectionView,
 } from '@/lib/types';
-import { DEFAULT_APP_SETTINGS, TRASH_RETENTION_DAYS } from '../db/bootstrap';
+import {
+  DEFAULT_APP_SETTINGS,
+  DEFAULT_BACKUP_ENABLED,
+  DEFAULT_BACKUP_RETENTION,
+  DEFAULT_BACKUP_START_TIME,
+  MAX_BACKUP_RETENTION,
+  MIN_BACKUP_RETENTION,
+  TRASH_RETENTION_DAYS,
+} from '../db/bootstrap';
 import { getDb } from '../db/connection';
 import { getInstallationName } from '../db/shell-queries';
 
 /**
  * Application-wide settings (Admin only): default account role, enabled
- * collection views and the fixed 30-day trash retention.
+ * collection views, the fixed 30-day trash retention and the rolling backup
+ * schedule (issue #13).
  *
  * Route handlers translate {@link SettingsError} into the build-spec §7 error
  * envelope. Every value read back is normalised so a corrupt row cannot crash a
@@ -42,9 +51,16 @@ export interface ApplicationSettings {
   enabledViews: CollectionView[];
   trashRetentionDays: number;
   installationName: string;
+  backupEnabled: boolean;
+  /** Local wall-clock start time, `HH:MM` (24-hour). */
+  backupStartTime: string;
+  /** Number of most-recent backup folders to keep (1–30). */
+  backupRetention: number;
 }
 
 const DEFAULT_ENABLED_VIEWS: CollectionView[] = [...COLLECTION_VIEWS];
+
+export const BACKUP_START_TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 function isAppRole(value: string): value is AppRole {
   return (APP_ROLES as readonly string[]).includes(value);
@@ -52,6 +68,25 @@ function isAppRole(value: string): value is AppRole {
 
 function isCollectionView(value: string): value is CollectionView {
   return (COLLECTION_VIEWS as readonly string[]).includes(value);
+}
+
+export function isValidBackupStartTime(value: string): boolean {
+  return BACKUP_START_TIME_PATTERN.test(value);
+}
+
+function parseBooleanSetting(raw: string | undefined, fallback: boolean): boolean {
+  if (raw === '1' || raw === 'true') return true;
+  if (raw === '0' || raw === 'false') return false;
+  return fallback;
+}
+
+function parseBackupRetention(raw: string | undefined): number {
+  const value = Number(raw);
+  return Number.isInteger(value) &&
+    value >= MIN_BACKUP_RETENTION &&
+    value <= MAX_BACKUP_RETENTION
+    ? value
+    : DEFAULT_BACKUP_RETENTION;
 }
 
 function readSetting(db: BetterSqliteDatabase, key: string): string | undefined {
@@ -85,12 +120,21 @@ export function getApplicationSettings(
 ): ApplicationSettings {
   const rawRole = readSetting(db, 'default_account_role')?.trim() ?? 'user';
   const defaultAccountRole: AppRole = isAppRole(rawRole) ? rawRole : 'user';
+  const rawBackupStart = readSetting(db, 'backup_start_time')?.trim() ?? '';
   return {
     defaultAccountRole,
     enabledViews: parseEnabledViews(readSetting(db, 'enabled_views')),
     // Retention is a product decision, not a user preference.
     trashRetentionDays: TRASH_RETENTION_DAYS,
     installationName: getInstallationName(db),
+    backupEnabled: parseBooleanSetting(
+      readSetting(db, 'backup_enabled'),
+      DEFAULT_BACKUP_ENABLED,
+    ),
+    backupStartTime: isValidBackupStartTime(rawBackupStart)
+      ? rawBackupStart
+      : DEFAULT_BACKUP_START_TIME,
+    backupRetention: parseBackupRetention(readSetting(db, 'backup_retention')),
   };
 }
 
@@ -103,6 +147,9 @@ export interface UpdateApplicationSettingsInput {
   enabledViews?: unknown;
   trashRetentionDays?: unknown;
   installationName?: unknown;
+  backupEnabled?: unknown;
+  backupStartTime?: unknown;
+  backupRetention?: unknown;
 }
 
 function normaliseViews(raw: unknown): CollectionView[] {
@@ -173,6 +220,39 @@ export function updateApplicationSettings(
       });
     }
     values.set('installation_name', name);
+  }
+
+  if (input.backupEnabled !== undefined) {
+    if (typeof input.backupEnabled !== 'boolean') {
+      throw new SettingsError(422, 'validation_failed', 'Check the highlighted fields.', {
+        backupEnabled: 'Choose whether daily backups are enabled.',
+      });
+    }
+    values.set('backup_enabled', input.backupEnabled ? '1' : '0');
+  }
+
+  if (input.backupStartTime !== undefined) {
+    const raw = typeof input.backupStartTime === 'string' ? input.backupStartTime.trim() : '';
+    if (!isValidBackupStartTime(raw)) {
+      throw new SettingsError(422, 'validation_failed', 'Check the highlighted fields.', {
+        backupStartTime: 'Enter a time between 00:00 and 23:59.',
+      });
+    }
+    values.set('backup_start_time', raw);
+  }
+
+  if (input.backupRetention !== undefined) {
+    const retention = Number(input.backupRetention);
+    if (
+      !Number.isInteger(retention) ||
+      retention < MIN_BACKUP_RETENTION ||
+      retention > MAX_BACKUP_RETENTION
+    ) {
+      throw new SettingsError(422, 'validation_failed', 'Check the highlighted fields.', {
+        backupRetention: `Keep between ${MIN_BACKUP_RETENTION} and ${MAX_BACKUP_RETENTION} backups.`,
+      });
+    }
+    values.set('backup_retention', String(retention));
   }
 
   if (values.size === 0) {

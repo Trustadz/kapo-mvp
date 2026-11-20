@@ -139,6 +139,9 @@ describe('POST /api/setup', () => {
       .prepare('SELECT key FROM settings ORDER BY key')
       .all() as Array<{ key: string }>;
     expect(settings.map((row) => row.key)).toEqual([
+      'backup_enabled',
+      'backup_retention',
+      'backup_start_time',
       'default_account_role',
       'enabled_views',
       'installation_name',
