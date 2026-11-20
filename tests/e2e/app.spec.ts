@@ -109,6 +109,60 @@ test.describe('seeded application', () => {
     await expect(page.getByText('Status changed to To do.')).toBeVisible();
   });
 
+  test('keeps the last kanban card action menu inside the viewport', async ({ page }) => {
+    await login(page, 'tristan');
+    const homeId = await findProjectId(page, 'Home improvement');
+    await page.goto(`/p/${homeId}`);
+    await expect(page.getByRole('heading', { level: 1, name: 'Home improvement' })).toBeVisible();
+
+    const kanban = page.getByRole('list', { name: 'Kanban columns' });
+    await expect(kanban).toBeVisible();
+    const column = kanban
+      .locator('section')
+      .filter({ has: page.locator('article') })
+      .first();
+    const lastCard = column.getByRole('article').last();
+    const title = ((await lastCard.locator('a').first().textContent()) ?? '').trim();
+    expect(title).not.toBe('');
+
+    // Put the last card near the bottom edge so the panel would otherwise be
+    // clipped by the Kanban scroll container (issue #20).
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    const actionsButton = lastCard.getByRole('button', { name: `Actions for ${title}` });
+    await expect(actionsButton).toBeVisible();
+    await actionsButton.click();
+
+    const menu = page.getByRole('menu', { name: `Actions for ${title}` });
+    await expect(menu).toBeVisible();
+
+    const box = await menu.boundingBox();
+    const viewport = page.viewportSize();
+    expect(box).not.toBeNull();
+    expect(viewport).not.toBeNull();
+    if (!box || !viewport) throw new Error('menu or viewport has no bounding box');
+
+    expect(box.x).toBeGreaterThanOrEqual(8);
+    expect(box.y).toBeGreaterThanOrEqual(8);
+    expect(box.x + box.width).toBeLessThanOrEqual(viewport.width - 8);
+    expect(box.y + box.height).toBeLessThanOrEqual(viewport.height - 8);
+
+    // The panel is actually painted where it reports: no ancestor clips it.
+    const unclipped = await menu.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      const target = document.elementFromPoint(
+        rect.left + rect.width / 2,
+        rect.top + rect.height / 2,
+      );
+      return target !== null && (target === element || element.contains(target));
+    });
+    expect(unclipped).toBe(true);
+
+    // Escape still closes and returns focus to the trigger.
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+    await expect(actionsButton).toBeFocused();
+  });
+
   test('application Viewer sees a read-only project page and cannot mutate', async ({ page }) => {
     await login(page, 'alex');
     const homeId = await findProjectId(page, 'Home improvement');
