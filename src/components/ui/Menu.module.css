@@ -20,6 +20,16 @@
  * panel free of CSS offsets avoids over-constrained stretching when both a
  * start/end anchor and the measured coordinate would otherwise apply. */
 
+/*
+ * Opt-in viewport positioning. A fixed panel is not clipped by an ancestor's
+ * `overflow` (as long as that ancestor is not a fixed-positioning containing
+ * block), which is what lets card menus escape the Kanban scroll container.
+ * Top/left are supplied inline from the measured trigger rect.
+ */
+.panelFixed {
+  position: fixed;
+}
+
 .menuHeader {
   padding: var(--space-1) var(--space-2) var(--space-3);
   margin-bottom: var(--space-1);
