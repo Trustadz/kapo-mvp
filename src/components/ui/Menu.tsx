@@ -73,6 +73,11 @@ export interface MenuProps {
   header?: ReactNode;
   align?: 'start' | 'end';
   side?: 'top' | 'bottom';
+  /**
+   * Position the panel against the viewport instead of the menu root. This
+   * lets a menu escape a clipping scroll container (e.g. the Kanban grid).
+   */
+  fixed?: boolean;
   className?: string;
 }
 
@@ -97,6 +102,7 @@ export function Menu({
   header,
   align = 'start',
   side = 'bottom',
+  fixed = false,
   className,
 }: MenuProps) {
   const [open, setOpen] = useState(false);
@@ -132,16 +138,18 @@ export function Menu({
     // Absolute panels are positioned inside the root's padding box; fixed
     // panels use the viewport coordinates directly.
     const rootRect = root.getBoundingClientRect();
-    const resolved = {
-      top: next.top - (rootRect.top + root.clientTop),
-      left: next.left - (rootRect.left + root.clientLeft),
-    };
+    const resolved = fixed
+      ? next
+      : {
+          top: next.top - (rootRect.top + root.clientTop),
+          left: next.left - (rootRect.left + root.clientLeft),
+        };
     setPosition((current) =>
       current && current.top === resolved.top && current.left === resolved.left
         ? current
         : resolved,
     );
-  }, [align, side]);
+  }, [align, fixed, side]);
 
   useIsomorphicLayoutEffect(() => {
     if (!open) return;
@@ -321,7 +329,7 @@ export function Menu({
           id={panelId}
           role="menu"
           aria-label={label}
-          className={cn(styles.panel)}
+          className={cn(styles.panel, fixed && styles.panelFixed)}
           style={position ? { top: position.top, left: position.left } : undefined}
           onKeyDown={handlePanelKeyDown}
         >

@@ -156,6 +156,10 @@ export function ProjectActionsMenu({
     <Menu
       label={`Actions for ${project.title}`}
       align="end"
+      // Fixed positioning keeps the panel out of the Kanban grid's
+      // `overflow-x: auto` clip box (issue #20); the shared Menu clamps it to
+      // the viewport and repositions on scroll/resize.
+      fixed
       trigger={({ ref, ...triggerProps }) => (
         <button
           {...triggerProps}
