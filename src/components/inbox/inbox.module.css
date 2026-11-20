@@ -295,7 +295,7 @@
 }
 
 /* ----------------------------------------------------------------------- */
-/* Inbox Tree (bulk refinement)                                            */
+/* Inbox Tree (application overview, issue #54)                            */
 /* ----------------------------------------------------------------------- */
 
 .treeWrap {
@@ -304,19 +304,19 @@
   border-radius: var(--radius-md);
   padding: var(--space-2) var(--space-4) var(--space-3);
   min-width: 0;
+  max-width: 100%;
 }
 
 .treeScroll {
-  overflow-x: auto;
   max-width: 100%;
-  /* Keep the wide table's intrinsic width from expanding the mobile page;
-     without layout containment Chromium counts it in the root scroll width
-     even though this box scrolls horizontally. */
-  contain: layout;
+  /* The table uses a fixed layout so a long title wraps instead of expanding
+     the page. No horizontal scroll is needed even on a 390px phone. */
+  overflow-x: hidden;
 }
 
 .treeTable {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
 }
 
@@ -325,7 +325,7 @@
   font-size: var(--font-size-body);
   font-weight: 500;
   color: var(--color-muted);
-  padding: var(--space-3) var(--space-2);
+  padding: var(--space-2) var(--space-2);
 }
 
 .treeTable thead th:first-child {
@@ -343,22 +343,11 @@
   vertical-align: middle;
 }
 
-.treeParentHeader {
-  width: 200px;
-}
-
-.treeParentCell {
+.treeStatusHeader,
+.treeStatusCell {
+  width: 140px;
   color: var(--color-muted);
   overflow-wrap: anywhere;
-}
-
-.treeStatusHeader {
-  width: 110px;
-}
-
-.treeStatusCell {
-  color: var(--color-text);
-  white-space: nowrap;
 }
 
 .treeActionHeader,
@@ -368,25 +357,53 @@
 }
 
 .treeRow td {
-  padding: var(--space-2);
+  padding: 6px var(--space-2);
   border-top: 1px solid var(--color-border);
   vertical-align: middle;
+}
+
+/* Inbox captures are the actionable rows: brand-light wash, outline and normal
+   emphasis. Everything else is quiet, compact read-only context. */
+.treeRow[data-inbox] td {
+  background: var(--color-brand-light);
+}
+
+.treeRow[data-inbox] td:first-child {
+  box-shadow: inset 3px 0 0 var(--color-brand);
+}
+
+.treeRow[data-context] td {
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.treeRow[data-context] .treeTitle {
+  color: var(--color-muted-strong);
+  font-weight: 400;
 }
 
 .treeRow[data-pulled] td {
   background: var(--color-pulled);
 }
 
-.treeRow[data-archived] a {
+.treeRow[data-archived] .treeTitle {
   color: var(--color-muted);
+}
+
+.treeNameCell {
+  min-width: 0;
 }
 
 .treeName {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 44px;
-  flex-wrap: wrap;
+  min-width: 0;
+  min-height: 40px;
+}
+
+.treeRow[data-context] .treeName {
+  min-height: 24px;
 }
 
 .treeTitle {
@@ -394,17 +411,64 @@
   font-weight: 500;
   text-decoration: none;
   overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 .treeTitle:hover {
   text-decoration: underline;
 }
 
-/* Parent context repeats under the title only on narrow screens, where the
-   separate Parent column is hidden. */
-.treeInlineContext {
+.treeRow[data-inbox] .treeTitle {
+  font-weight: 600;
+}
+
+.chevronButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+
+.chevronButton:hover {
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+}
+
+.chevronButton:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 1px;
+}
+
+.chevronSpacer {
+  display: inline-block;
+  flex: none;
+  width: 24px;
+}
+
+/* Inline status is only shown on narrow screens, where the Status column folds
+   under the title so the table never scrolls sideways. */
+.treeInlineStatus {
   display: none;
-  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--font-size-small);
+}
+
+.treeEmptyNotice {
+  margin: var(--space-2) 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-muted-strong);
+  font-size: var(--font-size-small);
 }
 
 .bulkToolbar {
@@ -530,13 +594,6 @@
     padding: var(--space-2) var(--space-3) var(--space-3);
   }
 
-  /* On phones the Parent column folds under the title so the table keeps
-     every column and its action visible without a sideways scroll. */
-  .treeTable {
-    table-layout: fixed;
-    min-width: 0;
-  }
-
   .treeTable thead th {
     padding: var(--space-2) var(--space-1);
     font-size: var(--font-size-small);
@@ -544,16 +601,14 @@
 
   .treeSelectHeader,
   .treeSelectCell {
-    width: 40px;
+    width: 36px;
   }
 
-  .treeParentHeader,
-  .treeParentCell {
+  /* Status folds under the Inbox title so every column stays on screen without
+     a sideways scroll. */
+  .treeStatusHeader,
+  .treeStatusCell {
     display: none;
-  }
-
-  .treeStatusHeader {
-    width: 64px;
   }
 
   .treeActionHeader,
@@ -562,24 +617,26 @@
   }
 
   .treeRow td {
-    padding: var(--space-2) var(--space-1);
+    padding: 5px var(--space-1);
   }
 
   .treeName {
-    min-height: 0;
+    min-height: 36px;
+    gap: var(--space-1);
   }
 
-  .treeInlineContext {
-    display: block;
-    margin-top: 2px;
-    color: var(--color-muted);
-    font-size: var(--font-size-small);
-    overflow-wrap: anywhere;
+  .treeRow[data-context] .treeName {
+    min-height: 22px;
   }
 
-  .treeStatusCell {
-    white-space: normal;
-    font-size: var(--font-size-small);
+  .treeInlineStatus {
+    display: inline;
+    flex-basis: 100%;
+    padding-left: 24px;
+  }
+
+  .treeRow[data-inbox] .treeName {
+    flex-wrap: wrap;
   }
 
   .openLabel {

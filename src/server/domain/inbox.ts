@@ -1,5 +1,5 @@
 import type { Database as BetterSqliteDatabase } from 'better-sqlite3';
-import type { InboxItem, ProjectCard } from '@/lib/projects';
+import type { InboxItem, InboxTreeNode, ProjectCard } from '@/lib/projects';
 import { indexProject } from '@/server/db/search';
 import { nowIso } from '@/server/db/util';
 import { AUDIT_ACTIONS, AUDIT_FIELDS } from '@/lib/audit';
@@ -65,6 +65,60 @@ export function listInbox(db: BetterSqliteDatabase, actor: AccessUser): InboxIte
     });
   }
   return items;
+}
+
+interface InboxTreeRow {
+  id: string;
+  title: string;
+  parent_id: string | null;
+  status_name: string | null;
+  inbox: number;
+  archived: number;
+  priority: number;
+}
+
+/**
+ * Application-wide Tree data for the Inbox (issue #54).
+ *
+ * Returns every project the viewer may read and see through the same permission
+ * engine as every other surface, ordered by the single global priority sequence.
+ * A row whose parent is not part of the result becomes a top-level row with
+ * `parentId: null`: that keeps direct-access captures and projects behind a
+ * private/archived/trashed boundary visible without exposing the boundary
+ * itself (no parent title is returned for it). Inbox membership is carried on
+ * each row so the client can highlight actionable captures.
+ */
+export function listInboxTree(
+  db: BetterSqliteDatabase,
+  actor: AccessUser,
+): InboxTreeNode[] {
+  const ctx = loadAccessContext(db, actor);
+  const rows = db
+    .prepare(
+      `SELECT p.id, p.title, p.parent_id, p.priority, p.inbox, p.archived,
+              status.name AS status_name
+         FROM projects p
+         LEFT JOIN statuses status ON status.id = p.status_id
+        ORDER BY p.priority ASC, p.seq ASC`,
+    )
+    .all() as InboxTreeRow[];
+
+  const active = rows.filter((row) => isActiveProject(ctx, row.id));
+  const activeIds = new Set(active.map((row) => row.id));
+  return active.map((row) => ({
+    id: row.id,
+    title: row.title,
+    // Never point at a parent that is not part of the payload: the client would
+    // otherwise render an orphan or leak that a hidden parent exists.
+    parentId:
+      row.parent_id !== null && activeIds.has(row.parent_id) ? row.parent_id : null,
+    statusName: row.status_name,
+    inbox: row.inbox === 1,
+    archived: row.archived === 1,
+    canEdit: canEditProject(ctx, row.id),
+    canAdmin: canAdminProject(ctx, row.id),
+    priority: row.priority,
+  }));
 }
 
 export function releaseInboxProject(

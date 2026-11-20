@@ -71,3 +71,23 @@ test.describe('mobile collection view menu', () => {
     ).toBeVisible();
   });
 });
+
+test.describe('mobile Inbox tree', () => {
+  test('shows the application tree without horizontal page scroll', async ({ page }) => {
+    await login(page, 'tristan');
+    await page.goto('/inbox');
+    await page.getByRole('button', { name: 'Tree' }).click();
+
+    const tree = page.getByRole('region', { name: 'Application tree' });
+    await expect(tree).toBeVisible();
+    await expect(tree.getByRole('row', { name: /Renovate basement/ })).toBeVisible();
+
+    // Long project titles must wrap inside the fixed table instead of widening
+    // the document (issue #54).
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(1);
+    await expect(tree.getByRole('checkbox', { name: 'Select Renovate basement' })).toBeVisible();
+  });
+});
