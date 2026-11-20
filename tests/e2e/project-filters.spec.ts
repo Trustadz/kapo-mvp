@@ -63,8 +63,10 @@ test('Card children filter live by title and reporter', async ({ page }) => {
   await openHomeImprovement(page);
   await chooseView(page, 'Card');
 
-  // The heading is gone, but the section keeps an accessible name.
-  await expect(page.getByRole('heading', { name: 'Child projects' })).toHaveCount(0);
+  // The heading is screen-reader only, but the section keeps an accessible name.
+  await expect(page.getByRole('heading', { name: 'Child projects' })).toHaveClass(
+    /visually-hidden/,
+  );
   await expect(page.getByRole('region', { name: 'Child projects' })).toBeVisible();
 
   const list = page.getByRole('list', { name: 'Projects as cards' });

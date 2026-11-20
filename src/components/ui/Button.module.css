@@ -82,9 +82,11 @@
   color: var(--color-disabled-text);
 }
 
+/* Solid danger action: white text on --color-danger-action (light #A33A2F
+ * 6.56:1, dark #BE4D41 4.85:1). --color-danger itself is the text/icon tone. */
 .danger {
-  background: var(--color-danger);
-  border-color: var(--color-danger);
+  background: var(--color-danger-action);
+  border-color: var(--color-danger-action);
   color: #ffffff;
 }
 
