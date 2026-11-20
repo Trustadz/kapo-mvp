@@ -306,7 +306,7 @@ function workflowRows(workflow: WorkflowViewData): WorkflowRow[] {
   }));
 }
 
-function WorkflowTab({
+export function WorkflowTab({
   data,
   workflow,
   notify,
@@ -320,6 +320,7 @@ function WorkflowTab({
   const [rows, setRows] = useState<WorkflowRow[]>(() => workflowRows(workflow));
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [showMapping, setShowMapping] = useState(false);
+  const [mappingError, setMappingError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -327,6 +328,8 @@ function WorkflowTab({
     setRows(workflowRows(workflow));
     setMapping({});
     setShowMapping(false);
+    setMappingError(null);
+    setError(null);
   }, [workflow]);
 
   const updateRow = (key: string, patch: Partial<WorkflowRow>) =>
@@ -340,7 +343,11 @@ function WorkflowTab({
   };
 
   const removeRow = (key: string) => {
-    setRows((current) => (current.length <= 1 ? current : current.filter((row) => row.key !== key)));
+    setRows((current) => {
+      const row = current.find((entry) => entry.key === key);
+      if (!row || current.length <= 1 || row.isStart || row.isFinish) return current;
+      return current.filter((entry) => entry.key !== key);
+    });
   };
 
   const moveRow = (key: string, direction: -1 | 1) => {
@@ -360,6 +367,7 @@ function WorkflowTab({
   );
   const removedLive = removed.filter((status) => (workflow.usage[status.id]?.live ?? 0) > 0);
   const removedTrashed = removed.filter((status) => (workflow.usage[status.id]?.trashed ?? 0) > 0);
+  const keptRows = rows.filter((row) => row.id !== null);
 
   const validate = (): string | null => {
     if (rows.length === 0) return 'A workflow needs at least one status.';
@@ -375,23 +383,9 @@ function WorkflowTab({
     return null;
   };
 
-  const save = async () => {
-    const validation = validate();
-    if (validation) {
-      setError(validation);
-      return;
-    }
-    if (removedLive.length > 0) {
-      const missing = removedLive.filter((status) => !mapping[status.id]);
-      if (missing.length > 0) {
-        setShowMapping(true);
-        setError(
-          `Choose where existing children of these statuses go: ${missing.map((status) => status.name).join(', ')}.`,
-        );
-        return;
-      }
-    }
+  const submitSave = async () => {
     setError(null);
+    setMappingError(null);
     setSaving(true);
     const statuses = rows.map((row) => ({
       id: row.id,
@@ -402,10 +396,19 @@ function WorkflowTab({
     const result = await saveWorkflow(data.project.id, { statuses, mapping });
     setSaving(false);
     if (!result.ok) {
+      if (result.code === 'mapping_required') {
+        // The server needs explicit destinations: reopen the mapping modal.
+        setMappingError(result.message);
+        setShowMapping(true);
+        return;
+      }
+      setShowMapping(false);
+      setMappingError(null);
       setError(result.message);
-      if (result.code === 'mapping_required') setShowMapping(true);
       return;
     }
+    setShowMapping(false);
+    setMappingError(null);
     notify(
       result.data.remappedChildren > 0
         ? `Workflow saved. ${result.data.remappedChildren} child project${result.data.remappedChildren === 1 ? '' : 's'} remapped.`
@@ -414,14 +417,61 @@ function WorkflowTab({
     refresh();
   };
 
+  const missingMapping = () => {
+    const keptIds = new Set(keptRows.map((row) => row.id));
+    return removedLive.filter((status) => {
+      const target = mapping[status.id];
+      return !target || !keptIds.has(target);
+    });
+  };
+
+  const save = async () => {
+    const validation = validate();
+    if (validation) {
+      setError(validation);
+      return;
+    }
+    if (removedLive.length > 0) {
+      // Always show the mapping before saving, even when a previous attempt
+      // retained choices. Cancelling the dialog must not turn the next Save
+      // into a silent submission with an invisible mapping.
+      setError(null);
+      const missing = missingMapping();
+      setMappingError(
+        missing.length > 0
+          ? `Choose where existing children of these statuses go: ${missing.map((status) => status.name).join(', ')}.`
+          : null,
+      );
+      setShowMapping(true);
+      return;
+    }
+    await submitSave();
+  };
+
+  const confirmMapping = () => {
+    const missing = missingMapping();
+    if (missing.length > 0) {
+      setMappingError(
+        `Choose where existing children of these statuses go: ${missing.map((status) => status.name).join(', ')}.`,
+      );
+      return;
+    }
+    void submitSave();
+  };
+
+  const closeMapping = () => {
+    if (saving) return;
+    setShowMapping(false);
+    setMappingError(null);
+  };
+
   const reset = () => {
     setRows(workflowRows(workflow));
     setMapping({});
     setShowMapping(false);
+    setMappingError(null);
     setError(null);
   };
-
-  const keptRows = rows.filter((row) => row.id !== null);
 
   return (
     <Card className={styles.card}>
@@ -431,6 +481,17 @@ function WorkflowTab({
       <ul className={styles.workflowList}>
         {rows.map((row, index) => {
           const usage = row.id ? workflow.usage[row.id] : undefined;
+          const removeLabel = row.name.trim() || 'this status';
+          const removeBlockReason =
+            row.isStart && row.isFinish
+              ? `Cannot remove ${removeLabel}: it is both the Start and Finish status. Choose another row for those roles first.`
+              : row.isStart
+                ? `Cannot remove ${removeLabel}: it is the Start status. Choose another Start status first.`
+                : row.isFinish
+                  ? `Cannot remove ${removeLabel}: it is the Finish status. Choose another Finish status first.`
+                  : rows.length <= 1
+                    ? `Cannot remove ${removeLabel}: a workflow needs at least one status.`
+                    : null;
           return (
             <li key={row.key} className={styles.workflowRow}>
               <div className={styles.workflowName}>
@@ -493,8 +554,9 @@ function WorkflowTab({
                 <button
                   type="button"
                   className={styles.iconButton}
-                  aria-label={`Remove ${row.name || 'status'}`}
-                  disabled={rows.length <= 1}
+                  aria-label={removeBlockReason ?? `Remove ${row.name || 'status'}`}
+                  title={removeBlockReason ?? undefined}
+                  disabled={removeBlockReason !== null}
                   onClick={() => removeRow(row.key)}
                 >
                   <Icon name="delete" size={18} />
@@ -513,35 +575,60 @@ function WorkflowTab({
         Add status
       </Button>
 
-      {showMapping || removedLive.length > 0 ? (
-        <div className={styles.mappingBlock}>
-          <Notice tone="warning" title="Map removed statuses explicitly">
-            Children in a removed status must be mapped to a kept status before saving. Identical
-            names are not matched automatically.
-          </Notice>
-          <div className={styles.mappingRows}>
-            {removedLive.map((status) => (
-              <div key={status.id} className={styles.mappingRow}>
-                <span>
-                  {status.name} ({workflow.usage[status.id]?.live ?? 0} children)
-                </span>
-                <Select
-                  aria-label={`Destination status for ${status.name}`}
-                  value={mapping[status.id] ?? ''}
-                  onChange={(event) =>
-                    setMapping((current) => ({ ...current, [status.id]: event.target.value }))
-                  }
-                >
-                  <option value="">Choose a status</option>
-                  {keptRows.map((row) => (
-                    <option key={row.key} value={row.id ?? ''}>
-                      {row.name || 'Untitled status'}
-                    </option>
-                  ))}
-                </Select>
-              </div>
-            ))}
+      <Dialog
+        open={showMapping}
+        onClose={closeMapping}
+        title="Map removed statuses"
+        description="Children in a removed status must be mapped to a kept status before saving. Identical names are not matched automatically."
+        dismissible={!saving}
+        footer={
+          <div className={styles.footer}>
+            <Button
+              onClick={confirmMapping}
+              loading={saving}
+              disabled={saving || removedLive.length === 0}
+            >
+              Confirm mapping
+            </Button>
+            <Button variant="quiet" onClick={closeMapping} disabled={saving}>
+              Cancel
+            </Button>
           </div>
+        }
+      >
+        <div className={styles.mappingBlock}>
+          {mappingError ? <Notice tone="error">{mappingError}</Notice> : null}
+          {removedLive.length === 0 ? (
+            <Notice tone="warning">
+              The server asked for a status mapping, but no removed status with live children could
+              be found. Reload the page and try again.
+            </Notice>
+          ) : (
+            <div className={styles.mappingRows}>
+              {removedLive.map((status) => (
+                <div key={status.id} className={styles.mappingRow}>
+                  <span>
+                    {status.name} ({workflow.usage[status.id]?.live ?? 0} children)
+                  </span>
+                  <Select
+                    aria-label={`Destination status for ${status.name}`}
+                    value={mapping[status.id] ?? ''}
+                    onChange={(event) => {
+                      setMapping((current) => ({ ...current, [status.id]: event.target.value }));
+                      setMappingError(null);
+                    }}
+                  >
+                    <option value="">Choose a status</option>
+                    {keptRows.map((row) => (
+                      <option key={row.key} value={row.id ?? ''}>
+                        {row.name || 'Untitled status'}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              ))}
+            </div>
+          )}
           {removedTrashed.length > 0 ? (
             <p className={styles.cardHint}>
               {removedTrashed.length} removed status
@@ -550,9 +637,11 @@ function WorkflowTab({
             </p>
           ) : null}
         </div>
-      ) : null}
+      </Dialog>
 
-      <p className={styles.cardHint}>Removing an in-use status opens explicit mapping before saving.</p>
+      <p className={styles.cardHint}>
+        Removing an in-use status asks you to map its children before saving.
+      </p>
       <div className={styles.footer}>
         <Button onClick={() => void save()} loading={saving} disabled={saving}>
           Save workflow
