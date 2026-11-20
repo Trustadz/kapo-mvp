@@ -116,17 +116,33 @@ function dropZoneForEvent(event: DragEvent<HTMLElement>): DropZone {
 interface ProjectActionsMenuProps {
   ctx: CollectionViewContext;
   project: ProjectCard;
-  /** Projects the earlier/later actions step through (a Kanban column). */
+  /** Projects the earlier/later actions step through (a Kanban column or siblings). */
   siblings: ProjectCard[];
+  /**
+   * Siblings in priority order. Used to place a card after its next sibling
+   * when Move later runs at the end of a Kanban column (the next sibling may be
+   * in another column).
+   */
   allSiblings: ProjectCard[];
+  /**
+   * Reparenting requires project Admin rights, while reordering only needs
+   * edit rights. Callers that know the per-row role (Tree) can hide Move to…
+   * for editors; it defaults to the view's edit capability.
+   */
+  canReparent?: boolean;
 }
 
-/** Keyboard/touch accessible equivalent of the Kanban drag actions. */
+/**
+ * Keyboard/touch equivalent of the drag actions for one collection row/card:
+ * status moves, Move earlier/later and Move to another project. The trigger is
+ * a normal menu button, so every action is reachable without a pointer.
+ */
 export function ProjectActionsMenu({
   ctx,
   project,
   siblings,
   allSiblings,
+  canReparent,
 }: ProjectActionsMenuProps) {
   const columnIndex = siblings.findIndex((sibling) => sibling.id === project.id);
   const previousInColumn = columnIndex > 0 ? siblings[columnIndex - 1] : undefined;
@@ -135,7 +151,6 @@ export function ProjectActionsMenu({
       ? siblings[columnIndex + 1]
       : undefined;
 
-  const globalIndex = allSiblings.findIndex((sibling) => sibling.id === project.id);
   const beforeSiblingForLater = (() => {
     if (!nextInColumn) return undefined;
     const nextGlobalIndex = allSiblings.findIndex((sibling) => sibling.id === nextInColumn.id);
@@ -178,16 +193,17 @@ export function ProjectActionsMenu({
       },
     });
     items.push({ id: 'sep-move', separator: true });
-    items.push({
-      id: 'move-parent',
-      label: 'Move to another project…',
-      icon: 'drive_file_move',
-      onSelect: () => ctx.openMoveDialog(project.id),
-    });
+    if (canReparent ?? ctx.canEdit) {
+      items.push({
+        id: 'move-parent',
+        label: 'Move to another project…',
+        icon: 'drive_file_move',
+        onSelect: () => ctx.openMoveDialog(project.id),
+      });
+    }
     items.push({ id: 'sep-open', separator: true });
   }
   items.push({ id: 'open', label: 'Open project', icon: 'open_in_new', href: `/p/${project.id}` });
-  void globalIndex;
 
   return (
     <Menu
@@ -653,6 +669,7 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
         className={styles.kanban}
         role="list"
         aria-label="Kanban columns"
+        aria-describedby={ctx.canEdit ? 'kanban-drag-hint' : undefined}
         data-kanban-scroller=""
         data-pointer-drag={pointerDrag ? '' : undefined}
       >
@@ -841,10 +858,11 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
           )
         : null}
       {ctx.canEdit ? (
-        <p className={styles.hint}>
+        <p className={styles.hint} id="kanban-drag-hint">
           Drag a card onto a column to change its status, or between cards to reorder it.
           The highlighted gap shows where it will land. On touch, press and hold a card,
-          then drag.
+          then drag. Keyboard and menu users: open Actions on a card to move it earlier,
+          later, or to another status or project.
         </p>
       ) : null}
     </>
@@ -908,7 +926,12 @@ export function CardView({ ctx }: { ctx: CollectionViewContext }) {
 
   return (
     <>
-      <ul ref={listRef} className={styles.cardList} aria-label="Projects as cards">
+      <ul
+        ref={listRef}
+        className={styles.cardList}
+        aria-label="Projects as cards"
+        aria-describedby={ctx.canEdit ? 'card-drag-hint' : undefined}
+      >
         {ordered.map((project) => (
           <li key={project.id} data-flip-key={project.id}>
             <article
@@ -983,9 +1006,10 @@ export function CardView({ ctx }: { ctx: CollectionViewContext }) {
         ))}
       </ul>
       {ctx.canEdit ? (
-        <p className={styles.hint}>
+        <p className={styles.hint} id="card-drag-hint">
           Drag a card onto another card to move it inside that project; drop between cards to
-          reorder.
+          reorder. Keyboard and menu users: open Actions on a card to move it earlier, later,
+          to another status, or to another project.
         </p>
       ) : null}
     </>
@@ -1077,6 +1101,7 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
       const hasChildren = (byParent.get(project.id) ?? []).length > 0;
       const isCollapsed = collapsed.has(project.id);
       const contextRow = isContext(project.id);
+      const siblings = byParent.get(project.parentId ?? ctx.projectId) ?? [];
       rowOrder.push(project.id);
       rows.push(
         <tr
@@ -1204,6 +1229,21 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
               <StatusControl ctx={ctx} project={project} label={`Status for ${project.title}`} />
             )}
           </td>
+          {ctx.canEdit ? (
+            <td className={styles.treeActionCell}>
+              {contextRow ? null : (
+                <span data-no-drag="">
+                  <ProjectActionsMenu
+                    ctx={ctx}
+                    project={project}
+                    siblings={siblings}
+                    allSiblings={siblings}
+                    canReparent={Boolean(project.canAdmin)}
+                  />
+                </span>
+              )}
+            </td>
+          ) : null}
         </tr>,
       );
       if (hasChildren && !isCollapsed) rows.push(...renderRows(project.id, depth + 1));
@@ -1232,7 +1272,11 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
           </Button>
         </div>
       ) : null}
-      <table className={styles.treeTable}>
+      <table
+        className={styles.treeTable}
+        aria-label="Child projects"
+        aria-describedby="tree-drag-hint"
+      >
         <thead>
           <tr>
             {selectable.length > 0 ? (
@@ -1252,14 +1296,21 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
             <th scope="col" className={styles.treeStatusHeader}>
               Status
             </th>
+            {ctx.canEdit ? (
+              <th scope="col" className={styles.treeActionHeader}>
+                <span className="visually-hidden">Actions</span>
+              </th>
+            ) : null}
           </tr>
         </thead>
         <tbody ref={tbodyRef}>{rows}</tbody>
       </table>
-      <p className={styles.hint}>
+      <p className={styles.hint} id="tree-drag-hint">
         Drag a project onto another row to move it inside that project. Drag between two rows to
         reorder it among siblings of the same parent; dropping between rows of a different parent
-        opens the move dialog. Select rows to move or trash several projects together.
+        opens the move dialog. Select rows to move or trash several projects together. Keyboard
+        and menu users: open Actions on a row to move it earlier, later, to another status, or to
+        another project.
       </p>
       {ctx.contextIds && ctx.contextIds.size > 0 ? (
         <p className={styles.hint}>
@@ -1329,7 +1380,12 @@ export function ListView({ ctx }: { ctx: CollectionViewContext }) {
 
   return (
     <>
-      <ul ref={listRef} className={styles.list} aria-label="Projects checklist">
+      <ul
+        ref={listRef}
+        className={styles.list}
+        aria-label="Projects checklist"
+        aria-describedby={ctx.canEdit ? 'list-drag-hint' : undefined}
+      >
         {ordered.map((project) => {
           const complete = finish !== null && project.statusId === finish.id;
           const disabled = !ctx.canEdit || !finish || !start;
@@ -1343,6 +1399,10 @@ export function ListView({ ctx }: { ctx: CollectionViewContext }) {
               data-drop={dropTarget?.id === project.id ? dropTarget.edge : undefined}
               draggable={ctx.canEdit}
               onDragStart={(event) => {
+                if ((event.target as HTMLElement).closest('[data-no-drag]')) {
+                  event.preventDefault();
+                  return;
+                }
                 cancelFlipAnimations();
                 event.dataTransfer.setData('text/plain', project.id);
                 event.dataTransfer.effectAllowed = 'move';
@@ -1405,12 +1465,25 @@ export function ListView({ ctx }: { ctx: CollectionViewContext }) {
                 <span>Open</span>
               </Link>
               <ArchivedBadge project={project} />
+              {ctx.canEdit ? (
+                <span data-no-drag="">
+                  <ProjectActionsMenu
+                    ctx={ctx}
+                    project={project}
+                    siblings={ordered}
+                    allSiblings={ordered}
+                  />
+                </span>
+              ) : null}
             </li>
           );
         })}
       </ul>
       {ctx.canEdit ? (
-        <p className={styles.hint}>Drag a row above or below another row to reorder it.</p>
+        <p className={styles.hint} id="list-drag-hint">
+          Drag a row above or below another row to reorder it. Keyboard and menu users: open
+          Actions on a row to move it earlier, later, to another status, or to another project.
+        </p>
       ) : null}
     </>
   );
