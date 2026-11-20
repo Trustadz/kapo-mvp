@@ -16,8 +16,9 @@ import { canReadProject, isActiveProject, loadAccessContext } from './permission
  * Home dashboard payloads (build-spec §6 rule 12, dashboard.md).
  *
  * Only the two registered widgets exist in this iteration:
- *  - `inbox`: the three oldest visible Inbox captures, parent context,
- *    readiness, the authorized total and a link to the global Inbox.
+ *  - `inbox`: the first three visible Inbox captures in the global project
+ *    order, parent context, readiness, the authorized total and a link to the
+ *    global Inbox.
  *  - `recent`: up to five visible audit events with actor, project, timestamp
  *    and a link to the project's Activity.
  *
@@ -58,7 +59,7 @@ export function getInboxWidget(
          LEFT JOIN statuses s ON s.id = p.status_id
         WHERE p.inbox = 1
           AND p.trashed_at IS NULL
-        ORDER BY p.seq ASC`,
+        ORDER BY p.priority ASC, p.created_at ASC, p.seq ASC`,
     )
     .all() as InboxRow[];
 

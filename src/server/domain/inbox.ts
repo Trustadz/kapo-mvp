@@ -36,7 +36,7 @@ export function listInbox(db: BetterSqliteDatabase, actor: AccessUser): InboxIte
     .prepare(
       `SELECT id FROM projects
         WHERE inbox = 1 AND trashed_at IS NULL
-        ORDER BY created_at ASC, seq ASC`,
+        ORDER BY priority ASC, created_at ASC, seq ASC`,
     )
     .all() as Array<{ id: string }>;
 
@@ -237,12 +237,10 @@ export function changeInboxParent(
   const timestamp = nowIso();
 
   db.transaction(() => {
-    const maxPriority = db
-      .prepare('SELECT COALESCE(MAX(priority), -1) AS priority FROM projects WHERE parent_id = ?')
-      .get(destinationId) as { priority: number };
+    // Issue #53: changing parent keeps the capture's global priority position.
     db.prepare(
-      'UPDATE projects SET parent_id = ?, status_id = ?, priority = ?, inbox = 1, updated_at = ? WHERE id = ?',
-    ).run(destinationId, start.id, maxPriority.priority + 1, timestamp, projectId);
+      'UPDATE projects SET parent_id = ?, status_id = ?, inbox = 1, updated_at = ? WHERE id = ?',
+    ).run(destinationId, start.id, timestamp, projectId);
 
     recordAuditEvent(db, {
       projectId,

@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 type Params = { id: string };
 
-/** POST /api/projects/:id/reorder — sibling priority rewrite (two-phase). */
+/** POST /api/projects/:id/reorder — global project-priority rewrite (two-phase). */
 export const POST = apiRoute<Params>(
   async ({ db, accessUser, params, request }) => {
     const body = await readJsonBody(request);

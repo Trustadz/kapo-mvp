@@ -42,10 +42,10 @@ function firstStatus(parentId: string | null): string | null {
   return row?.id ?? null;
 }
 
-function nextSiblingPriority(parentId: string): number {
-  const row = db
-    .prepare('SELECT COALESCE(MAX(priority), -1) AS priority FROM projects WHERE parent_id = ?')
-    .get(parentId) as { priority: number };
+function nextGlobalPriority(): number {
+  const row = db.prepare('SELECT COALESCE(MAX(priority), -1) AS priority FROM projects').get() as {
+    priority: number;
+  };
   return row.priority + 1;
 }
 
@@ -70,7 +70,7 @@ function insertProjectRow(overrides: Partial<Record<string, unknown>> = {}): voi
     overrides.priority !== undefined
       ? (overrides.priority as number)
       : parent
-        ? nextSiblingPriority(parent)
+        ? nextGlobalPriority()
         : 0,
     (overrides.inbox as number) ?? 1,
     (overrides.createdBy as string) ?? admin.id,

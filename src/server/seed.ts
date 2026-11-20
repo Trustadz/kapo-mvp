@@ -57,7 +57,6 @@ interface SeedProject {
   createdByKey: SeedUser['key'];
   statusIndex: number | null;
   inbox?: boolean;
-  priority: number;
   seq: number;
   createdAt: string;
   updatedAt: string;
@@ -167,7 +166,6 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
         reporterKey: 'tristan',
         createdByKey: 'tristan',
         statusIndex: null,
-        priority: 0,
         seq: 100,
         createdAt: daysAgo(4, 9, 5),
         updatedAt: daysAgo(4, 9, 5),
@@ -179,7 +177,6 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
         reporterKey: 'tristan',
         createdByKey: 'tristan',
         statusIndex: 0,
-        priority: 0,
         seq: 104,
         createdAt: daysAgo(3, 18, 4),
         updatedAt: daysAgo(2, 10, 42),
@@ -192,7 +189,6 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
         createdByKey: 'maya',
         statusIndex: 0,
         inbox: true,
-        priority: 0,
         seq: 105,
         createdAt: daysAgo(3, 17, 20),
         updatedAt: daysAgo(2, 9, 12),
@@ -204,7 +200,6 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
         reporterKey: 'jules',
         createdByKey: 'jules',
         statusIndex: 0,
-        priority: 0,
         seq: 106,
         createdAt: daysAgo(2, 9, 10),
         updatedAt: daysAgo(2, 9, 10),
@@ -216,7 +211,6 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
         reporterKey: 'jules',
         createdByKey: 'jules',
         statusIndex: 0,
-        priority: 1,
         seq: 107,
         createdAt: daysAgo(2, 9, 58),
         updatedAt: daysAgo(2, 9, 58),
@@ -228,7 +222,6 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
         reporterKey: 'maya',
         createdByKey: 'maya',
         statusIndex: 2,
-        priority: 2,
         seq: 108,
         createdAt: daysAgo(3, 12, 15),
         updatedAt: daysAgo(1, 15, 5),
@@ -240,7 +233,6 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
         reporterKey: 'tristan',
         createdByKey: 'tristan',
         statusIndex: 1,
-        priority: 3,
         seq: 109,
         createdAt: daysAgo(3, 11, 30),
         updatedAt: daysAgo(1, 11, 40),
@@ -252,7 +244,6 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
         reporterKey: 'maya',
         createdByKey: 'maya',
         statusIndex: 1,
-        priority: 4,
         seq: 110,
         createdAt: daysAgo(2, 8, 20),
         updatedAt: daysAgo(1, 16, 45),
@@ -264,7 +255,6 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
         reporterKey: 'maya',
         createdByKey: 'maya',
         statusIndex: 0,
-        priority: 1,
         seq: 111,
         createdAt: daysAgo(3, 9, 30),
         updatedAt: daysAgo(2, 11, 5),
@@ -276,7 +266,6 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
         reporterKey: 'tristan',
         createdByKey: 'tristan',
         statusIndex: 0,
-        priority: 0,
         seq: 112,
         createdAt: daysAgo(2, 11, 0),
         updatedAt: daysAgo(2, 11, 0),
@@ -289,7 +278,6 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
         createdByKey: 'maya',
         statusIndex: 0,
         inbox: true,
-        priority: 1,
         seq: 113,
         createdAt: daysAgo(2, 10, 15),
         updatedAt: daysAgo(2, 10, 15),
@@ -301,7 +289,6 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
         reporterKey: 'tristan',
         createdByKey: 'tristan',
         statusIndex: 0,
-        priority: 2,
         seq: 114,
         createdAt: daysAgo(3, 8, 45),
         updatedAt: daysAgo(2, 8, 30),
@@ -315,7 +302,6 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
         createdByKey: 'tristan',
         statusIndex: 0,
         inbox: true,
-        priority: 0,
         seq: 115,
         createdAt: daysAgo(2, 8, 25),
         updatedAt: daysAgo(2, 8, 25),
@@ -336,6 +322,10 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
 
     // Root first, then the rest with each project's parent's start status.
     const workflows = new Map<string, WorkflowStatusRow[]>();
+    // Issue #53: one global priority sequence shared by every project. The
+    // documented tree order below is the intended global order, so a single
+    // counter in insertion order is all the seed needs.
+    let nextGlobalPriority = 0;
 
     const insertProjectRow = (project: SeedProject): void => {
       const parentId = project.parentKey ? (projectIds.get(project.parentKey) ?? null) : null;
@@ -353,13 +343,14 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
         userId(project.reporterKey),
         parentId,
         status ? status.id : null,
-        project.priority,
+        nextGlobalPriority,
         project.inbox ? 1 : 0,
         JSON.stringify({ ...DEFAULT_PROJECT_SETTINGS, ...(project.settings ?? {}) }),
         userId(project.createdByKey),
         project.createdAt,
         project.updatedAt,
       );
+      nextGlobalPriority += 1;
 
       // Every project owns the workflow for its children, even projects that
       // do not have children yet. A leaf must be able to receive a child

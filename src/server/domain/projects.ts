@@ -62,8 +62,10 @@ import { ensureWorkflow, listWorkflow } from './workflow';
  *
  * Every mutation validates server-side, writes the audit event and FTS row in
  * the same transaction, and re-checks permissions through the permission
- * engine. Priority writes are two-phase because UNIQUE(parent_id, priority) is
- * immediate.
+ * engine. `projects.priority` is one app-wide sequence shared by every user
+ * (issue #53); it is only unique within a parent at the database level, so the
+ * write paths here keep it globally unique. Priority writes are two-phase
+ * because UNIQUE(parent_id, priority) is immediate.
  */
 
 export const PROJECT_COLUMNS = `
@@ -682,8 +684,8 @@ export function createProject(
       seq: number;
     };
     const maxPriority = db
-      .prepare('SELECT COALESCE(MAX(priority), -1) AS priority FROM projects WHERE parent_id = ?')
-      .get(input.parentId) as { priority: number };
+      .prepare('SELECT COALESCE(MAX(priority), -1) AS priority FROM projects')
+      .get() as { priority: number };
     const projectId = newId();
     db.prepare(
       `INSERT INTO projects (
@@ -943,7 +945,7 @@ export function setProjectFavorite(
 }
 
 /* ------------------------------------------------------------------------- */
-/* Reorder (within-column priority)                                          */
+/* Reorder (global project priority)                                         */
 /* ------------------------------------------------------------------------- */
 
 export interface ReorderInput {
@@ -969,7 +971,7 @@ export function reorderProject(
     throw new DomainError(403, 'forbidden', 'You need edit access to reorder projects.');
   }
   if (row.parent_id === null) {
-    throw new DomainError(422, 'validation_failed', 'Root has no sibling priority.');
+    throw new DomainError(422, 'validation_failed', 'Root cannot be reordered.');
   }
 
   let nextStatusId = row.status_id;
@@ -990,17 +992,22 @@ export function reorderProject(
   }
 
   const beforeId = input.beforeId === undefined ? null : input.beforeId;
-  let beforeRow: { id: string; parent_id: string | null } | null = null;
+  let beforeRow: { id: string } | null = null;
   if (beforeId !== null) {
     if (typeof beforeId !== 'string' || !beforeId) {
       throw new DomainError(422, 'validation_failed', 'Choose a valid position.');
     }
     if (beforeId === projectId) return mapProjectCard(row);
+    // Issue #53: beforeId may be any readable project in the tree, not only a
+    // sibling. Unreadable or trashed targets are not valid drop positions.
     const candidate = db
-      .prepare('SELECT id, parent_id FROM projects WHERE id = ?')
-      .get(beforeId) as { id: string; parent_id: string | null } | undefined;
-    if (!candidate || candidate.parent_id !== row.parent_id) {
-      throw new DomainError(422, 'validation_failed', 'That project is not a sibling.');
+      .prepare('SELECT id FROM projects WHERE id = ?')
+      .get(beforeId) as { id: string } | undefined;
+    if (!candidate || !canReadProject(ctx, beforeId)) {
+      throw new DomainError(422, 'validation_failed', 'Choose a valid position.');
+    }
+    if (isTrashedProject(ctx, beforeId)) {
+      throw new DomainError(422, 'validation_failed', 'That project is in Trash.');
     }
     beforeRow = candidate;
   }
@@ -1021,10 +1028,10 @@ export function reorderProject(
     : null;
 
   const transaction = db.transaction(() => {
-    const siblings = db
-      .prepare('SELECT id FROM projects WHERE parent_id = ? ORDER BY priority ASC, seq ASC')
-      .all(row.parent_id) as Array<{ id: string }>;
-    const ordered = siblings.map((sibling) => sibling.id).filter((id) => id !== projectId);
+    const globalOrder = db
+      .prepare('SELECT id FROM projects ORDER BY priority ASC, seq ASC')
+      .all() as Array<{ id: string }>;
+    const ordered = globalOrder.map((project) => project.id).filter((id) => id !== projectId);
     let insertIndex = ordered.length;
     if (beforeRow) {
       const index = ordered.indexOf(beforeRow.id);
@@ -1032,18 +1039,21 @@ export function reorderProject(
     }
     ordered.splice(insertIndex, 0, projectId);
 
-    // Two-phase rewrite: offset every sibling, then assign final priorities.
-    db.prepare('UPDATE projects SET priority = priority + 100000 WHERE parent_id = ?').run(row.parent_id);
-    const assign = db.prepare('UPDATE projects SET priority = ?, updated_at = ? WHERE id = ?');
+    // Two-phase rewrite of the whole global sequence: offset every row, then
+    // assign 0..N-1 with the dragged project in its new slot. Every other
+    // project keeps its relative order.
+    db.prepare('UPDATE projects SET priority = priority + 1000000').run();
+    const assign = db.prepare('UPDATE projects SET priority = ? WHERE id = ?');
     ordered.forEach((id, index) => {
-      assign.run(index, timestamp, id);
+      assign.run(index, id);
     });
+    db.prepare('UPDATE projects SET updated_at = ? WHERE id = ?').run(timestamp, projectId);
 
     if (statusChanged) {
       db.prepare('UPDATE projects SET status_id = ?, inbox = 0 WHERE id = ?').run(nextStatusId, projectId);
     }
 
-    const priorIndex = siblings.findIndex((sibling) => sibling.id === projectId);
+    const priorIndex = globalOrder.findIndex((project) => project.id === projectId);
     recordAuditEvent(db, {
       projectId,
       actorId: user.id,
@@ -1291,12 +1301,12 @@ export function moveProject(
   const oldParentTitle = row.parent_title ?? 'previous parent';
 
   const transaction = db.transaction(() => {
-    const maxPriority = db
-      .prepare('SELECT COALESCE(MAX(priority), -1) AS priority FROM projects WHERE parent_id = ?')
-      .get(destinationId) as { priority: number };
+    // Issue #53: reparenting keeps the project's global priority position; the
+    // sibling order in the destination is the global sequence restricted to
+    // its children.
     db.prepare(
-      'UPDATE projects SET parent_id = ?, status_id = ?, priority = ?, inbox = 0, updated_at = ? WHERE id = ?',
-    ).run(destinationId, mappedStatus.id, maxPriority.priority + 1, timestamp, projectId);
+      'UPDATE projects SET parent_id = ?, status_id = ?, inbox = 0, updated_at = ? WHERE id = ?',
+    ).run(destinationId, mappedStatus.id, timestamp, projectId);
 
     recordAuditEvent(db, {
       projectId,
@@ -1453,28 +1463,25 @@ export function moveProjects(
 
   const timestamp = nowIso();
   const transaction = db.transaction(() => {
-    const maxPriority = db
-      .prepare('SELECT COALESCE(MAX(priority), -1) AS priority FROM projects WHERE parent_id = ?')
-      .get(destinationId) as { priority: number };
-    let nextPriority = maxPriority.priority + 1;
+    // Issue #53: every moved project keeps its existing global priority; only
+    // the parent (and mapped status) changes.
     const update = db.prepare(
       `UPDATE projects
-          SET parent_id = ?, status_id = ?, priority = ?, inbox = 0, updated_at = ?
+          SET parent_id = ?, status_id = ?, inbox = 0, updated_at = ?
         WHERE id = ?`,
     );
     for (const row of rows) {
       const target = resolved.get(row.status_id as string);
       if (!target) continue;
       if (row.parent_id === destinationId) {
-        // Already a direct child: keep its sibling priority but apply the status map.
+        // Already a direct child: keep its global priority, apply the status map.
         db.prepare('UPDATE projects SET status_id = ?, inbox = 0, updated_at = ? WHERE id = ?').run(
           target.id,
           timestamp,
           row.id,
         );
       } else {
-        update.run(destinationId, target.id, nextPriority, timestamp, row.id);
-        nextPriority += 1;
+        update.run(destinationId, target.id, timestamp, row.id);
         recordAuditEvent(db, {
           projectId: row.id,
           actorId: user.id,
