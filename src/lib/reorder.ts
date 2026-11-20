@@ -84,3 +84,77 @@ export function reorderEdgeAt(
 ): ReorderEdge {
   return clientY - rectTop < rectHeight / 2 ? 'before' : 'after';
 }
+
+/** Vertical bounds of one card in a column-like stack. */
+export interface CardBounds {
+  top: number;
+  height: number;
+}
+
+/**
+ * Insertion index for a pointer over a vertical stack of cards (Kanban).
+ *
+ * The returned index is a slot in the list the caller passed in: 0 means
+ * "before the first card", `cards.length` means "after the last card". Cards
+ * are split at their midpoint, which is the same before/after rule as
+ * `reorderEdgeAt`, but expressed as a slot so a gap can be rendered between
+ * cards and inside the empty space below the last one.
+ *
+ * Kanban callers must pass the column without the dragged card so the index
+ * describes the list that will exist after the move.
+ */
+export function insertionIndexAt(
+  clientY: number,
+  cards: readonly CardBounds[],
+): number {
+  for (let index = 0; index < cards.length; index += 1) {
+    const card = cards[index];
+    if (!card || card.height <= 0) continue;
+    if (clientY < card.top + card.height / 2) return index;
+  }
+  return cards.length;
+}
+
+/**
+ * Plan a reorder when the pointer has already been resolved to an insertion
+ * slot. This is the Kanban equivalent of `planSiblingReorder`: the visible gap
+ * and the drop use the same index, so the card lands exactly where it was
+ * previewed. Returns `null` for a no-op (including a drop on the dragged card's
+ * current slot).
+ */
+export function planIndexReorder(
+  siblingIds: readonly string[],
+  draggedId: string,
+  insertionIndex: number,
+): ReorderPlan | null {
+  const currentIndex = siblingIds.indexOf(draggedId);
+  if (currentIndex < 0) return null;
+  const remaining = siblingIds.filter((id) => id !== draggedId);
+  const index = Math.min(Math.max(insertionIndex, 0), remaining.length);
+  if (index === currentIndex) return null;
+  if (remaining.length === 0) return null;
+  const targetId = remaining[index] ?? remaining[remaining.length - 1];
+  if (!targetId) return null;
+  return planSiblingReorder(
+    siblingIds,
+    draggedId,
+    targetId,
+    index < remaining.length ? 'before' : 'after',
+  );
+}
+
+/**
+ * Where a card will appear after a cross-column drop.
+ *
+ * Cross-column Kanban drops change status only, so the dragged card keeps its
+ * global sibling priority and lands between the target column's cards at that
+ * priority. The gap is placed there instead of under the pointer, which keeps
+ * the preview truthful.
+ */
+export function priorityInsertionIndex(
+  cards: readonly { priority: number }[],
+  priority: number,
+): number {
+  const index = cards.findIndex((card) => card.priority > priority);
+  return index === -1 ? cards.length : index;
+}

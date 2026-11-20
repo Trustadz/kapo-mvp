@@ -69,7 +69,7 @@ export default defineConfig({
     },
     {
       name: 'desktop',
-      testMatch: /(app|login|views-reorder|project-filters)\.spec\.ts/,
+      testMatch: /(app|login|views-reorder|project-filters|kanban-placeholder)\.spec\.ts/,
       dependencies: ['first-install'],
       use: { ...devices['Desktop Chrome'] },
     },

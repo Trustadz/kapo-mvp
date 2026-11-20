@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState, type DragEvent, type ReactElement } from 'react';
+import { Fragment, useMemo, useState, type DragEvent, type ReactElement } from 'react';
 import { Badge, Button, Checkbox, Icon, Menu, Select } from '@/components/ui';
 import type { MenuItem } from '@/components/ui';
 import type { Status } from '@/lib/types';
@@ -11,7 +11,10 @@ import { VIEW_FIELD_LABELS } from '@/lib/projects';
 import { formatDate, formatPersonName } from '@/lib/format';
 import {
   dropZoneAt,
+  insertionIndexAt,
+  planIndexReorder,
   planSiblingReorder,
+  priorityInsertionIndex,
   reorderEdgeAt,
   type DropZone,
   type ReorderEdge,
@@ -284,10 +287,26 @@ function ArchivedBadge({ project }: { project: ProjectCard }) {
 /* Kanban                                                                    */
 /* ------------------------------------------------------------------------- */
 
+interface KanbanDropTarget {
+  statusId: string;
+  /** Insertion slot in the column, 0..cards.length. */
+  index: number;
+}
+
+/** The gap that reserves the landing position (issue #25). */
+function KanbanPlaceholder() {
+  return (
+    <div
+      className={styles.kanbanPlaceholder}
+      data-kanban-placeholder=""
+      aria-hidden="true"
+    />
+  );
+}
+
 export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
   const [dragging, setDragging] = useState<ProjectCard | null>(null);
-  const [overColumn, setOverColumn] = useState<string | null>(null);
-  const [overCard, setOverCard] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<KanbanDropTarget | null>(null);
 
   const hidden = new Set(ctx.settings.hidden_statuses);
   const visibleStatuses = sortStatuses(ctx.statuses).filter((status) => !hidden.has(status.id));
@@ -299,11 +318,52 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
 
   const resetDrag = () => {
     setDragging(null);
-    setOverColumn(null);
-    setOverCard(null);
+    setDropTarget(null);
   };
 
-  const handleDrop = (event: DragEvent, statusId: string, target?: ProjectCard) => {
+  /**
+   * Classify the pointer against one column. Cards are measured from the DOM so
+   * the same rule works for the desktop drag events and (later) pointer drags.
+   * The dragged card is excluded: the gap describes the list after the move.
+   */
+  const targetAt = (
+    clientY: number,
+    statusId: string,
+    column: HTMLElement,
+    project: ProjectCard,
+  ): KanbanDropTarget => {
+    const cards = cardsFor(statusId);
+    if (project.statusId !== statusId) {
+      // Cross-column drops change status only, so priority decides the landing
+      // slot; previewing the pointer slot would promise a reorder that the API
+      // intentionally does not perform.
+      return { statusId, index: priorityInsertionIndex(cards, project.priority) };
+    }
+    const bounds = Array.from(
+      column.querySelectorAll<HTMLElement>('[data-kanban-card-id]'),
+    )
+      .filter((element) => element.dataset.kanbanCardId !== project.id)
+      .map((element) => {
+        const rect = element.getBoundingClientRect();
+        return { top: rect.top, height: rect.height };
+      });
+    return { statusId, index: insertionIndexAt(clientY, bounds) };
+  };
+
+  const finishDrop = (project: ProjectCard, target: KanbanDropTarget): void => {
+    if (project.statusId !== target.statusId) {
+      void changeStatus(ctx, project, target.statusId);
+      return;
+    }
+    const plan = planIndexReorder(
+      cardsFor(target.statusId).map((card) => card.id),
+      project.id,
+      target.index,
+    );
+    if (plan) void reorderBefore(ctx, project, plan.beforeId);
+  };
+
+  const handleDrop = (event: DragEvent<HTMLElement>, statusId: string): void => {
     event.preventDefault();
     const id = event.dataTransfer.getData('text/plain') || dragging?.id;
     const project = ordered.find((candidate) => candidate.id === id) ?? null;
@@ -311,97 +371,147 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
       resetDrag();
       return;
     }
-    if (target && target.id !== project.id) {
-      if (target.statusId === project.statusId) void reorderBefore(ctx, project, target.id);
-      else if (project.statusId && statusId) void changeStatus(ctx, project, statusId);
-      resetDrag();
-      return;
-    }
-    if (project.statusId !== statusId) void changeStatus(ctx, project, statusId);
+    const target = targetAt(event.clientY, statusId, event.currentTarget, project);
     resetDrag();
+    finishDrop(project, target);
   };
 
   return (
-    <div className={styles.kanban} role="list" aria-label="Kanban columns">
-      {columns.map((status) => {
-        const cards = cardsFor(status.id);
-        return (
-          <section
-            key={status.id}
-            className={styles.column}
-            data-over={overColumn === status.id || undefined}
-            aria-label={`${status.name}, ${cards.length} project${cards.length === 1 ? '' : 's'}`}
-            onDragOver={(event) => {
-              event.preventDefault();
-              event.dataTransfer.dropEffect = 'move';
-              setOverColumn(status.id);
-            }}
-            onDragLeave={(event) => {
-              if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
-              setOverColumn((current) => (current === status.id ? null : current));
-            }}
-            onDrop={(event) => handleDrop(event, status.id)}
-          >
-            <header className={styles.columnHeader}>
-              <h3 className={styles.columnTitle}>{status.name}</h3>
-              <span className={styles.columnCount} aria-hidden="true">
-                {cards.length}
-              </span>
-            </header>
-            <div className={styles.columnBody}>
-              {cards.length === 0 ? (
-                <p className={styles.columnEmpty}>No projects</p>
-              ) : (
-                cards.map((project) => (
-                  <article
-                    key={project.id}
-                    className={styles.kanbanCard}
-                    data-archived={project.archived || undefined}
-                    data-dragging={dragging?.id === project.id || undefined}
-                    data-over-card={overCard === project.id || undefined}
-                    draggable={ctx.canEdit}
-                    onDragStart={(event) => {
-                      event.dataTransfer.setData('text/plain', project.id);
-                      event.dataTransfer.effectAllowed = 'move';
-                      setDragging(project);
-                    }}
-                    onDragEnd={resetDrag}
-                    onDragOver={(event) => {
-                      if (!dragging || dragging.id === project.id) return;
-                      event.preventDefault();
-                      event.stopPropagation();
-                      setOverCard(project.id);
-                    }}
-                    onDragLeave={() => setOverCard((current) => (current === project.id ? null : current))}
-                    onDrop={(event) => {
-                      event.stopPropagation();
-                      handleDrop(event, status.id, project);
-                    }}
-                  >
-                    <div className={styles.cardTop}>
-                      <Link href={`/p/${project.id}`} className={styles.cardTitle}>
-                        {project.title}
-                      </Link>
-                      <ProjectActionsMenu
-                        ctx={ctx}
-                        project={project}
-                        siblings={cards}
-                        allSiblings={ordered}
-                      />
-                    </div>
-                    <ViewMeta project={project} fields={ctx.settings.view_fields.kanban} />
-                    <div className={styles.cardMeta}>
-                      <ArchivedBadge project={project} />
-                      {project.inbox ? <Badge tone="warning">Inbox</Badge> : null}
-                    </div>
-                  </article>
-                ))
-              )}
-            </div>
-          </section>
-        );
-      })}
-    </div>
+    <>
+      <div
+        className={styles.kanban}
+        role="list"
+        aria-label="Kanban columns"
+        data-kanban-scroller=""
+      >
+        {columns.map((status) => {
+          const cards = cardsFor(status.id);
+          const activeTarget = dropTarget?.statusId === status.id ? dropTarget : null;
+          const remainingCards = dragging
+            ? cards.filter((card) => card.id !== dragging.id)
+            : cards;
+          const remainingIndex = new Map(
+            remainingCards.map((card, index) => [card.id, index]),
+          );
+          let gapIndex: number | null = null;
+          if (activeTarget && dragging) {
+            if (dragging.statusId !== status.id) {
+              gapIndex = Math.min(activeTarget.index, remainingCards.length);
+            } else {
+              const plan = planIndexReorder(
+                cards.map((card) => card.id),
+                dragging.id,
+                activeTarget.index,
+              );
+              // No gap for a no-op (e.g. hovering the dragged card's own slot).
+              if (plan) gapIndex = plan.index;
+            }
+          }
+
+          return (
+            <section
+              key={status.id}
+              className={styles.column}
+              data-over={activeTarget ? '' : undefined}
+              data-kanban-status-id={status.id}
+              aria-label={`${status.name}, ${cards.length} project${cards.length === 1 ? '' : 's'}`}
+              onDragOver={(event) => {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'move';
+                if (!dragging) return;
+                const next = targetAt(
+                  event.clientY,
+                  status.id,
+                  event.currentTarget,
+                  dragging,
+                );
+                setDropTarget((current) =>
+                  current?.statusId === next.statusId && current.index === next.index
+                    ? current
+                    : next,
+                );
+              }}
+              onDragLeave={(event) => {
+                if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+                setDropTarget((current) =>
+                  current?.statusId === status.id ? null : current,
+                );
+              }}
+              onDrop={(event) => handleDrop(event, status.id)}
+            >
+              <header className={styles.columnHeader}>
+                <h3 className={styles.columnTitle}>{status.name}</h3>
+                <span className={styles.columnCount} aria-hidden="true">
+                  {cards.length}
+                </span>
+              </header>
+              <div className={styles.columnBody}>
+                {cards.length === 0 ? (
+                  gapIndex === 0 ? (
+                    <KanbanPlaceholder />
+                  ) : (
+                    <p className={styles.columnEmpty}>No projects</p>
+                  )
+                ) : (
+                  <>
+                    {cards.map((project) => (
+                      <Fragment key={project.id}>
+                        {gapIndex !== null &&
+                        remainingIndex.get(project.id) === gapIndex ? (
+                          <KanbanPlaceholder />
+                        ) : null}
+                        <article
+                          className={styles.kanbanCard}
+                          data-archived={project.archived || undefined}
+                          data-dragging={dragging?.id === project.id || undefined}
+                          data-kanban-card-id={project.id}
+                          draggable={ctx.canEdit}
+                          onDragStart={(event) => {
+                            event.dataTransfer.setData('text/plain', project.id);
+                            event.dataTransfer.effectAllowed = 'move';
+                            setDragging(project);
+                            setDropTarget(null);
+                          }}
+                          onDragEnd={resetDrag}
+                        >
+                          <div className={styles.cardTop}>
+                            <Link href={`/p/${project.id}`} className={styles.cardTitle}>
+                              {project.title}
+                            </Link>
+                            <ProjectActionsMenu
+                              ctx={ctx}
+                              project={project}
+                              siblings={cards}
+                              allSiblings={ordered}
+                            />
+                          </div>
+                          <ViewMeta
+                            project={project}
+                            fields={ctx.settings.view_fields.kanban}
+                          />
+                          <div className={styles.cardMeta}>
+                            <ArchivedBadge project={project} />
+                            {project.inbox ? <Badge tone="warning">Inbox</Badge> : null}
+                          </div>
+                        </article>
+                      </Fragment>
+                    ))}
+                    {gapIndex === remainingCards.length ? <KanbanPlaceholder /> : null}
+                  </>
+                )}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+      {ctx.canEdit ? (
+        <p className={styles.hint}>
+          Drag a card onto a column to change its status, or between cards to reorder it.
+          The highlighted gap shows where it will land. On touch, press and hold a card,
+          then drag.
+        </p>
+      ) : null}
+    </>
   );
 }
 

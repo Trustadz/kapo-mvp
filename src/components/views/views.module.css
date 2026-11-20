@@ -42,6 +42,7 @@
 
 .column[data-over] {
   outline-color: var(--color-brand);
+  background: var(--color-brand-light);
 }
 
 .columnHeader {
@@ -96,9 +97,14 @@
   opacity: 0.7;
 }
 
-.kanbanCard[data-over-card] {
-  border-color: var(--color-brand);
-  box-shadow: inset 0 0 0 1px var(--color-brand);
+/* Issue #25: reserve the landing slot while a card is dragged. The gap is a
+   real flex child, so the surrounding cards move aside before release. */
+.kanbanPlaceholder {
+  min-height: 84px;
+  border: 2px dashed var(--color-brand);
+  border-radius: var(--radius-md);
+  background: var(--color-brand-light);
+  pointer-events: none;
 }
 
 /* Drag reorder affordances (issue #28): a clear line between rows/cards for
