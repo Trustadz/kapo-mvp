@@ -160,6 +160,11 @@
   width: 100%;
   overflow-y: auto;
   min-height: 0;
+  /* The scroll container clips at its padding box. Pad and pull back by the
+     focus ring's outer radius (2px outline + 2px offset) so favorite links keep
+     a visible ring instead of a clipped one. */
+  padding: var(--space-1);
+  margin: calc(-1 * var(--space-1));
 }
 
 .sidebar[data-collapsed] .favorites {
