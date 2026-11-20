@@ -68,14 +68,13 @@ export const PROJECT_FIELD_LABELS: Record<ProjectFieldKey, string> = {
  * Only core fields are allowed in the MVP; add-on field slots are deferred with
  * the add-on registry (docs/add-ons.md) and will extend this list later.
  */
-export const VIEW_FIELD_KEYS = ['status', 'parent', 'reporter', 'priority', 'created', 'id'] as const;
+export const VIEW_FIELD_KEYS = ['status', 'parent', 'reporter', 'created', 'id'] as const;
 export type ViewFieldKey = (typeof VIEW_FIELD_KEYS)[number];
 
 export const VIEW_FIELD_LABELS: Record<ViewFieldKey, string> = {
   status: 'Status',
   parent: 'Parent',
   reporter: 'Reporter',
-  priority: 'Priority',
   created: 'Created',
   id: 'Project ID',
 };

@@ -188,6 +188,13 @@ function toCollectionView(value: unknown): CollectionView | null {
     : null;
 }
 
+/**
+ * View-property keys that were retired from the selectable options (#4). Stored
+ * settings may still contain them, so both reading and validation drop them
+ * without reordering the surrounding fields or failing the request.
+ */
+const RETIRED_VIEW_FIELD_KEYS: ReadonlySet<string> = new Set(['priority']);
+
 function parseViewFields(value: unknown): ViewFields {
   const views: ViewFields = {
     kanban: [...DEFAULT_VIEW_FIELDS.kanban],
@@ -438,6 +445,8 @@ export function updateProjectSettings(
         }
         const list: ViewFieldKey[] = [];
         for (const entry of raw) {
+          // Retired keys are dropped silently so legacy payloads keep working.
+          if (typeof entry === 'string' && RETIRED_VIEW_FIELD_KEYS.has(entry)) continue;
           if (typeof entry !== 'string' || !(VIEW_FIELD_KEYS as readonly string[]).includes(entry)) {
             fields.view_fields = 'Only the supported core properties can be shown in views.';
             break;
