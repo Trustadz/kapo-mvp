@@ -40,6 +40,7 @@ function item(overrides: Partial<InboxItem> & { id: string; title: string }): In
     startStatusId: 'status-todo',
     startStatusName: 'To do',
     canRelease: true,
+    canChangeParent: true,
     ...rest,
   };
 }

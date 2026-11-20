@@ -361,22 +361,21 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
         project.updatedAt,
       );
 
-      // Every project owns the workflow for its children.
-      const childCount = projects.filter((candidate) => candidate.parentKey === project.key).length;
-      if (childCount > 0) {
-        const statuses =
-          project.key === 'root' || project.key === 'home'
-            ? insertWorkflow(db, id, [
-                { name: 'To do', isStart: true },
-                { name: 'In progress' },
-                { name: 'Done', isFinish: true },
-              ])
-            : insertWorkflow(db, id, [
-                { name: 'To do', isStart: true },
-                { name: 'Done', isFinish: true },
-              ]);
-        workflows.set(project.key, statuses);
-      }
+      // Every project owns the workflow for its children, even projects that
+      // do not have children yet. A leaf must be able to receive a child
+      // immediately, so its default workflow is part of the seed invariant.
+      const statuses =
+        project.key === 'root' || project.key === 'home'
+          ? insertWorkflow(db, id, [
+              { name: 'To do', isStart: true },
+              { name: 'In progress' },
+              { name: 'Done', isFinish: true },
+            ])
+          : insertWorkflow(db, id, [
+              { name: 'To do', isStart: true },
+              { name: 'Done', isFinish: true },
+            ]);
+      workflows.set(project.key, statuses);
 
       indexProject(db, { projectId: id, title: project.title, body: '' });
     };

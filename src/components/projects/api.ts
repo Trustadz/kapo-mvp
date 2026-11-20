@@ -109,6 +109,14 @@ export function releaseInboxProject(
   return postJson(`/api/inbox/${projectId}/release`, {});
 }
 
+/** Reparents an Inbox capture while keeping it in the Inbox (#15). */
+export function changeInboxParentRequest(
+  projectId: string,
+  destinationId: string,
+): Promise<ApiResult<{ project: ProjectCard }>> {
+  return postJson(`/api/inbox/${projectId}/parent`, { destinationId });
+}
+
 export function fetchActivityPage(
   projectId: string,
   cursor: string,

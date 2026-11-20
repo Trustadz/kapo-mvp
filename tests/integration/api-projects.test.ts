@@ -6,6 +6,7 @@ import {
   createProject as createFixtureProject,
   createUser,
   createWorkflow,
+  getStartStatus,
   grantRole,
   getProjectRow,
   type FixtureHousehold,
@@ -34,6 +35,7 @@ const trashRoute = await import('@/app/api/projects/[id]/trash/route');
 const restoreRoute = await import('@/app/api/projects/[id]/restore/route');
 const inboxRoute = await import('@/app/api/inbox/route');
 const releaseRoute = await import('@/app/api/inbox/[id]/release/route');
+const changeParentRoute = await import('@/app/api/inbox/[id]/parent/route');
 const searchRoute = await import('@/app/api/search/route');
 
 // apiRoute-wrapped handlers take (request, context); these thin wrappers keep
@@ -521,6 +523,117 @@ describe('GET /api/inbox and release', () => {
       params('nope'),
     );
     expect(missing.status).toBe(404);
+  });
+});
+
+describe('POST /api/inbox/:id/parent', () => {
+  async function captureUnder(title: string, parentId: string) {
+    const response = await capture(
+      request('/api/projects', { method: 'POST', body: { parentId, title } }),
+    );
+    expect(response.status).toBe(201);
+    return (
+      await json<{ project: { id: string; statusId: string; inbox: boolean } }>(response)
+    ).project;
+  }
+
+  function changeParent(projectId: string, body: Record<string, unknown>) {
+    return changeParentRoute.POST(
+      request(`/api/inbox/${projectId}/parent`, { method: 'POST', body }),
+      params(projectId),
+    );
+  }
+
+  it('reparents an Inbox capture, keeps it in the Inbox and applies the new Start status', async () => {
+    const project = await captureUnder('Misfiled capture', household.home.id);
+    const personalStart = getStartStatus(db, household.personal.id);
+
+    const response = await changeParent(project.id, {
+      destinationId: household.personal.id,
+    });
+    expect(response.status).toBe(200);
+    const payload = await json<{
+      project: {
+        id: string;
+        inbox: boolean;
+        statusId: string | null;
+        statusName: string | null;
+        parent: { id: string; title: string } | null;
+      };
+    }>(response);
+    expect(payload.project.inbox).toBe(true);
+    expect(payload.project.statusId).toBe(personalStart.id);
+    expect(payload.project.statusName).toBe(personalStart.name);
+    expect(payload.project.parent).toEqual({
+      id: household.personal.id,
+      title: 'Personal',
+    });
+
+    // The Inbox still lists it, now under the new parent.
+    const inbox = await json<{
+      items: Array<{
+        project: { id: string };
+        parentTitle: string | null;
+        startStatusName: string | null;
+      }>;
+    }>(await inboxGet());
+    const item = inbox.items.find((entry) => entry.project.id === project.id);
+    expect(item).toBeDefined();
+    expect(item?.parentTitle).toBe('Personal');
+    expect(item?.startStatusName).toBe(personalStart.name);
+
+    const row = getProjectRow(db, project.id)!;
+    expect(row.parent_id).toBe(household.personal.id);
+    expect(row.status_id).toBe(personalStart.id);
+    expect(row.inbox).toBe(1);
+  });
+
+  it('rejects same-parent, forbidden and missing destinations with the standard envelope', async () => {
+    const project = await captureUnder('Parent validation', household.home.id);
+
+    const same = await changeParent(project.id, { destinationId: household.home.id });
+    expect(same.status).toBe(422);
+    const samePayload = await json<{
+      error: { code: string; message: string; fields?: Record<string, string> };
+    }>(same);
+    expect(samePayload.error.code).toBe('validation_failed');
+    expect(samePayload.error.message).toMatch(/already under/i);
+    expect(samePayload.error.fields?.destinationId).toBeDefined();
+
+    const missing = await changeParent(project.id, { destinationId: 'missing-project' });
+    expect(missing.status).toBe(404);
+
+    const invalid = await changeParent(project.id, {});
+    expect(invalid.status).toBe(422);
+
+    // Viewer on the capture cannot reparent it.
+    signIn(db, household.alex.id);
+    const forbidden = await changeParent(project.id, {
+      destinationId: household.personal.id,
+    });
+    expect(forbidden.status).toBe(403);
+
+    // The capture is still under its original parent and in the Inbox.
+    signIn(db, household.tristan.id);
+    const row = getProjectRow(db, project.id)!;
+    expect(row.parent_id).toBe(household.home.id);
+    expect(row.inbox).toBe(1);
+  });
+
+  it('rejects captures that already left the Inbox', async () => {
+    const project = await captureUnder('Released capture', household.home.id);
+    const released = await releaseRoute.POST(
+      request(`/api/inbox/${project.id}/release`, { method: 'POST', body: {} }),
+      params(project.id),
+    );
+    expect(released.status).toBe(200);
+
+    const response = await changeParent(project.id, {
+      destinationId: household.personal.id,
+    });
+    expect(response.status).toBe(422);
+    const payload = await json<{ error: { message: string } }>(response);
+    expect(payload.error.message).toMatch(/Inbox/i);
   });
 });
 
