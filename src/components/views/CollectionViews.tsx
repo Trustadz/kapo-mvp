@@ -9,6 +9,13 @@ import type { ProjectCard, ProjectWithParent } from '@/components/projects/types
 import type { ViewFieldKey } from '@/lib/projects';
 import { VIEW_FIELD_LABELS } from '@/lib/projects';
 import { formatDate, formatPersonName } from '@/lib/format';
+import {
+  dropZoneAt,
+  planSiblingReorder,
+  reorderEdgeAt,
+  type DropZone,
+  type ReorderEdge,
+} from '@/lib/reorder';
 import { releaseInboxProject } from '@/components/projects/api';
 import {
   reorderProjectRequest,
@@ -21,10 +28,13 @@ import styles from './views.module.css';
 /**
  * Collection views: Kanban, Card, Tree and List (product.md §5).
  *
- * Desktop drag and drop uses HTML5 DnD: cross-column drops change only the
- * status (sibling priority is preserved), within-column drops rewrite sibling
- * priority. Every action is also available from the keyboard-operable "Move
- * to…" menu so mouse/touch/keyboard users can do the same thing.
+ * Desktop drag and drop uses HTML5 DnD. Kanban: cross-column drops change only
+ * the status (sibling priority is preserved), within-column drops rewrite
+ * sibling priority. Card and Tree: dropping between two rows/cards reorders
+ * siblings; dropping on a row/card opens the Move dialog to reparent the
+ * project. List only reorders siblings. Reordering is always sibling-only
+ * (issue #28); every action is also available from the keyboard-operable
+ * "Move to…" menu where the view renders one.
  */
 
 function sameStatusColumn(statuses: Status[], statusId: string | null): Status | undefined {
@@ -77,10 +87,17 @@ async function reorderBefore(
   ctx.refresh();
 }
 
+/** Classify a drop against the bounds of the row/card that received it. */
+function dropZoneForEvent(event: DragEvent<HTMLElement>): DropZone {
+  const rect = event.currentTarget.getBoundingClientRect();
+  return dropZoneAt(event.clientY, rect.top, rect.height);
+}
+
 interface ProjectActionsMenuProps {
   ctx: CollectionViewContext;
   project: ProjectCard;
-  columnSiblings: ProjectCard[];
+  /** Projects the earlier/later actions step through (a Kanban column). */
+  siblings: ProjectCard[];
   allSiblings: ProjectCard[];
 }
 
@@ -88,14 +105,14 @@ interface ProjectActionsMenuProps {
 export function ProjectActionsMenu({
   ctx,
   project,
-  columnSiblings,
+  siblings,
   allSiblings,
 }: ProjectActionsMenuProps) {
-  const columnIndex = columnSiblings.findIndex((sibling) => sibling.id === project.id);
-  const previousInColumn = columnIndex > 0 ? columnSiblings[columnIndex - 1] : undefined;
+  const columnIndex = siblings.findIndex((sibling) => sibling.id === project.id);
+  const previousInColumn = columnIndex > 0 ? siblings[columnIndex - 1] : undefined;
   const nextInColumn =
-    columnIndex >= 0 && columnIndex < columnSiblings.length - 1
-      ? columnSiblings[columnIndex + 1]
+    columnIndex >= 0 && columnIndex < siblings.length - 1
+      ? siblings[columnIndex + 1]
       : undefined;
 
   const globalIndex = allSiblings.findIndex((sibling) => sibling.id === project.id);
@@ -368,7 +385,7 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
                       <ProjectActionsMenu
                         ctx={ctx}
                         project={project}
-                        columnSiblings={cards}
+                        siblings={cards}
                         allSiblings={ordered}
                       />
                     </div>
@@ -394,54 +411,131 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
 
 export function CardView({ ctx }: { ctx: CollectionViewContext }) {
   const ordered = orderedChildren(ctx.children);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ id: string; zone: DropZone } | null>(null);
+
+  const resetDrag = () => {
+    setDraggingId(null);
+    setDropTarget(null);
+  };
+
+  const handleDragOver = (event: DragEvent<HTMLElement>, project: ProjectCard) => {
+    if (!draggingId || draggingId === project.id) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    const zone = dropZoneForEvent(event);
+    setDropTarget((current) =>
+      current?.id === project.id && current.zone === zone ? current : { id: project.id, zone },
+    );
+  };
+
+  const handleDrop = (event: DragEvent<HTMLElement>, project: ProjectCard) => {
+    event.preventDefault();
+    const id = event.dataTransfer.getData('text/plain') || draggingId;
+    const zone = dropZoneForEvent(event);
+    resetDrag();
+    if (!id || id === project.id) return;
+    const dragged = ordered.find((candidate) => candidate.id === id);
+    if (!dragged) return;
+    // Drop on the card body = make it a child (explicit move + status mapping).
+    if (zone === 'inside') {
+      ctx.openMoveDialog(id, project.id);
+      return;
+    }
+    // Drop on an edge = sibling reorder. Cards are direct children of this page,
+    // so the dragged project is always a sibling of the target.
+    const plan = planSiblingReorder(
+      ordered.map((sibling) => sibling.id),
+      id,
+      project.id,
+      zone,
+    );
+    if (!plan) return;
+    void reorderBefore(ctx, dragged, plan.beforeId);
+  };
+
   return (
-    <ul className={styles.cardList} aria-label="Projects as cards">
-      {ordered.map((project) => (
-        <li key={project.id}>
-          <article className={styles.projectCard} data-archived={project.archived || undefined}>
-            <div className={styles.cardTop}>
-              <Link href={`/p/${project.id}`} className={styles.cardTitle}>
-                {project.title}
-              </Link>
-              <ProjectActionsMenu
-                ctx={ctx}
-                project={project}
-                columnSiblings={ordered.filter((sibling) => sibling.statusId === project.statusId)}
-                allSiblings={ordered}
-              />
-            </div>
-            <ViewMeta project={project} fields={ctx.settings.view_fields.card} />
-            <div className={styles.cardRow}>
-              <StatusControl ctx={ctx} project={project} />
-              {project.inbox && ctx.canEdit ? (
-                <Button
-                  size="sm"
-                  variant="quiet"
-                  onClick={() => {
-                    void releaseInboxProject(project.id).then((result) => {
-                      if (!result.ok) {
-                        ctx.notify(result.message, 'error');
-                        return;
-                      }
-                      ctx.notify(`Released “${project.title}” to the start status.`);
-                      ctx.refresh();
-                    });
-                  }}
+    <>
+      <ul className={styles.cardList} aria-label="Projects as cards">
+        {ordered.map((project) => (
+          <li key={project.id}>
+            <article
+              className={styles.projectCard}
+              data-archived={project.archived || undefined}
+              data-dragging={draggingId === project.id || undefined}
+              data-drop={dropTarget?.id === project.id ? dropTarget.zone : undefined}
+              draggable={ctx.canEdit}
+              onDragStart={(event) => {
+                event.dataTransfer.setData('text/plain', project.id);
+                event.dataTransfer.effectAllowed = 'move';
+                setDraggingId(project.id);
+              }}
+              onDragEnd={resetDrag}
+              onDragOver={(event) => handleDragOver(event, project)}
+              onDragLeave={(event) => {
+                if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+                setDropTarget((current) => (current?.id === project.id ? null : current));
+              }}
+              onDrop={(event) => handleDrop(event, project)}
+            >
+              <div className={styles.cardTop}>
+                <Link
+                  href={`/p/${project.id}`}
+                  className={styles.cardTitle}
+                  draggable={false}
                 >
-                  Release to {project.statusName ?? 'the start status'}
-                </Button>
-              ) : null}
-              <Link href={`/p/${project.id}`} className={styles.openLink}>
-                <Icon name="open_in_new" size={18} />
-                <span>Open</span>
-              </Link>
-              <ArchivedBadge project={project} />
-              {project.inbox ? <Badge tone="warning">Inbox</Badge> : null}
-            </div>
-          </article>
-        </li>
-      ))}
-    </ul>
+                  {project.title}
+                </Link>
+                <ProjectActionsMenu
+                  ctx={ctx}
+                  project={project}
+                  siblings={ordered}
+                  allSiblings={ordered}
+                />
+              </div>
+              <ViewMeta project={project} fields={ctx.settings.view_fields.card} />
+              <div className={styles.cardRow}>
+                <StatusControl ctx={ctx} project={project} />
+                {project.inbox && ctx.canEdit ? (
+                  <Button
+                    size="sm"
+                    variant="quiet"
+                    onClick={() => {
+                      void releaseInboxProject(project.id).then((result) => {
+                        if (!result.ok) {
+                          ctx.notify(result.message, 'error');
+                          return;
+                        }
+                        ctx.notify(`Released “${project.title}” to the start status.`);
+                        ctx.refresh();
+                      });
+                    }}
+                  >
+                    Release to {project.statusName ?? 'the start status'}
+                  </Button>
+                ) : null}
+                <Link
+                  href={`/p/${project.id}`}
+                  className={styles.openLink}
+                  draggable={false}
+                >
+                  <Icon name="open_in_new" size={18} />
+                  <span>Open</span>
+                </Link>
+                <ArchivedBadge project={project} />
+                {project.inbox ? <Badge tone="warning">Inbox</Badge> : null}
+              </div>
+            </article>
+          </li>
+        ))}
+      </ul>
+      {ctx.canEdit ? (
+        <p className={styles.hint}>
+          Drag a card onto another card to move it inside that project; drop between cards to
+          reorder.
+        </p>
+      ) : null}
+    </>
   );
 }
 
@@ -452,11 +546,16 @@ export function CardView({ ctx }: { ctx: CollectionViewContext }) {
 export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ id: string; zone: DropZone } | null>(null);
   // Selection is independent of expansion state, so it survives expand/collapse.
   // The view unmounts when the collection view changes, which clears it.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkDialog, setBulkDialog] = useState<'move' | 'trash' | null>(null);
+
+  const resetDrag = () => {
+    setDraggingId(null);
+    setDropTarget(null);
+  };
 
   const byParent = useMemo(() => {
     const map = new Map<string, ProjectWithParent[]>();
@@ -528,24 +627,53 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
             event.dataTransfer.effectAllowed = 'move';
             setDraggingId(project.id);
           }}
-          onDragEnd={() => {
-            setDraggingId(null);
-            setDropTarget(null);
-          }}
+          onDragEnd={resetDrag}
           onDragOver={(event) => {
             if (!draggingId || draggingId === project.id) return;
             event.preventDefault();
-            setDropTarget(project.id);
+            event.dataTransfer.dropEffect = 'move';
+            const zone = dropZoneForEvent(event);
+            setDropTarget((current) =>
+              current?.id === project.id && current.zone === zone
+                ? current
+                : { id: project.id, zone },
+            );
           }}
-          onDragLeave={() => setDropTarget((current) => (current === project.id ? null : current))}
+          onDragLeave={(event) => {
+            if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+            setDropTarget((current) => (current?.id === project.id ? null : current));
+          }}
           onDrop={(event) => {
             event.preventDefault();
             const id = event.dataTransfer.getData('text/plain') || draggingId;
-            setDraggingId(null);
-            setDropTarget(null);
-            if (id && id !== project.id) ctx.openMoveDialog(id, project.id);
+            const zone = dropZoneForEvent(event);
+            resetDrag();
+            if (!id || id === project.id) return;
+            // Middle of the row keeps the existing behaviour: reparent onto it.
+            if (zone === 'inside') {
+              ctx.openMoveDialog(id, project.id);
+              return;
+            }
+            const dragged = ctx.descendants.find((candidate) => candidate.id === id);
+            if (!dragged) return;
+            const draggedParentId = dragged.parentId ?? ctx.projectId;
+            const targetParentId = project.parentId ?? ctx.projectId;
+            if (targetParentId === id) return;
+            if (draggedParentId !== targetParentId) {
+              // Reordering is sibling-only. Dropping between rows of another
+              // parent opens the Move dialog for that parent instead of
+              // inventing a cross-parent order.
+              ctx.openMoveDialog(id, targetParentId);
+              return;
+            }
+            const siblingIds = (byParent.get(targetParentId) ?? []).map(
+              (sibling) => sibling.id,
+            );
+            const plan = planSiblingReorder(siblingIds, id, project.id, zone);
+            if (!plan) return;
+            void reorderBefore(ctx, dragged, plan.beforeId);
           }}
-          data-drop={dropTarget === project.id || undefined}
+          data-drop={dropTarget?.id === project.id ? dropTarget.zone : undefined}
         >
           {selectable.length > 0 ? (
             <td className={styles.treeSelectCell} data-no-drag>
@@ -577,7 +705,11 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
               ) : (
                 <span className={styles.chevronSpacer} aria-hidden="true" />
               )}
-              <Link href={`/p/${project.id}`} className={styles.treeTitle}>
+              <Link
+                href={`/p/${project.id}`}
+                className={styles.treeTitle}
+                draggable={false}
+              >
                 {project.title}
               </Link>
               <ArchivedBadge project={project} />
@@ -638,8 +770,9 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
         <tbody>{renderRows(ctx.projectId, 0)}</tbody>
       </table>
       <p className={styles.hint}>
-        Drag a project onto another row to move it. Select rows to move or trash several projects
-        together; changes always ask for confirmation and explicit status mapping.
+        Drag a project onto another row to move it inside that project. Drag between two rows to
+        reorder it among siblings of the same parent; dropping between rows of a different parent
+        opens the move dialog. Select rows to move or trash several projects together.
       </p>
       <p className="visually-hidden" aria-live="polite">
         {allSiblings.length} direct child project{allSiblings.length === 1 ? '' : 's'}.
@@ -678,6 +811,13 @@ export function ListView({ ctx }: { ctx: CollectionViewContext }) {
   const ordered = orderedChildren(ctx.children);
   const finish = ctx.statuses.find((status) => status.isFinish) ?? null;
   const start = ctx.statuses.find((status) => status.isStart) ?? null;
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ id: string; edge: ReorderEdge } | null>(null);
+
+  const resetDrag = () => {
+    setDraggingId(null);
+    setDropTarget(null);
+  };
 
   const toggle = (project: ProjectCard, checked: boolean) => {
     const target = checked ? finish : start;
@@ -689,33 +829,89 @@ export function ListView({ ctx }: { ctx: CollectionViewContext }) {
   };
 
   return (
-    <ul className={styles.list} aria-label="Projects checklist">
-      {ordered.map((project) => {
-        const complete = finish !== null && project.statusId === finish.id;
-        const disabled = !ctx.canEdit || !finish || !start;
-        return (
-          <li key={project.id} className={styles.listRow} data-archived={project.archived || undefined}>
-            <Checkbox
-              label={
-                <span className={complete ? styles.listTitleDone : undefined}>
-                  {project.title}
-                </span>
-              }
-              checked={complete}
-              disabled={disabled}
-              onChange={(event) => toggle(project, event.target.checked)}
-            />
-            <ViewMeta project={project} fields={ctx.settings.view_fields.list} />
-            <span className={styles.listStatus}>{project.statusName ?? '—'}</span>
-            <Link href={`/p/${project.id}`} className={styles.openLink}>
-              <Icon name="open_in_new" size={18} />
-              <span>Open</span>
-            </Link>
-            <ArchivedBadge project={project} />
-          </li>
-        );
-      })}
-    </ul>
+    <>
+      <ul className={styles.list} aria-label="Projects checklist">
+        {ordered.map((project) => {
+          const complete = finish !== null && project.statusId === finish.id;
+          const disabled = !ctx.canEdit || !finish || !start;
+          return (
+            <li
+              key={project.id}
+              className={styles.listRow}
+              data-archived={project.archived || undefined}
+              data-dragging={draggingId === project.id || undefined}
+              data-drop={dropTarget?.id === project.id ? dropTarget.edge : undefined}
+              draggable={ctx.canEdit}
+              onDragStart={(event) => {
+                event.dataTransfer.setData('text/plain', project.id);
+                event.dataTransfer.effectAllowed = 'move';
+                setDraggingId(project.id);
+              }}
+              onDragEnd={resetDrag}
+              onDragOver={(event) => {
+                if (!draggingId || draggingId === project.id) return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'move';
+                const rect = event.currentTarget.getBoundingClientRect();
+                const edge = reorderEdgeAt(event.clientY, rect.top, rect.height);
+                setDropTarget((current) =>
+                  current?.id === project.id && current.edge === edge
+                    ? current
+                    : { id: project.id, edge },
+                );
+              }}
+              onDragLeave={(event) => {
+                if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+                setDropTarget((current) => (current?.id === project.id ? null : current));
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                const id = event.dataTransfer.getData('text/plain') || draggingId;
+                const rect = event.currentTarget.getBoundingClientRect();
+                const edge = reorderEdgeAt(event.clientY, rect.top, rect.height);
+                resetDrag();
+                if (!id || id === project.id) return;
+                const dragged = ordered.find((candidate) => candidate.id === id);
+                if (!dragged) return;
+                const plan = planSiblingReorder(
+                  ordered.map((sibling) => sibling.id),
+                  id,
+                  project.id,
+                  edge,
+                );
+                if (!plan) return;
+                void reorderBefore(ctx, dragged, plan.beforeId);
+              }}
+            >
+              <Checkbox
+                label={
+                  <span className={complete ? styles.listTitleDone : undefined}>
+                    {project.title}
+                  </span>
+                }
+                checked={complete}
+                disabled={disabled}
+                onChange={(event) => toggle(project, event.target.checked)}
+              />
+              <ViewMeta project={project} fields={ctx.settings.view_fields.list} />
+              <span className={styles.listStatus}>{project.statusName ?? '—'}</span>
+              <Link
+                href={`/p/${project.id}`}
+                className={styles.openLink}
+                draggable={false}
+              >
+                <Icon name="open_in_new" size={18} />
+                <span>Open</span>
+              </Link>
+              <ArchivedBadge project={project} />
+            </li>
+          );
+        })}
+      </ul>
+      {ctx.canEdit ? (
+        <p className={styles.hint}>Drag a row above or below another row to reorder it.</p>
+      ) : null}
+    </>
   );
 }
 
