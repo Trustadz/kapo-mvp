@@ -65,7 +65,11 @@ export function AppShell({ user, favorites, rootProjectId, children }: AppShellP
           {children}
         </main>
       </div>
-      <MobileNav rootProjectId={rootProjectId} canCapture={user.appRole !== 'viewer'} />
+      <MobileNav
+        rootProjectId={rootProjectId}
+        favorites={favorites}
+        canCapture={user.appRole !== 'viewer'}
+      />
       <ServiceWorkerRegister />
     </div>
   );
