@@ -167,7 +167,7 @@ function kanbanCard(page: Page, title: string) {
 
 test.afterEach(async ({ page }) => {
   for (const id of createdIds.splice(0)) {
-    await page.request.post(`/api/projects/${id}/trash`).catch(() => undefined);
+    await page.request.post(`/api/projects/${id}/trash`, { data: {} }).catch(() => undefined);
   }
 });
 
