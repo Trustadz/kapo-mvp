@@ -6,9 +6,10 @@ node_modules/
 out/
 next-env.d.ts
 
-# runtime data (SQLite database, uploads)
+# runtime data (SQLite database, uploads, rolling backups)
 data/
 !data/.gitkeep
+backup/
 
 # tests
 coverage/

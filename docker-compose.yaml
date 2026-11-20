@@ -1,9 +1,31 @@
 services:
+  # One-shot root container: bind directories are created by Docker as root on
+  # a fresh checkout, but the app runs as UID/GID 1001. Fix ownership before
+  # the app starts so SQLite/uploads/backups are writable without manual chown.
+  kapo-init:
+    image: ${KAPO_IMAGE:-ghcr.io/trustadz/kapo-mvp}:${KAPO_IMAGE_TAG:-latest}
+    user: '0:0'
+    entrypoint:
+      [
+        'sh',
+        '-c',
+        'mkdir -p /app/data/uploads /backup && chown -R 1001:1001 /app/data /backup',
+      ]
+    restart: 'no'
+    volumes:
+      - ./data:/app/data
+      - ./backup:/backup
+
   kapo:
+    # Published by .github/workflows/publish-image.yaml. Local builds still
+    # work with `docker compose up -d --build`; production should `pull` first.
+    image: ${KAPO_IMAGE:-ghcr.io/trustadz/kapo-mvp}:${KAPO_IMAGE_TAG:-latest}
     build:
       context: .
-    image: kapo:latest
     container_name: kapo
+    depends_on:
+      kapo-init:
+        condition: service_completed_successfully
     init: true
     restart: unless-stopped
     stop_grace_period: 30s
@@ -16,7 +38,7 @@ services:
       KAPO_MIGRATIONS_DIR: /app/migrations
       KAPO_PUBLIC_URL: ${KAPO_PUBLIC_URL:-http://localhost:3000}
       # Daily backup destination and the timezone for its 02:00 schedule.
-      KAPO_BACKUP_DIR: ${KAPO_BACKUP_DIR:-/backup}
+      KAPO_BACKUP_DIR: /backup
       TZ: ${TZ:-UTC}
       KAPO_FORCE_SECURE_COOKIES: ${KAPO_FORCE_SECURE_COOKIES:-0}
       KAPO_DISABLE_PURGE: ${KAPO_DISABLE_PURGE:-0}

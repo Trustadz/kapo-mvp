@@ -8,7 +8,7 @@ This repository contains the Next.js/SQLite implementation of the MVP.
 - **Stack:** Next.js 16 (App Router), React 19, TypeScript (strict), SQLite via
   `better-sqlite3`, CSS Modules with design tokens. No Tailwind, no component
   library.
-- **Deployment:** one Docker Compose service with persistent data and backup volumes.
+- **Deployment:** one Docker Compose service with host-side `data/` and `backup/` folders.
 - **Source docs:** [`docs/build-spec.md`](docs/build-spec.md) is the binding
   engineering contract; [`product.md`](product.md) the product specification;
   `docs/reference/*.png` and the Penpot file are the visual source of truth.
@@ -96,7 +96,7 @@ Copy `.env.example` to `.env.local` if you need to override defaults:
 | `KAPO_MIGRATIONS_DIR` | `./src/server/db/migrations` | SQL migration directory |
 | `KAPO_FORCE_SECURE_COOKIES` | unset (`0` in Compose) | Force `Secure` cookies behind TLS proxies |
 | `KAPO_DISABLE_PURGE` | unset (`0` in Compose) | `1` disables the automatic trash purge (backups continue) |
-| `KAPO_BACKUP_DIR` | `/backup` (Docker), `./data/backups` (dev fallback) | Rolling backup destination and container mount target |
+| `KAPO_BACKUP_DIR` | `/backup` (Docker), `./data/backups` (dev fallback) | Internal rolling-backup destination; Compose sets `/backup` |
 | `KAPO_BIND` | `127.0.0.1` (Compose) | Host interface that publishes the app port |
 | `KAPO_PORT` | `3000` (Compose) | Host port that publishes the app |
 | `TZ` | `UTC` (Compose) | IANA timezone for the daily backup schedule and backup names |
@@ -106,9 +106,11 @@ SHA-256 hash), so no session secret is required.
 
 ## Run on a server (Docker Compose)
 
-The repository is public; clone it directly on the server. Compose runs one
-application container with two named volumes: `kapo-data` (SQLite database and
-uploads) and `kapo-backup` (rolling backups).
+The repository is public; clone it directly on the server. Compose runs the
+application plus a one-shot init container, using two host folders:
+`./data` (SQLite database and uploads) and `./backup` (rolling backups). The
+folders live next to `docker-compose.yaml`, so they are easy to inspect, copy
+and back up.
 
 ### Prerequisites
 
@@ -134,7 +136,8 @@ cp .env.example .env
 #   TZ=Europe/Amsterdam
 # Keep KAPO_BIND=127.0.0.1 when a reverse proxy runs on this host;
 # set KAPO_BIND=0.0.0.0 only for direct LAN access without a proxy.
-docker compose up -d --build
+docker compose pull        # fetch the published image
+docker compose up -d
 ```
 
 Open `https://kapo.example.com/setup` and create the first Admin. An empty
@@ -148,16 +151,48 @@ What the Compose file provides:
   (10 MB × 3).
 - Non-root runtime user UID/GID **1001** (`kapo`); only `/app/data` and
   `/backup` are writable.
-- `kapo-data:/app/data` (database + uploads) and `kapo-backup:/backup`
-  (backups), both persistent named volumes.
+- `./data:/app/data` (database + uploads) and `./backup:/backup` (backups),
+  both bind-mounted host folders.
+- A one-shot `kapo-init` container runs as root first and creates/chowns those
+  folders to 1001, so a fresh `docker compose up` needs no manual `chown`.
 - Publishes `${KAPO_BIND:-127.0.0.1}:${KAPO_PORT:-3000}:3000`: by default it
   listens on **localhost only**, suitable for a reverse proxy on the same host.
   Set `KAPO_BIND=0.0.0.0` only when clients reach Kapo directly over the LAN
   with no proxy and the port is protected by the firewall.
-- `KAPO_PUBLIC_URL`, `KAPO_BIND`, `KAPO_PORT`, `KAPO_BACKUP_DIR` and `TZ` read
-  from `.env`.
+- `KAPO_PUBLIC_URL`, `KAPO_BIND`, `KAPO_PORT`, `KAPO_IMAGE`, `KAPO_IMAGE_TAG`
+  and `TZ` read from `.env`.
 - A single replica: do not run multiple containers or Compose replicas against
-  the same SQLite volume.
+  the same `data/` folder.
+
+### Container image
+
+GitHub Actions publishes the image on every push to `main`:
+
+```
+ghcr.io/trustadz/kapo-mvp:latest
+ghcr.io/trustadz/kapo-mvp:sha-<short-sha>
+```
+
+Release tags (`v*`) are published as `ghcr.io/trustadz/kapo-mvp:<tag>`. The
+package page is
+[github.com/Trustadz/kapo-mvp/pkgs/container/kapo-mvp](https://github.com/Trustadz/kapo-mvp/pkgs/container/kapo-mvp).
+
+The image is built for **linux/amd64** (typical VPS). If your server is arm64,
+build on the server with `docker compose build` instead, or ask for an arm64
+publish.
+
+`docker compose pull` fetches the GHCR image; `docker compose up -d` starts it.
+If the package is private, authenticate once first:
+
+```bash
+echo "$GHCR_TOKEN" | docker login ghcr.io -u <github-username> --password-stdin
+```
+
+Use a GitHub token with `read:packages` (classic) or the equivalent fine-grained
+permission. No registry login is needed when the package is public.
+
+To build the image locally instead, run `docker compose up -d --build` (or
+`docker compose build`); no registry is involved.
 
 ### TLS reverse proxy
 
@@ -180,33 +215,22 @@ app to `127.0.0.1`, so the proxy can reach it but the internet cannot.
 that case restrict the port with the firewall and do not expose it to the
 internet.
 
-### Volumes and permissions
+### Host folders and permissions
 
-The volume names shown in this README (`kapo-data`, `kapo-backup`) are the
-logical names in `docker-compose.yaml`. Docker prefixes them with the Compose
-project name, so the actual names depend on the checkout directory (for example
-`kapo_kapo-data` or `13-backup_kapo-data`). Discover them with:
+Data and backups are ordinary host directories next to the Compose file:
 
-```bash
-docker compose config --volumes       # logical names
-docker volume ls | grep kapo          # actual names on this host
+```
+./data/kapo.db        SQLite database
+./data/uploads/       profile pictures
+./backup/kapo-.../    rolling backup folders
 ```
 
-The restore and export commands below use `docker compose run`, which mounts the
-same volumes automatically, so you rarely need the actual names. When copying a
-volume with plain `docker run`, use the name from `docker volume ls`.
+The one-shot `kapo-init` service creates them and sets UID/GID **1001** on every
+`docker compose up`, so root-owned folders from an earlier attempt are repaired
+automatically. No manual `chown` is normally needed.
 
-Named volumes inherit ownership from the image, so a normal
-`docker compose up` needs no manual `chown`. If you copy data between hosts or
-switch to bind mounts, the host directories must be writable by UID/GID 1001:
-
-```bash
-sudo mkdir -p /srv/kapo/data /srv/kapo/backup
-sudo chown -R 1001:1001 /srv/kapo/data /srv/kapo/backup
-```
-
-To use host directories instead of named volumes, edit `docker-compose.yaml`
-and replace the volume entries:
+If you move the folders (for example to `/srv/kapo`), edit both the bind mounts
+and keep the container targets `/app/data` and `/backup`:
 
 ```yaml
     volumes:
@@ -214,10 +238,15 @@ and replace the volume entries:
       - /srv/kapo/backup:/backup
 ```
 
-Set `KAPO_BACKUP_DIR` in `.env` to the container-side backup path (default
-`/backup`) if you change it; the Compose volume target follows that value. With
-a bind mount, back up the host directory with your normal host backup tooling as
-well as using Kapo's rolling backups.
+Then make the host folders writable by 1001 once:
+
+```bash
+sudo mkdir -p /srv/kapo/data /srv/kapo/backup
+sudo chown -R 1001:1001 /srv/kapo/data /srv/kapo/backup
+```
+
+On SELinux hosts add the `:z` suffix to the bind mounts. The `data/` and
+`backup/` folders are gitignored; never commit them.
 
 ### Logs and health
 
@@ -235,11 +264,12 @@ expired trash was removed).
 ```bash
 cd kapo
 git pull --ff-only
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 docker compose ps
 ```
 
-Take a backup/volume snapshot before updating. Startup applies forward-only SQL
+Take a backup or copy `./data` and `./backup` before updating. Startup applies forward-only SQL
 migrations; rolling back to an older image after a schema change is unsupported.
 
 ### Local Docker smoke test
@@ -262,8 +292,8 @@ Backups**:
 | Start time | `02:00` | Local wall-clock time in the server's `TZ` |
 | Keep backups | `3` | 1–30; oldest folders are removed after each successful run |
 
-Backups are written to `KAPO_BACKUP_DIR` (`/backup` in Compose, which is the
-`kapo-backup` volume). Each run creates a timestamped folder:
+Backups are written to the host `./backup` folder (mounted at `/backup` in the
+container). Each run creates a timestamped folder:
 
 ```
 /backup/kapo-YYYYMMDD-HHMMSS/
@@ -284,15 +314,12 @@ defaults to `UTC`) to the household's timezone for 02:00 to mean local time.
 Missed runs while the container was stopped are not replayed; the next run
 happens at the following scheduled time.
 
-Backups on the `kapo-backup` volume are not off-site copies. Copy them to
-another machine regularly, for example (this writes a tarball to a host
-directory; adjust the path):
+Backups in `./backup` are not off-site copies. Copy them to another machine
+regularly; because they are a host folder, a normal `tar` is enough:
 
 ```bash
 sudo mkdir -p /srv/kapo-exports
-docker compose run --rm --no-deps --user root \
-  -v /srv/kapo-exports:/export --entrypoint sh kapo -c \
-  'tar czf /export/kapo-backup-$(date +%Y%m%d-%H%M%S).tgz -C /backup .'
+sudo tar czf /srv/kapo-exports/kapo-backup-$(date +%Y%m%d-%H%M%S).tgz -C backup .
 ```
 
 ### Manual restore (no restore UI)
@@ -300,9 +327,8 @@ docker compose run --rm --no-deps --user root \
 Restoring is intentionally manual. List the available backups, then stop the
 container first so no process is writing the database, and replace the database
 **and** uploads from one chosen backup. The `docker compose run` command below
-mounts the service's volumes for you, so it does not matter whether the actual
-volume names are `<project>_kapo-data` / `<project>_kapo-backup` or another
-Compose project prefix (see [Volumes and permissions](#volumes-and-permissions)).
+mounts the same host folders for you (see
+[Host folders and permissions](#host-folders-and-permissions)).
 
 ```bash
 docker compose exec kapo ls -1 /backup
