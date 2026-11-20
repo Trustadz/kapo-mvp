@@ -155,10 +155,10 @@ describe('createProject', () => {
     expect(card.displayId).toMatch(/^KAP-\d+$/);
   });
 
-  it('appends new siblings last', () => {
+  it('appends new projects last in the global sequence', () => {
     const before = db
-      .prepare('SELECT COALESCE(MAX(priority), -1) AS priority FROM projects WHERE parent_id = ?')
-      .get(fixture.homeId) as { priority: number };
+      .prepare('SELECT COALESCE(MAX(priority), -1) AS priority FROM projects')
+      .get() as { priority: number };
     const card = createProject(db, actor(fixture.tristan), {
       parentId: fixture.homeId,
       title: 'Appended project',
@@ -526,24 +526,72 @@ describe('reorderProject', () => {
     ).map((row) => row.id);
   }
 
-  it('rewrites sibling priorities sequentially when moving before another sibling', () => {
+  function globalOrder(): string[] {
+    return (
+      db
+        .prepare('SELECT id FROM projects ORDER BY priority ASC, seq ASC')
+        .all() as Array<{ id: string }>
+    ).map((row) => row.id);
+  }
+
+  function globalPriorities(): number[] {
+    return (
+      db
+        .prepare('SELECT priority FROM projects ORDER BY priority ASC, seq ASC')
+        .all() as Array<{ priority: number }>
+    ).map((row) => row.priority);
+  }
+
+  it('rewrites the global sequence when moving a project before a sibling', () => {
     const order = siblingOrder(fixture.homeId);
     const target = order.at(-1)!;
     const first = order[0]!;
     reorderProject(db, actor(fixture.tristan), target, { beforeId: first });
     expect(siblingOrder(fixture.homeId)[0]).toBe(target);
-    const priorities = db
-      .prepare('SELECT priority FROM projects WHERE parent_id = ? ORDER BY priority ASC')
-      .all(fixture.homeId) as Array<{ priority: number }>;
-    expect(priorities.map((row) => row.priority)).toEqual(
-      priorities.map((_, index) => index),
-    );
+    // Issue #53: the whole app shares one contiguous global sequence.
+    expect(globalPriorities()).toEqual(globalPriorities().map((_, index) => index));
   });
 
-  it('appends when beforeId is null', () => {
+  it('appends at the end of the global sequence when beforeId is null', () => {
     const order = siblingOrder(fixture.homeId);
-    reorderProject(db, actor(fixture.tristan), order[0]!, { beforeId: null });
-    expect(siblingOrder(fixture.homeId).at(-1)).toBe(order[0]);
+    const dragged = order[0]!;
+    reorderProject(db, actor(fixture.tristan), dragged, { beforeId: null });
+    expect(globalOrder().at(-1)).toBe(dragged);
+    expect(siblingOrder(fixture.homeId).at(-1)).toBe(dragged);
+    expect(globalPriorities()).toEqual(globalPriorities().map((_, index) => index));
+  });
+
+  it('moves before a project under a different parent in the global sequence', () => {
+    // Global order starts as [target, moved, otherChild].
+    const target = createProject(db, actor(fixture.tristan), {
+      parentId: fixture.rootId,
+      title: 'Global target',
+    });
+    const moved = createProject(db, actor(fixture.tristan), {
+      parentId: fixture.homeId,
+      title: 'Global mover',
+    });
+    const otherChild = createProject(db, actor(fixture.tristan), {
+      parentId: fixture.rootId,
+      title: 'Another root child',
+    });
+    const rootBefore = siblingOrder(fixture.rootId);
+    expect(rootBefore.indexOf(target.id)).toBeLessThan(rootBefore.indexOf(otherChild.id));
+
+    reorderProject(db, actor(fixture.tristan), moved.id, { beforeId: target.id });
+
+    const ids = globalOrder();
+    expect(ids.indexOf(moved.id)).toBe(ids.indexOf(target.id) - 1);
+    // Reparenting is not involved: the project stays under its parent.
+    expect(getProjectRow(db, moved.id)!.parent_id).toBe(fixture.homeId);
+    // Sibling order in each parent is the global order restricted to it.
+    expect(siblingOrder(fixture.homeId)).toEqual(
+      ids.filter((id) => getProjectRow(db, id)!.parent_id === fixture.homeId),
+    );
+    expect(siblingOrder(fixture.rootId)).toEqual(
+      ids.filter((id) => getProjectRow(db, id)!.parent_id === fixture.rootId),
+    );
+    expect(globalPriorities()).toEqual(globalPriorities().map((_, index) => index));
   });
 
   it('keeps priority shared across statuses when only moving columns', () => {
@@ -564,26 +612,24 @@ describe('reorderProject', () => {
     expect(after.status_id).toBe(inProgress.id);
     expect(after.priority).toBe(before.priority);
     expect(result.project.inbox).toBe(false);
+    expect(globalPriorities()).toEqual(globalPriorities().map((_, index) => index));
   });
 
-  it('validates sibling, Root and permission preconditions', () => {
+  it('validates Root, invalid positions and permission preconditions', () => {
     const card = createProject(db, actor(fixture.tristan), {
       parentId: fixture.homeId,
       title: 'Position validation',
     });
-    const nonSibling = createProject(db, actor(fixture.tristan), {
-      parentId: fixture.rootId,
-      title: 'Root sibling',
-    });
-    const nonSiblingError = (() => {
+
+    const missingTarget = (() => {
       try {
-        reorderProject(db, actor(fixture.tristan), card.id, { beforeId: nonSibling.id });
+        reorderProject(db, actor(fixture.tristan), card.id, { beforeId: 'missing-project' });
         return null;
       } catch (caught) {
         return caught as DomainError;
       }
     })();
-    expect(nonSiblingError?.status).toBe(422);
+    expect(missingTarget?.status).toBe(422);
 
     const rootError = (() => {
       try {
@@ -663,7 +709,7 @@ describe('moveProject', () => {
     expect(matchingNameError?.code).toBe('mapping_required');
   });
 
-  it('moves the project, remaps its status, appends it last and keeps descendants', () => {
+  it('moves the project, remaps its status, keeps its global priority and descendants', () => {
     const kitchenStatuses = createWorkflow(db, fixture.kitchenId, { names: ['One', 'Two'] });
     const child = createFixtureProject(db, {
       title: 'Child of moved',
@@ -680,6 +726,7 @@ describe('moveProject', () => {
     const grandchildStatus = getStatuses(db, child.id)[0]!;
 
     const oldStatus = getProjectRow(db, fixture.kitchenId)!.status_id!;
+    const priorityBefore = getProjectRow(db, fixture.kitchenId)!.priority;
     const mapped = householdStatuses.find((status) => status.name === 'Open')!;
     const result = moveProject(db, actor(fixture.tristan), fixture.kitchenId, {
       destinationId: householdId,
@@ -687,7 +734,15 @@ describe('moveProject', () => {
     });
     expect(result.parent?.id).toBe(householdId);
     expect(result.statusId).toBe(mapped.id);
-    expect(result.priority).toBeGreaterThanOrEqual(0);
+    // Issue #53: reparenting preserves the global position instead of appending.
+    expect(result.priority).toBe(priorityBefore);
+    // The destination's sibling order is the global order restricted to it.
+    const destinationOrder = (
+      db
+        .prepare('SELECT id FROM projects WHERE parent_id = ? ORDER BY priority ASC, seq ASC')
+        .all(householdId) as Array<{ id: string }>
+    ).map((row) => row.id);
+    expect(destinationOrder).toContain(fixture.kitchenId);
     // Descendants keep their own parent and status.
     const grandchildRow = getProjectRow(db, grandchild.id)!;
     expect(grandchildRow.parent_id).toBe(child.id);

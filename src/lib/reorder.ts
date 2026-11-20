@@ -1,12 +1,13 @@
 /**
  * Pure helpers for sibling reordering in the collection views (issue #28).
  *
- * The reorder API is sibling-only: `POST /api/projects/:id/reorder` rewrites
- * the priority of the project's current siblings and takes the sibling it
- * should be inserted *before* (or `null` for "end of the list"). These helpers
- * translate a drag gesture into that `beforeId`, and decide which part of a
- * row/card the pointer is over. They contain no DOM or React code so the same
- * rules are unit-testable and shared by Card, Tree and List.
+ * Projects have one app-wide priority sequence (issue #53), so a parent's
+ * sibling order is that sequence restricted to its children. The reorder API
+ * accepts any readable project as `beforeId`; these helpers still plan a drop
+ * inside one visible collection by translating a drag gesture into the
+ * neighbouring sibling's id (or `null` for "end of the list"). They contain no
+ * DOM or React code so the same rules are unit-testable and shared by Card,
+ * Tree and List.
  */
 
 export type ReorderEdge = 'before' | 'after';
@@ -15,7 +16,7 @@ export type ReorderEdge = 'before' | 'after';
 export type DropZone = ReorderEdge | 'inside';
 
 export interface ReorderPlan {
-  /** `beforeId` for the reorder request; `null` appends after all siblings. */
+  /** `beforeId` for the reorder request; `null` appends after every project. */
   beforeId: string | null;
   /** Zero-based index the project occupies once the move is applied. */
   index: number;

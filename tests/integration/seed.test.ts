@@ -135,6 +135,29 @@ describe('db:seed', () => {
       'Plan weekend trip': 'Personal',
     });
 
+    // Issue #53: one app-wide priority sequence, in the documented tree order.
+    const priorityRows = db
+      .prepare('SELECT title, priority FROM projects ORDER BY priority ASC')
+      .all() as Array<{ title: string; priority: number }>;
+    expect(priorityRows.map((row) => row.title)).toEqual([
+      'Root',
+      'Home improvement',
+      'Renovate basement',
+      'Find contractor',
+      'Paint hallway',
+      'Install hall shelf',
+      'Garden beds',
+      'Fix kitchen tap',
+      'Household',
+      'Paint porch',
+      'Book boiler service',
+      'Personal',
+      'Plan weekend trip',
+    ]);
+    expect(priorityRows.map((row) => row.priority)).toEqual(
+      priorityRows.map((_, index) => index),
+    );
+
     // Inbox: Book boiler service, Plan weekend trip, Renovate basement.
     const inbox = db
       .prepare("SELECT title FROM projects WHERE inbox = 1 AND trashed_at IS NULL ORDER BY title")

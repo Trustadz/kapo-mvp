@@ -203,10 +203,14 @@ function nextSeq(db: BetterSqliteDatabase): number {
   return row.seq + 1;
 }
 
-function nextPriority(db: BetterSqliteDatabase, parentId: string): number {
+/**
+ * Issue #53: priorities are one global sequence, so fixtures append after the
+ * last project in the whole database rather than the last sibling.
+ */
+function nextPriority(db: BetterSqliteDatabase): number {
   const row = db
-    .prepare('SELECT COALESCE(MAX(priority), -1) AS priority FROM projects WHERE parent_id = ?')
-    .get(parentId) as { priority: number };
+    .prepare('SELECT COALESCE(MAX(priority), -1) AS priority FROM projects')
+    .get() as { priority: number };
   return row.priority + 1;
 }
 
@@ -220,7 +224,7 @@ export function createProject(
   const createdAt = options.createdAt ?? nowIso();
   const id = newId();
   const seq = options.seq ?? nextSeq(db);
-  const priority = options.priority ?? nextPriority(db, options.parentId);
+  const priority = options.priority ?? nextPriority(db);
   db.prepare(
     `INSERT INTO projects (
        id, seq, title, reporter_id, parent_id, status_id, priority, inbox, archived,

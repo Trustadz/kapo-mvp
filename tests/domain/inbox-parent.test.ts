@@ -90,8 +90,8 @@ afterAll(() => {
 });
 
 describe('changeInboxParent', () => {
-  it('keeps the capture in the Inbox at the destination Start status and appends it last', () => {
-    const existing = createFixtureProject(db, {
+  it('keeps the capture in the Inbox at the destination Start status and preserves its global priority', () => {
+    createFixtureProject(db, {
       title: 'Existing household child',
       parentId: householdId,
       reporterId: admin.id,
@@ -115,7 +115,14 @@ describe('changeInboxParent', () => {
     expect(row.parent_id).toBe(householdId);
     expect(row.status_id).toBe(householdStart.id);
     expect(row.inbox).toBe(1);
-    expect(row.priority).toBeGreaterThan(existing.priority);
+    // Issue #53: reparenting never appends; the global position is unchanged.
+    expect(row.priority).toBe(created.priority);
+    const destinationOrder = (
+      db
+        .prepare('SELECT id FROM projects WHERE parent_id = ? ORDER BY priority ASC')
+        .all(householdId) as Array<{ id: string }>
+    ).map((entry) => entry.id);
+    expect(destinationOrder).toContain(created.id);
 
     // Still listed in the Inbox, now under the new parent and Start status.
     const item = listInbox(db, actor(admin)).find((entry) => entry.project.id === created.id);
@@ -152,6 +159,36 @@ describe('changeInboxParent', () => {
       .prepare('SELECT COUNT(*) AS count FROM project_search WHERE project_id = ?')
       .get(created.id) as { count: number };
     expect(indexed.count).toBe(1);
+  });
+
+  it('lists Inbox captures in the single global priority order', () => {
+    const captureA = capture('Inbox global A');
+    const captureB = createDomainProject(db, actor(admin), {
+      parentId: householdId,
+      title: 'Inbox global B',
+    });
+    const captureC = capture('Inbox global C');
+    const expected = [captureA.id, captureB.id, captureC.id];
+    // created_at is deliberately the reverse of priority order: issue #53 says
+    // the Inbox follows the global project order.
+    db.prepare('UPDATE projects SET created_at = ? WHERE id = ?').run(
+      '2100-01-03T00:00:00.000Z',
+      captureA.id,
+    );
+    db.prepare('UPDATE projects SET created_at = ? WHERE id = ?').run(
+      '2100-01-02T00:00:00.000Z',
+      captureB.id,
+    );
+    db.prepare('UPDATE projects SET created_at = ? WHERE id = ?').run(
+      '2100-01-01T00:00:00.000Z',
+      captureC.id,
+    );
+
+    const listed = listInbox(db, actor(admin)).map((item) => item.project.id);
+    expect(listed.filter((id) => expected.includes(id))).toEqual(expected);
+    // The full Inbox follows the global sequence.
+    const priorities = listed.map((id) => getProjectRow(db, id)!.priority);
+    expect(priorities).toEqual([...priorities].sort((a, b) => a - b));
   });
 
   it('installs the default workflow when the destination has none yet', () => {

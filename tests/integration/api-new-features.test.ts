@@ -280,7 +280,7 @@ describe('per-view property slots (settings.view_fields)', () => {
 });
 
 describe('Tree bulk move', () => {
-  it('maps two old statuses, appends priorities, clears Inbox and is all-or-nothing', async () => {
+  it('maps two old statuses, preserves global priority, clears Inbox and is all-or-nothing', async () => {
     const { project: source, statuses: sourceStatuses } = projectUnderRoot(
       'Bulk source',
       ['One', 'Two', 'Three'],
@@ -321,6 +321,8 @@ describe('Tree bulk move', () => {
     expect(getProjectRow(db, second.id)!.parent_id).toBe(source.id);
     expect(getProjectRow(db, first.id)!.inbox).toBe(1);
 
+    const firstPriority = getProjectRow(db, first.id)!.priority;
+    const secondPriority = getProjectRow(db, second.id)!.priority;
     const response = await movePost(first.id, {
       destinationId: destination.project.id,
       projectIds: [second.id],
@@ -340,7 +342,9 @@ describe('Tree bulk move', () => {
     expect(movedById.get(second.id)?.statusId).toBe(destinationStatuses[1]!.id);
     expect(movedById.get(first.id)?.inbox).toBe(false);
     expect(movedById.get(second.id)?.inbox).toBe(false);
-    // Appended in selection order after the destination's existing children.
+    // Issue #53: reparenting preserves each project's global position.
+    expect(movedById.get(first.id)!.priority).toBe(firstPriority);
+    expect(movedById.get(second.id)!.priority).toBe(secondPriority);
     expect(movedById.get(first.id)!.priority).toBeLessThan(movedById.get(second.id)!.priority);
     for (const project of payload.moved) {
       expect(getProjectRow(db, project.id)!.parent_id).toBe(destination.project.id);
