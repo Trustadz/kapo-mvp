@@ -692,7 +692,11 @@ export function ListView({ ctx }: { ctx: CollectionViewContext }) {
         return (
           <li key={project.id} className={styles.listRow} data-archived={project.archived || undefined}>
             <Checkbox
-              label={project.title}
+              label={
+                <span className={complete ? styles.listTitleDone : undefined}>
+                  {project.title}
+                </span>
+              }
               checked={complete}
               disabled={disabled}
               onChange={(event) => toggle(project, event.target.checked)}
