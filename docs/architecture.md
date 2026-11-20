@@ -28,7 +28,7 @@ Next.js 16 process ─┬─ React 19 server components  (reads; migrations run 
                     │                                daily backup scheduler; registry→addons
                     │                                sync still FORWARD)
                     └─ better-sqlite3 (WAL) ── ./data/kapo.db
-                                                 ./data/uploads/*
+                                                 ./upload/*
                                                  /backup/kapo-YYYYMMDD-HHMMSS/
 ```
 
@@ -140,7 +140,7 @@ never return `null` on failure; they throw and route handlers map the error.
 | `projects` | One self-referencing table for "everything is a project": Root is the single row with `parent_id IS NULL` and `status_id IS NULL`. `seq` is the human display id (`KAP-<seq>`) and is separate from UUID `id`; `priority` is sibling order, shared across statuses. `trashed_at`/`purge_deadline`/`trash_action_id` are denormalised per row because purge is scheduled per project and restore is scoped per trash action. |
 | `statuses` | `statuses.parent_id` is the **workflow owner**, i.e. the project whose children use these statuses. A project's own `status_id` must reference a status whose `parent_id = projects.parent_id` (Root has none). This is what makes "each parent owns its children's workflow" a relational fact rather than an application convention. |
 | `project_roles` | Explicit grants only, PK `(project_id, user_id)`. There is no materialised effective-role table and no transitive closure. Effective role is a walk up `parent_id` to the nearest grant (see §6.2). Why: increases never propagate, reductions cascade, and a per-user row per project would require rewriting the whole subtree on every change and would still not encode "nearest wins". Explicit-only keeps the table small (≈10 users × projects) and makes each row auditable. |
-| `trash_actions` | One row per trash operation. Restore restores exactly the projects carrying that `trash_action_id`; a descendant trashed earlier keeps its own action, which is how "restore only what this action trashed" works without a tree diff. The 30-day deadline is per project, so a project already in trash keeps its original deadline when an ancestor is trashed. |
+| `trash_actions` | One row per trash operation. Restore restores exactly the projects carrying that `trash_action_id`; a descendant trashed earlier keeps its own action, which is how "restore only what this action trashed" works without a tree diff. Each project has its own deadline from the Admin retention setting (default 30 days); changing the setting rewrites all trashed deadlines. A project already in trash keeps its deadline when an ancestor is trashed. |
 | `audit_events` | `project_id` is the **log owner**, `target_id` is the affected project. A child creation writes an event into the child's log and one into the parent's log; routine child edits only touch the child's log. Append-only is an invariant of the table (§9), not just of UI: no code path updates or deletes events except the purge of that project's own log. |
 | `project_search` | FTS5 virtual table `(project_id UNINDEXED, title, body)`. It is an index, never a source of truth: rows are rebuilt from `projects` inside the same transaction as the write. `project_id` is UNINDEXED because queries always join it back to `projects` to apply permission and lifecycle filters; the FTS row is never returned directly to a client. |
 | `sessions` | Opaque random token, only its SHA-256 hash stored. DB-backed so logout and role changes are effective immediately; no signed-cookie forensics. |
@@ -231,7 +231,7 @@ pruneRetiredStatuses(db, parentId): number;
 ```
 
 ```ts
-// trash.ts (420 lines; owns the 30-day lifecycle)
+// trash.ts (420 lines; owns the retention lifecycle)
 trashProjects(db, actor, projectIds, requestedActionId?): { actionId, trashed };
 restoreProject(db, actor, projectId, rawMapping?): { project, restored };
 getRestoreInfo(db, actor, projectId): RestoreInfo;       // deferred mapping preview
@@ -512,12 +512,13 @@ add-on tables must declare `ON DELETE CASCADE`.
 ### 8.3 Scheduler (implemented)
 
 - `src/instrumentation.ts` (`register()`) is the Next.js entry. It skips during
-  `NEXT_PHASE === 'phase-production-build'`, when `KAPO_DISABLE_PURGE=1`, and on non-Node runtimes,
+  `NEXT_PHASE === 'phase-production-build'` and on non-Node runtimes,
   then dynamically imports `src/instrumentation-node.ts` (keeps `better-sqlite3` out of the Edge
   trace).
 - `startPurgeScheduler()` runs one sweep immediately, then sets a 6-hour `setInterval` (timer
-  `unref`'d, re-entrancy-guarded by a module-level `started` flag). Errors are logged, never fatal;
-  maintenance must not take the server down.
+  `unref`'d, re-entrancy-guarded by a module-level `started` flag). Each sweep first reads the Admin
+  `trashPurgeEnabled` setting; disabled means no deletion. Errors are logged, never fatal; maintenance
+  must not take the server down.
 - `scripts/purge.ts` is a thin CLI wrapper around the same `purgeExpired()` for operators/cron
   (`npm run db:purge`) and closes the DB handle; the container does not need it.
 - Migrations run on first database access (`openDatabase`), which the scheduler's first sweep
@@ -529,15 +530,15 @@ add-on tables must declare `ON DELETE CASCADE`.
 ### 8.4 Backup scheduler (implemented, issue #13)
 
 - `src/instrumentation.ts` also starts `src/server/backup/schedule.ts#startBackupScheduler()` through
-  the same Node-only `startSchedulers()` entry. Purge and backups start independently: a failure or
-  `KAPO_DISABLE_PURGE=1` never disables backups.
+  the same Node-only `startSchedulers()` entry. Purge and backups start independently: a failure in
+  one never prevents the other, and the purge setting never disables backups.
 - The scheduler reads the Admin settings (enabled, local `HH:MM`, retention 1–30) and sets one
   `setTimeout` for the next run (timer unref'd). After every attempt it recomputes the next run from
   the current clock and settings; `PUT /api/settings` calls `rescheduleBackupScheduler()` so a
   changed time takes effect without a restart. It never starts a second copy while a run is in
   flight and no-ops during builds/tests.
-- The configured time is server-local wall clock. The container documents `TZ` (Compose default
-  `UTC`); `docker-compose.yaml` mounts `kapo-backup:/backup` and sets `KAPO_BACKUP_DIR=/backup`.
+- The configured time is server-local wall clock. The container documents `TZ`; the Compose file
+  sets `TZ: Europe/Amsterdam` and mounts `./backup:/backup`.
 - Missed runs while the process was down are not replayed; the next run is the next scheduled local
   time. Failures are logged and do not take the server down.
 - `src/server/backup/service.ts` captures the database with better-sqlite3's online backup API into a
@@ -551,15 +552,16 @@ add-on tables must declare `ON DELETE CASCADE`.
 
 - Multi-stage Dockerfile: `builder` installs dev deps (needs `python3`/`make`/`g++` for
   better-sqlite3 if no prebuilt binary), runs `npm run build`; runtime stage copies the Next.js
-  standalone output plus `node_modules` required for `better-sqlite3`, runs as non-root `node`.
-- `docker-compose.yaml`: one service `kapo`, `build: .`,
-  `${KAPO_BIND:-127.0.0.1}:${KAPO_PORT:-3000}:3000` (localhost-only by default for a host
-  reverse proxy), `init: true`, `stop_grace_period: 30s`, rotated json-file logs, env
-  `NODE_ENV=production`, `DATABASE_PATH=/app/data/kapo.db`, `UPLOAD_DIR=/app/data/uploads`,
-  `KAPO_BACKUP_DIR=/backup`, `TZ=${TZ:-UTC}`, optional `SESSION_SECRET` (not required; tokens are
-  random, the env is reserved for future signed artifacts), volumes `kapo-data:/app/data` and
-  `kapo-backup:/backup`, `restart: unless-stopped`, healthcheck curling `/healthz`.
-  `.dockerignore` excludes `data/`, `node_modules`, `.next`, tests, docs.
+  standalone output plus `node_modules` required for `better-sqlite3`.
+- The runtime image starts as root only in `scripts/docker-entrypoint.sh`: it creates/chowns the bind
+  folders, then `exec gosu kapo` runs the server as UID/GID 1001. `VOLUME`s are declared for
+  `/app/data`, `/app/upload` and `/backup`; the Compose healthcheck polls `/healthz`.
+- `docker-compose.yaml`: one service `kapo`, image
+  `ghcr.io/trustadz/kapo-mvp:latest`, port `127.0.0.1:3000:3000`, env
+  `KAPO_PUBLIC_URL` and `TZ`, and bind mounts `./data:/app/data`,
+  `./upload:/app/upload`, `./backup:/backup`. No build section or variables; edit the values
+  directly. `restart: unless-stopped`.
+  `.dockerignore` excludes `data/`, `upload/`, `backup/`, `node_modules`, `.next`, tests, docs.
 - No outbound network dependency at runtime; no external SaaS. PWA manifest and service worker are
   served from `public/`; installation is documented for iOS/Android in README, and the service
   worker must never cache API responses or authenticated HTML.
@@ -569,7 +571,7 @@ add-on tables must declare `ON DELETE CASCADE`.
 | Path | Contents | Notes |
 |---|---|---|
 | `/app/data/kapo.db` | SQLite database | WAL mode produces `-wal`/`-shm` next to it |
-| `/app/data/uploads/` | avatar files | random names, extension from verified magic bytes |
+| `/app/upload/` | avatar files | random names, extension from verified magic bytes |
 | `/backup/kapo-YYYYMMDD-HHMMSS/kapo.db` | consistent database snapshot | single rollback-journal file, created by the online backup API |
 | `/backup/kapo-YYYYMMDD-HHMMSS/uploads/` | copied avatar files | omitted when `UPLOAD_DIR` does not exist |
 
@@ -578,10 +580,10 @@ enabled/`02:00`/3). Each run writes a temporary folder, snapshots the DB with be
 backup API, copies uploads, renames to the timestamped folder, and then prunes the oldest recognised
 folders. A hot copy of a WAL database without the backup API can miss committed pages; that is why
 the implementation never copies the live file. Restore is manual and documented in the README:
-stop the container, replace `/app/data/kapo.db` **and** `/app/data/uploads` from one backup folder,
+stop the container, replace `/app/data/kapo.db` **and** `/app/upload` from one backup folder,
 fix ownership (1001:1001), start the container, then run `PRAGMA integrity_check` and verify a known
-row. `/backup` is a separate named volume (`kapo-backup`), so it survives replacing `kapo-data`;
-operators should still copy it off-host for disaster recovery.
+row. `./data`, `./upload` and `./backup` are host bind folders; the entrypoint repairs ownership on
+start. Operators should still copy the backup folder off-host for disaster recovery.
 
 ### 9.3 Migrations
 
@@ -614,24 +616,21 @@ downgrade with a newer schema is unsupported.
 | Variable | Default | Purpose |
 |---|---|---|
 | `DATABASE_PATH` | `./data/kapo.db` | SQLite file (`src/server/db/paths.ts`) |
-| `UPLOAD_DIR` | `./data/uploads` | avatar storage |
+| `UPLOAD_DIR` | `./upload` | avatar storage |
 | `KAPO_MIGRATIONS_DIR` | resolved from candidates | migration directory in the standalone image |
 | `KAPO_FORCE_SECURE_COOKIES` | unset | force `Secure` cookies when TLS termination is not visible as `X-Forwarded-Proto: https` |
 | `SESSION_SECRET` | unset | reserved; sessions are DB-backed random tokens and need no signing key |
 | `KAPO_PUBLIC_URL` | `http://localhost:3000` | metadata base URL / deployment guidance |
-| `KAPO_DISABLE_PURGE` | unset | `1` disables the in-process 6-hourly purge scheduler (external cron then owns purge); does not affect backups |
-| `KAPO_BACKUP_DIR` | `/backup` (Docker), `./data/backups` (dev fallback) | rolling backup destination; Compose mounts `kapo-backup` there |
-| `TZ` | `UTC` (Compose) | IANA timezone for the local backup schedule and backup folder names |
-| `KAPO_BIND` | `127.0.0.1` (Compose) | host interface that publishes the app port; `0.0.0.0` only for direct LAN access without a proxy |
-| `KAPO_PORT` | `3000` | host port published by Compose (container port stays 3000) |
+| `KAPO_BACKUP_DIR` | `/backup` (Docker), `./data/backups` (dev fallback) | rolling backup destination; the image sets `/backup` |
+| `TZ` | `Europe/Amsterdam` (Compose) | IANA timezone for the local backup schedule and backup folder names |
 | `PORT` | `3000` | Next.js port |
 
 HTTPS is terminated by the operator's reverse proxy (Caddy/nginx/Traefik). The app sets `Secure`
 cookies only when `NODE_ENV=production` and it sees an HTTPS signal, so plain-HTTP localhost
-development still works. The purge scheduler runs at boot and every 6 hours (code constant); set
-`KAPO_DISABLE_PURGE=1` to disable it in environments that run `npm run db:purge` externally. The
-backup scheduler runs independently at the configured local time; `KAPO_BACKUP_DIR` and `TZ` are
-the only backup-related deployment variables.
+development still works. The purge scheduler runs at boot and every 6 hours (code constant); the
+Admin `trashPurgeEnabled` setting controls whether it deletes anything, and `npm run db:purge`
+remains available for operators. The backup scheduler runs independently at the configured local
+time; `KAPO_BACKUP_DIR` and `TZ` are the only backup-related deployment variables.
 
 ## 10. Testing strategy
 
@@ -689,7 +688,7 @@ Severity = impact if it goes wrong in the MVP. Code-level findings are tracked i
 | R11 | Audit coverage beyond "create, field change, archive, trash": move, restore, unarchive, membership change, workflow change | Minor open question | Default: log them in the affected project's log (and old/new parent for move) as field events; no parent duplication except child create/trash. |
 | R12 | Search snippets for future add-on text fields and visibility of disabled add-on values | Minor (no add-ons ship) | Add-on values are indexed only while effectively available; availability change triggers reindex; disabled values are never searchable. Contract in `add-ons.md`. |
 | R13 | Trashed project restore requires explicit mapping when its status left the parent workflow; UI must surface it | Minor (edge case) | `restoreAction` accepts mapping and raises `STATUS_MAPPING_REQUIRED`; test covers it. |
-| R14 | No manual purge UI; purge depends on the in-process scheduler firing | Minor | Startup sweep plus 6-hourly interval recover automatically (runs at boot); `npm run db:purge` is the operator fallback when `KAPO_DISABLE_PURGE=1`. |
+| R14 | No manual purge UI; purge depends on the in-process scheduler firing | Minor | Startup sweep plus 6-hourly interval recover automatically (runs at boot); the Admin setting controls deletion and `npm run db:purge` is the operator fallback. |
 | R15 | `show_archived` is stored per user and applies app-wide; toggling from a project menu affects dashboard/search/views | Minor UX | Single user preference read in every visibility query; toggle writes `users.show_archived`, no per-view override. |
 | R16 | Dashboard preference forward compatibility — **resolved:** `parseDashboard` preserves unknown ids/order, the write path keeps them and appends missing known widgets as hidden, and the editor keeps unknown entries in their slots (only Restore defaults drops them) | Formerly major, now closed | Rendering/editor still filter to known ids; when the widget bridge lands, add the "unavailable widget" editor row. No schema change. |
 | R17 | Session sliding renewal compares `created_at` and writes on most requests after day one | Minor (write amplification) | Change the condition to remaining lifetime (e.g. renew when < 1 day remains) or accept; correctness is fine. |

@@ -15,7 +15,7 @@ and an older document disagree, this document wins; where it is silent, the Penp
 | Completed-last-week widget | Cut from this iteration. Not registered, not in defaults, not in the editor. `docs/add-ons.md` records how to reintroduce it. |
 | Viewer rights | May edit own profile, password, appearance and dashboard. Read-only on all project data. |
 | Tablets | Inferred responsively; no separate tablet designs. |
-| Purge | Automatic only, 30 days after entering trash. No manual purge UI. |
+| Purge | Automatic by default, 30 days after entering trash; Admin-configurable retention/enabled. No manual purge UI. |
 | Theme | Light / Dark / System, stored per user, default System. |
 | Install seed | Empty first run (`/setup` creates first Admin). Mock household data only via `npm run db:seed`. |
 
@@ -110,8 +110,8 @@ target_id, detail, created_at. Append-only; no update/delete code paths.
 
 `project_search` FTS5(project_id UNINDEXED, title, body). Maintained on every write.
 
-`settings` key/value: `default_account_role`, `enabled_views` (JSON array), `trash_retention_days`
-(fixed 30), `installation_name`.
+`settings` key/value: `default_account_role`, `enabled_views` (JSON array), `trash_purge_enabled`,
+`trash_retention_days` (default 30, 1–365), `installation_name`.
 
 `addons` identifier, name, mode, settings JSON, created_at (empty in MVP).
 
@@ -145,9 +145,10 @@ IDs are UUID v4 strings. Timestamps are ISO-8601 UTC strings.
 8. Archive: archiving a parent hides the subtree; descendants' own flags are untouched.
    `show_archived` is per user and application-wide for that user.
 9. Trash: trash action stamps every newly trashed descendant with the same `trash_action_id`
-   and its own 30-day deadline. A project already in trash keeps its original deadline.
-   Restore restores only projects from the same action; read-only until restored. Purge only
-   via the scheduled cleanup (`scripts/purge.ts` + app startup sweep).
+   and its own deadline from the Admin retention setting (default 30 days). A project already in
+   trash keeps its original deadline unless an Admin changes the retention setting, which updates
+   all trashed deadlines. Restore restores only projects from the same action; read-only until
+   restored. Purge via the scheduled cleanup when enabled (`scripts/purge.ts` + app startup sweep).
 10. Audit: project logs own field changes, creation, archive, trash. Parent logs child
     creation and child trashing only. No audit event for purge.
 11. Search: FTS over titles (and future add-on text fields), permission-filtered, prefixes
@@ -213,7 +214,7 @@ npm run db:seed        # mock household data
 npm run db:reset       # drop + migrate + seed
 ```
 
-Environment: `DATABASE_PATH=./data/kapo.db`, `UPLOAD_DIR=./data/uploads`,
+Environment: `DATABASE_PATH=./data/kapo.db`, `UPLOAD_DIR=./upload`,
 `SESSION_SECRET` optional (sessions are DB-backed random tokens).
 
 ## 10. Mock data (seed)

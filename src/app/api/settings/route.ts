@@ -35,6 +35,7 @@ export const PUT = apiRoute(
     const input: UpdateApplicationSettingsInput = {};
     if ('defaultAccountRole' in data) input.defaultAccountRole = data.defaultAccountRole;
     if ('enabledViews' in data) input.enabledViews = data.enabledViews;
+    if ('trashPurgeEnabled' in data) input.trashPurgeEnabled = data.trashPurgeEnabled;
     if ('trashRetentionDays' in data) input.trashRetentionDays = data.trashRetentionDays;
     if ('installationName' in data) input.installationName = data.installationName;
     if ('backupEnabled' in data) input.backupEnabled = data.backupEnabled;

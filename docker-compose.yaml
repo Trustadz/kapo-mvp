@@ -13,6 +13,7 @@ services:
       TZ: Europe/Amsterdam
     volumes:
       - ./data:/app/data
+      - ./upload:/app/upload
       - ./backup:/backup
     healthcheck:
       test:

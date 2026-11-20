@@ -1,6 +1,6 @@
 import type { Database as BetterSqliteDatabase } from 'better-sqlite3';
 import type { Status } from '@/lib/types';
-import { TRASH_RETENTION_DAYS } from '@/server/db/bootstrap';
+import { getApplicationSettings } from './settings';
 import { indexProject, removeProjectFromSearch } from '@/server/db/search';
 import { addDaysIso, newId, nowIso } from '@/server/db/util';
 import type {
@@ -29,8 +29,9 @@ import { listWorkflow, pruneRetiredStatuses } from './workflow';
  * Trash lifecycle (build-spec §6 rule 9, product.md §4).
  *
  * One trash action groups everything trashed in one operation; each newly
- * trashed project gets its own 30-day purge deadline. Projects already in Trash
- * keep their original deadline and action. Restore only undoes the same action
+ * trashed project gets its own purge deadline from the Admin retention setting
+ * (default 30 days). Projects already in Trash keep their original deadline and
+ * action. Restore only undoes the same action
  * for the subtree, and requires explicit mapping when a saved status has been
  * retired from the parent workflow.
  */
@@ -98,7 +99,8 @@ export function trashProjects(
   }
   const ctx = loadAccessContext(db, actor);
   const timestamp = nowIso();
-  const deadline = addDaysIso(timestamp, TRASH_RETENTION_DAYS);
+  const retentionDays = getApplicationSettings(db).trashRetentionDays;
+  const deadline = addDaysIso(timestamp, retentionDays);
 
   const roots: string[] = [];
   for (const projectId of new Set(projectIds)) {
@@ -168,7 +170,7 @@ export function trashProjects(
         projectId,
         actorId: actor.id,
         action: AUDIT_ACTIONS.projectTrashed,
-        detail: 'Moved to Trash. Permanently removed after 30 days.',
+        detail: `Moved to Trash. Permanently removed after ${retentionDays} days.`,
         createdAt: timestamp,
       });
       if (row.parent_id) {

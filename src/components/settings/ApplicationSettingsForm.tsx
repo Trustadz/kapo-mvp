@@ -26,6 +26,8 @@ export interface ApplicationSettingsFormProps {
 interface SettingsValues {
   defaultAccountRole: AppRole;
   enabledViews: CollectionView[];
+  trashPurgeEnabled: boolean;
+  trashRetentionDays: number;
   backupEnabled: boolean;
   backupStartTime: string;
   backupRetention: number;
@@ -35,6 +37,8 @@ function valuesFromSettings(settings: ApplicationSettings): SettingsValues {
   return {
     defaultAccountRole: settings.defaultAccountRole,
     enabledViews: settings.enabledViews,
+    trashPurgeEnabled: settings.trashPurgeEnabled,
+    trashRetentionDays: settings.trashRetentionDays,
     backupEnabled: settings.backupEnabled,
     backupStartTime: settings.backupStartTime,
     backupRetention: settings.backupRetention,
@@ -42,9 +46,9 @@ function valuesFromSettings(settings: ApplicationSettings): SettingsValues {
 }
 
 /**
- * Application settings (Admin): default account role, fixed trash retention,
- * the collection views available to projects and the rolling backup schedule
- * (issue #13). At least one view must remain.
+ * Application settings (Admin): default account role, automatic trash
+ * purge/retention, the collection views available to projects and the rolling
+ * backup schedule (issues #13 and #21). At least one view must remain.
  */
 export function ApplicationSettingsForm({
   settings,
@@ -63,6 +67,8 @@ export function ApplicationSettingsForm({
     values.defaultAccountRole !== saved.defaultAccountRole ||
     values.enabledViews.length !== saved.enabledViews.length ||
     values.enabledViews.some((view, index) => view !== saved.enabledViews[index]) ||
+    values.trashPurgeEnabled !== saved.trashPurgeEnabled ||
+    values.trashRetentionDays !== saved.trashRetentionDays ||
     values.backupEnabled !== saved.backupEnabled ||
     values.backupStartTime !== saved.backupStartTime ||
     values.backupRetention !== saved.backupRetention;
@@ -123,7 +129,8 @@ export function ApplicationSettingsForm({
         body: JSON.stringify({
           defaultAccountRole: values.defaultAccountRole,
           enabledViews: values.enabledViews,
-          trashRetentionDays: settings.trashRetentionDays,
+          trashPurgeEnabled: values.trashPurgeEnabled,
+          trashRetentionDays: values.trashRetentionDays,
           backupEnabled: values.backupEnabled,
           backupStartTime: values.backupStartTime,
           backupRetention: values.backupRetention,
@@ -189,14 +196,45 @@ export function ApplicationSettingsForm({
             </Select>
           </Field>
 
+          <Checkbox
+            id="settings-trash-purge-enabled"
+            name="trashPurgeEnabled"
+            label={t('settings.trashPurgeEnabled')}
+            description={t('settings.trashPurgeEnabledDescription')}
+            checked={values.trashPurgeEnabled}
+            onChange={(event) => {
+              clearFieldError('trashPurgeEnabled');
+              setValues((current) => ({
+                ...current,
+                trashPurgeEnabled: event.target.checked,
+              }));
+            }}
+          />
+
           <Field
             label={t('settings.trashRetention')}
             htmlFor="settings-trash-retention"
             labelWidth={190}
+            hint={t('settings.trashRetentionHint')}
+            error={fieldErrors.trashRetentionDays}
           >
-            <p id="settings-trash-retention" className={styles.fixedValue}>
-              {t('settings.daysFixed', { days: settings.trashRetentionDays })}
-            </p>
+            <Input
+              id="settings-trash-retention"
+              name="trashRetentionDays"
+              type="number"
+              min={1}
+              max={365}
+              step={1}
+              value={values.trashRetentionDays}
+              onChange={(event) => {
+                clearFieldError('trashRetentionDays');
+                setValues((current) => ({
+                  ...current,
+                  trashRetentionDays: Number(event.target.value),
+                }));
+              }}
+              className={styles.numberInput}
+            />
           </Field>
 
           <p className={styles.note}>

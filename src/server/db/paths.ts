@@ -22,7 +22,7 @@ export function uploadDir(): string {
   if (configured) {
     return path.isAbsolute(configured) ? configured : path.resolve(/* turbopackIgnore: true */ process.cwd(), configured);
   }
-  return path.resolve(/* turbopackIgnore: true */ process.cwd(), 'data', 'uploads');
+  return path.resolve(/* turbopackIgnore: true */ process.cwd(), 'upload');
 }
 
 function hasSqlFiles(dir: string): boolean {

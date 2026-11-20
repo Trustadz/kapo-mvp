@@ -16,6 +16,8 @@ let started = false;
 
 async function runPurge(): Promise<void> {
   try {
+    const { getApplicationSettings } = await import('./server/domain/settings');
+    if (!getApplicationSettings().trashPurgeEnabled) return;
     const { purgeExpired } = await import('./server/domain/purge');
     const result = purgeExpired();
     if (result.projects > 0) {
@@ -32,12 +34,12 @@ async function runPurge(): Promise<void> {
 
 /**
  * Runs one sweep immediately, then every six hours. The interval is unref'd so
- * it never keeps the process alive by itself. `KAPO_DISABLE_PURGE=1` disables
- * only purge; backups keep their own schedule.
+ * it never keeps the process alive by itself. Whether a sweep actually deletes
+ * anything is the Admin `trashPurgeEnabled` setting; a disabled purge leaves
+ * backups on their own schedule.
  */
 export async function startPurgeScheduler(): Promise<void> {
   if (started) return;
-  if (process.env.KAPO_DISABLE_PURGE === '1') return;
   started = true;
   try {
     await runPurge();

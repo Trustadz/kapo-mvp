@@ -145,6 +145,7 @@ describe('POST /api/setup', () => {
       'default_account_role',
       'enabled_views',
       'installation_name',
+      'trash_purge_enabled',
       'trash_retention_days',
     ]);
     expect(db.prepare('SELECT COUNT(*) AS count FROM project_search').get()).toEqual({ count: 1 });

@@ -574,8 +574,11 @@ export const en = {
     subtitle: 'Manage your Kapo installation',
     defaults: 'Application defaults',
     defaultRole: 'Default account role',
-    trashRetention: 'Trash retention',
-    daysFixed: '{days} days (fixed)',
+    trashPurgeEnabled: 'Automatically purge trash',
+    trashPurgeEnabledDescription:
+      'Permanently delete trashed projects after the retention period. Backups continue regardless.',
+    trashRetention: 'Keep trashed projects for',
+    trashRetentionHint: 'Days between 1 and 365. Default 30.',
     note:
       'No add-on fields are required in this release; captures can be released straight from Inbox.',
     viewsAvailable: 'Views available to projects',

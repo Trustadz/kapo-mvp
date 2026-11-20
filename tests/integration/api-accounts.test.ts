@@ -452,6 +452,7 @@ describe('GET/PUT /api/settings', () => {
       settings: {
         defaultAccountRole: string;
         enabledViews: string[];
+        trashPurgeEnabled: boolean;
         trashRetentionDays: number;
         installationName: string;
       };
@@ -459,6 +460,7 @@ describe('GET/PUT /api/settings', () => {
     expect(initialPayload.settings).toMatchObject({
       defaultAccountRole: 'user',
       enabledViews: ['kanban', 'card', 'tree', 'list'],
+      trashPurgeEnabled: true,
       trashRetentionDays: 30,
       installationName: 'Kapo',
     });
@@ -489,16 +491,41 @@ describe('GET/PUT /api/settings', () => {
     );
   });
 
-  it('rejects invalid settings and fixed trash retention', async () => {
+  it('accepts configurable trash purge settings and rejects invalid values', async () => {
     const retention = await settingsPut(
       request('/api/settings', {
         method: 'PUT',
-        body: { trashRetentionDays: 14 },
+        body: { trashRetentionDays: 14, trashPurgeEnabled: false },
       }),
     );
-    expect(retention.status).toBe(422);
-    const retentionPayload = await json<{ error: { fields: Record<string, string> } }>(retention);
-    expect(retentionPayload.error.fields.trashRetentionDays).toMatch(/30/);
+    expect(retention.status).toBe(200);
+    const retentionPayload = await json<{
+      settings: { trashRetentionDays: number; trashPurgeEnabled: boolean };
+    }>(retention);
+    expect(retentionPayload.settings).toMatchObject({
+      trashRetentionDays: 14,
+      trashPurgeEnabled: false,
+    });
+
+    const invalidDays = await settingsPut(
+      request('/api/settings', {
+        method: 'PUT',
+        body: { trashRetentionDays: 0 },
+      }),
+    );
+    expect(invalidDays.status).toBe(422);
+    const invalidPayload = await json<{ error: { fields: Record<string, string> } }>(
+      invalidDays,
+    );
+    expect(invalidPayload.error.fields.trashRetentionDays).toMatch(/1 and 365/);
+
+    // Restore the defaults for the rest of the suite.
+    await settingsPut(
+      request('/api/settings', {
+        method: 'PUT',
+        body: { trashRetentionDays: 30, trashPurgeEnabled: true },
+      }),
+    );
 
     const emptyViews = await settingsPut(
       request('/api/settings', { method: 'PUT', body: { enabledViews: [] } }),
