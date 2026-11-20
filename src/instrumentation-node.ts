@@ -1,10 +1,13 @@
 /**
- * Node.js-only instrumentation body: the automatic trash purge scheduler.
+ * Node.js-only instrumentation body: the automatic trash purge and daily
+ * rolling backup schedulers.
  *
  * Kept out of `instrumentation.ts` so the Edge instrumentation compilation
  * never traces better-sqlite3 (a native Node module). Imported dynamically by
  * `instrumentation.ts` when NEXT_RUNTIME === 'nodejs'.
  */
+
+import { startBackupScheduler } from './server/backup/schedule';
 
 const PURGE_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const LOG_PREFIX = '[kapo:purge]';
@@ -29,10 +32,12 @@ async function runPurge(): Promise<void> {
 
 /**
  * Runs one sweep immediately, then every six hours. The interval is unref'd so
- * it never keeps the process alive by itself.
+ * it never keeps the process alive by itself. `KAPO_DISABLE_PURGE=1` disables
+ * only purge; backups keep their own schedule.
  */
 export async function startPurgeScheduler(): Promise<void> {
   if (started) return;
+  if (process.env.KAPO_DISABLE_PURGE === '1') return;
   started = true;
   try {
     await runPurge();
@@ -45,4 +50,19 @@ export async function startPurgeScheduler(): Promise<void> {
   } catch (error) {
     console.error(`${LOG_PREFIX} scheduler failed to start`, error);
   }
+}
+
+/**
+ * Starts the Node maintenance schedulers independently so a failure in one
+ * never prevents the other from running.
+ */
+export async function startSchedulers(): Promise<void> {
+  await Promise.all([
+    startPurgeScheduler().catch((error: unknown) => {
+      console.error(`${LOG_PREFIX} scheduler failed to start`, error);
+    }),
+    startBackupScheduler().catch((error: unknown) => {
+      console.error('[kapo:backup] scheduler failed to start', error);
+    }),
+  ]);
 }

@@ -5,10 +5,12 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { Field } from '@/components/ui/Field';
+import { Input } from '@/components/ui/Input';
 import { Notice } from '@/components/ui/Notice';
 import { Select } from '@/components/ui/Select';
 import { Toast } from '@/components/ui/Toast';
 import { requestJson } from '@/lib/api-client';
+import { formatDateTime } from '@/lib/format';
 import {
   APP_ROLES,
   COLLECTION_VIEWS,
@@ -16,11 +18,13 @@ import {
   type AppRole,
   type CollectionView,
 } from '@/lib/types';
+import type { BackupStatus } from '@/server/backup';
 import type { ApplicationSettings } from '@/server/domain/settings';
 import styles from './ApplicationSettingsForm.module.css';
 
 export interface ApplicationSettingsFormProps {
   settings: ApplicationSettings;
+  backupStatus: BackupStatus;
 }
 
 const ROLE_LABELS: Record<AppRole, string> = {
@@ -32,22 +36,33 @@ const ROLE_LABELS: Record<AppRole, string> = {
 interface SettingsValues {
   defaultAccountRole: AppRole;
   enabledViews: CollectionView[];
+  backupEnabled: boolean;
+  backupStartTime: string;
+  backupRetention: number;
 }
 
 function valuesFromSettings(settings: ApplicationSettings): SettingsValues {
   return {
     defaultAccountRole: settings.defaultAccountRole,
     enabledViews: settings.enabledViews,
+    backupEnabled: settings.backupEnabled,
+    backupStartTime: settings.backupStartTime,
+    backupRetention: settings.backupRetention,
   };
 }
 
 /**
- * Application settings (Admin): default account role, fixed trash retention and
- * the collection views available to projects. At least one view must remain.
+ * Application settings (Admin): default account role, fixed trash retention,
+ * the collection views available to projects and the rolling backup schedule
+ * (issue #13). At least one view must remain.
  */
-export function ApplicationSettingsForm({ settings }: ApplicationSettingsFormProps) {
+export function ApplicationSettingsForm({
+  settings,
+  backupStatus,
+}: ApplicationSettingsFormProps) {
   const [saved, setSaved] = useState<SettingsValues>(() => valuesFromSettings(settings));
   const [values, setValues] = useState<SettingsValues>(() => valuesFromSettings(settings));
+  const [status, setStatus] = useState<BackupStatus>(backupStatus);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -56,7 +71,19 @@ export function ApplicationSettingsForm({ settings }: ApplicationSettingsFormPro
   const dirty =
     values.defaultAccountRole !== saved.defaultAccountRole ||
     values.enabledViews.length !== saved.enabledViews.length ||
-    values.enabledViews.some((view, index) => view !== saved.enabledViews[index]);
+    values.enabledViews.some((view, index) => view !== saved.enabledViews[index]) ||
+    values.backupEnabled !== saved.backupEnabled ||
+    values.backupStartTime !== saved.backupStartTime ||
+    values.backupRetention !== saved.backupRetention;
+
+  const clearFieldError = (field: string) => {
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  };
 
   const toggleView = (view: CollectionView, checked: boolean) => {
     setFieldErrors((current) => {
@@ -96,13 +123,19 @@ export function ApplicationSettingsForm({ settings }: ApplicationSettingsFormPro
     setSaving(true);
     setFormError(null);
     try {
-      const result = await requestJson<{ settings: ApplicationSettings }>('/api/settings', {
+      const result = await requestJson<{
+        settings: ApplicationSettings;
+        backupStatus?: BackupStatus;
+      }>('/api/settings', {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           defaultAccountRole: values.defaultAccountRole,
           enabledViews: values.enabledViews,
           trashRetentionDays: settings.trashRetentionDays,
+          backupEnabled: values.backupEnabled,
+          backupStartTime: values.backupStartTime,
+          backupRetention: values.backupRetention,
         }),
       });
       if (!result.ok) {
@@ -113,6 +146,7 @@ export function ApplicationSettingsForm({ settings }: ApplicationSettingsFormPro
       const next = valuesFromSettings(result.data.settings);
       setSaved(next);
       setValues(next);
+      if (result.data.backupStatus) setStatus(result.data.backupStatus);
       setToast('Application settings saved.');
     } catch {
       setFormError('Could not reach the server. Check your connection and try again.');
@@ -194,6 +228,112 @@ export function ApplicationSettingsForm({ settings }: ApplicationSettingsFormPro
           <p id="views-hint" className={styles.hint}>
             At least one view must remain available.
           </p>
+
+          <fieldset className={styles.backupFieldset}>
+            <legend className={styles.viewsLegend}>Backups</legend>
+            <p className={styles.note}>
+              Every run stores a consistent copy of the database and the uploads folder on the
+              server. The oldest backups are removed automatically after a successful run.
+            </p>
+            <Checkbox
+              id="settings-backup-enabled"
+              name="backupEnabled"
+              label="Automatic daily backups"
+              description="Runs inside the app at the configured local time."
+              checked={values.backupEnabled}
+              onChange={(event) => {
+                clearFieldError('backupEnabled');
+                setValues((current) => ({
+                  ...current,
+                  backupEnabled: event.target.checked,
+                }));
+              }}
+            />
+            <div className={styles.backupFields}>
+              <Field
+                label="Start time"
+                htmlFor="settings-backup-start"
+                labelWidth={190}
+                hint="Server local time (set TZ for the container)."
+                error={fieldErrors.backupStartTime}
+              >
+                <Input
+                  id="settings-backup-start"
+                  name="backupStartTime"
+                  type="time"
+                  value={values.backupStartTime}
+                  onChange={(event) => {
+                    clearFieldError('backupStartTime');
+                    setValues((current) => ({
+                      ...current,
+                      backupStartTime: event.target.value,
+                    }));
+                  }}
+                  className={styles.timeInput}
+                />
+              </Field>
+              <Field
+                label="Keep backups"
+                htmlFor="settings-backup-retention"
+                labelWidth={190}
+                hint="Between 1 and 30; the oldest are pruned after each run."
+                error={fieldErrors.backupRetention}
+              >
+                <Input
+                  id="settings-backup-retention"
+                  name="backupRetention"
+                  type="number"
+                  min={1}
+                  max={30}
+                  step={1}
+                  value={values.backupRetention}
+                  onChange={(event) => {
+                    clearFieldError('backupRetention');
+                    setValues((current) => ({
+                      ...current,
+                      backupRetention: Number(event.target.value),
+                    }));
+                  }}
+                  className={styles.numberInput}
+                />
+              </Field>
+            </div>
+            <dl className={styles.backupStatus}>
+              <div className={styles.backupStatusRow}>
+                <dt>Last backup</dt>
+                <dd>
+                  {status.lastBackup ? (
+                    <>
+                      <span suppressHydrationWarning>
+                        {formatDateTime(status.lastBackup.createdAt)}
+                      </span>{' '}
+                      <span className={styles.backupName}>{status.lastBackup.name}</span>
+                    </>
+                  ) : (
+                    'No backups yet'
+                  )}
+                </dd>
+              </div>
+              <div className={styles.backupStatusRow}>
+                <dt>Next run</dt>
+                <dd suppressHydrationWarning>
+                  {status.nextRun
+                    ? formatDateTime(status.nextRun)
+                    : 'Automatic backups are disabled'}
+                </dd>
+              </div>
+              <div className={styles.backupStatusRow}>
+                <dt>Destination</dt>
+                <dd>
+                  <code className={styles.backupPath}>{status.destination}</code>
+                </dd>
+              </div>
+            </dl>
+            <p className={styles.hint}>
+              Restore is manual: stop the container, replace the database and uploads from a
+              chosen backup, then start it again. The README documents the exact steps.
+            </p>
+          </fieldset>
 
           <div className={styles.actions}>
             <Button

@@ -7,6 +7,13 @@ import { newId, nowIso } from './util';
 
 export const TRASH_RETENTION_DAYS = 30;
 
+/** Rolling database/uploads backups (Admin settings, issue #13). */
+export const DEFAULT_BACKUP_ENABLED = true;
+export const DEFAULT_BACKUP_START_TIME = '02:00';
+export const DEFAULT_BACKUP_RETENTION = 3;
+export const MIN_BACKUP_RETENTION = 1;
+export const MAX_BACKUP_RETENTION = 30;
+
 export interface AppSettingDefault {
   key: string;
   value: string;
@@ -17,6 +24,9 @@ export const DEFAULT_APP_SETTINGS: AppSettingDefault[] = [
   { key: 'enabled_views', value: JSON.stringify(['kanban', 'card', 'tree', 'list']) },
   { key: 'trash_retention_days', value: String(TRASH_RETENTION_DAYS) },
   { key: 'installation_name', value: 'Kapo' },
+  { key: 'backup_enabled', value: DEFAULT_BACKUP_ENABLED ? '1' : '0' },
+  { key: 'backup_start_time', value: DEFAULT_BACKUP_START_TIME },
+  { key: 'backup_retention', value: String(DEFAULT_BACKUP_RETENTION) },
 ];
 
 export interface ProjectSettingsDefaults {

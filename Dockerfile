@@ -27,15 +27,17 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
     DATABASE_PATH=/app/data/kapo.db \
     UPLOAD_DIR=/app/data/uploads \
-    KAPO_MIGRATIONS_DIR=/app/migrations
+    KAPO_MIGRATIONS_DIR=/app/migrations \
+    KAPO_BACKUP_DIR=/backup
 
 # The runtime user must own /app/data: SQLite needs to create the database,
 # WAL/SHM sidecars and uploads there. Docker initialises an empty named volume
-# from this directory (and its ownership), so kapo can write to the mount.
+# from this directory (and its ownership), so kapo can write to the mount. The
+# backup volume at /backup is owned the same way for the rolling backups.
 RUN groupadd --system --gid 1001 kapo \
   && useradd --system --uid 1001 --gid kapo --create-home kapo \
-  && mkdir -p /app/data/uploads \
-  && chown -R kapo:kapo /app
+  && mkdir -p /app/data/uploads /backup \
+  && chown -R kapo:kapo /app /backup
 
 WORKDIR /app
 
@@ -58,7 +60,7 @@ RUN rm -rf /app/data \
   && chown -R kapo:kapo /app/data
 
 USER kapo
-VOLUME ["/app/data"]
+VOLUME ["/app/data", "/backup"]
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

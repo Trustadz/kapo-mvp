@@ -4,17 +4,25 @@ services:
       context: .
     image: kapo:latest
     container_name: kapo
+    init: true
     restart: unless-stopped
+    stop_grace_period: 30s
     ports:
-      - '${KAPO_PORT:-3000}:3000'
+      - '${KAPO_BIND:-127.0.0.1}:${KAPO_PORT:-3000}:3000'
     environment:
       NODE_ENV: production
       DATABASE_PATH: /app/data/kapo.db
       UPLOAD_DIR: /app/data/uploads
       KAPO_MIGRATIONS_DIR: /app/migrations
       KAPO_PUBLIC_URL: ${KAPO_PUBLIC_URL:-http://localhost:3000}
+      # Daily backup destination and the timezone for its 02:00 schedule.
+      KAPO_BACKUP_DIR: ${KAPO_BACKUP_DIR:-/backup}
+      TZ: ${TZ:-UTC}
+      KAPO_FORCE_SECURE_COOKIES: ${KAPO_FORCE_SECURE_COOKIES:-0}
+      KAPO_DISABLE_PURGE: ${KAPO_DISABLE_PURGE:-0}
     volumes:
       - kapo-data:/app/data
+      - kapo-backup:${KAPO_BACKUP_DIR:-/backup}
     healthcheck:
       test:
         [
@@ -29,6 +37,12 @@ services:
       start_period: 20s
     security_opt:
       - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
 
 volumes:
   kapo-data:
+  kapo-backup:

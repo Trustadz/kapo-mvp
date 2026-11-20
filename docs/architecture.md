@@ -25,9 +25,11 @@ browser / PWA
 Next.js 16 process ─┬─ React 19 server components  (reads; migrations run on first DB access)
                     ├─ /api/* route handlers        (all mutations + client reads)
                     ├─ instrumentation startup      (purge sweep at boot, then every 6 hours;
-                    │                                registry→addons sync still FORWARD)
+                    │                                daily backup scheduler; registry→addons
+                    │                                sync still FORWARD)
                     └─ better-sqlite3 (WAL) ── ./data/kapo.db
                                                  ./data/uploads/*
+                                                 /backup/kapo-YYYYMMDD-HHMMSS/
 ```
 
 Deployment invariants:
@@ -524,6 +526,25 @@ add-on tables must declare `ON DELETE CASCADE`.
 - Idempotent by construction: a second sweep finds nothing; missed intervals are recovered by the
   next sweep because purge is deadline-based. AR-020 is resolved.
 
+### 8.4 Backup scheduler (implemented, issue #13)
+
+- `src/instrumentation.ts` also starts `src/server/backup/schedule.ts#startBackupScheduler()` through
+  the same Node-only `startSchedulers()` entry. Purge and backups start independently: a failure or
+  `KAPO_DISABLE_PURGE=1` never disables backups.
+- The scheduler reads the Admin settings (enabled, local `HH:MM`, retention 1–30) and sets one
+  `setTimeout` for the next run (timer unref'd). After every attempt it recomputes the next run from
+  the current clock and settings; `PUT /api/settings` calls `rescheduleBackupScheduler()` so a
+  changed time takes effect without a restart. It never starts a second copy while a run is in
+  flight and no-ops during builds/tests.
+- The configured time is server-local wall clock. The container documents `TZ` (Compose default
+  `UTC`); `docker-compose.yaml` mounts `kapo-backup:/backup` and sets `KAPO_BACKUP_DIR=/backup`.
+- Missed runs while the process was down are not replayed; the next run is the next scheduled local
+  time. Failures are logged and do not take the server down.
+- `src/server/backup/service.ts` captures the database with better-sqlite3's online backup API into a
+  temporary folder, converts the snapshot to a single rollback-journal `kapo.db`, copies `uploads/`,
+  then renames the folder to `kapo-YYYYMMDD-HHMMSS` and prunes older recognised folders to the
+  retention count. Only names matching the backup scheme are deleted. See §9.2 for restore.
+
 ## 9. Deployment, volumes, backups, migrations, upgrades
 
 ### 9.1 Image and Compose
@@ -531,11 +552,14 @@ add-on tables must declare `ON DELETE CASCADE`.
 - Multi-stage Dockerfile: `builder` installs dev deps (needs `python3`/`make`/`g++` for
   better-sqlite3 if no prebuilt binary), runs `npm run build`; runtime stage copies the Next.js
   standalone output plus `node_modules` required for `better-sqlite3`, runs as non-root `node`.
-- `docker-compose.yml`: one service `kapo`, `build: .`, `ports: "3000:3000"`, env
+- `docker-compose.yaml`: one service `kapo`, `build: .`,
+  `${KAPO_BIND:-127.0.0.1}:${KAPO_PORT:-3000}:3000` (localhost-only by default for a host
+  reverse proxy), `init: true`, `stop_grace_period: 30s`, rotated json-file logs, env
   `NODE_ENV=production`, `DATABASE_PATH=/app/data/kapo.db`, `UPLOAD_DIR=/app/data/uploads`,
-  optional `SESSION_SECRET` (not required; tokens are random, the env is reserved for future
-  signed artifacts), volume `kapo-data:/app/data`, `restart: unless-stopped`, healthcheck curling
-  `/healthz`. `.dockerignore` excludes `data/`, `node_modules`, `.next`, tests, docs.
+  `KAPO_BACKUP_DIR=/backup`, `TZ=${TZ:-UTC}`, optional `SESSION_SECRET` (not required; tokens are
+  random, the env is reserved for future signed artifacts), volumes `kapo-data:/app/data` and
+  `kapo-backup:/backup`, `restart: unless-stopped`, healthcheck curling `/healthz`.
+  `.dockerignore` excludes `data/`, `node_modules`, `.next`, tests, docs.
 - No outbound network dependency at runtime; no external SaaS. PWA manifest and service worker are
   served from `public/`; installation is documented for iOS/Android in README, and the service
   worker must never cache API responses or authenticated HTML.
@@ -546,12 +570,18 @@ add-on tables must declare `ON DELETE CASCADE`.
 |---|---|---|
 | `/app/data/kapo.db` | SQLite database | WAL mode produces `-wal`/`-shm` next to it |
 | `/app/data/uploads/` | avatar files | random names, extension from verified magic bytes |
-| `/app/data/backups/` (after backup feature) | SQLite backups | planned, see 9.3 |
+| `/backup/kapo-YYYYMMDD-HHMMSS/kapo.db` | consistent database snapshot | single rollback-journal file, created by the online backup API |
+| `/backup/kapo-YYYYMMDD-HHMMSS/uploads/` | copied avatar files | omitted when `UPLOAD_DIR` does not exist |
 
-Backup procedure for MVP (manual, documented in README): stop the container (or run
-`sqlite3 kapo.db ".backup /backup/kapo-YYYYMMDD.db"`), copy the volume, restart. A hot copy of a WAL
-database without `.backup` can miss committed pages. Rolling backup management is deferred
-(product.md §11); the architecture keeps it possible by keeping all state in the data volume.
+Rolling backups are automatic (Admin settings: enabled, local `HH:MM`, retention 1–30, default
+enabled/`02:00`/3). Each run writes a temporary folder, snapshots the DB with better-sqlite3's
+backup API, copies uploads, renames to the timestamped folder, and then prunes the oldest recognised
+folders. A hot copy of a WAL database without the backup API can miss committed pages; that is why
+the implementation never copies the live file. Restore is manual and documented in the README:
+stop the container, replace `/app/data/kapo.db` **and** `/app/data/uploads` from one backup folder,
+fix ownership (1001:1001), start the container, then run `PRAGMA integrity_check` and verify a known
+row. `/backup` is a separate named volume (`kapo-backup`), so it survives replacing `kapo-data`;
+operators should still copy it off-host for disaster recovery.
 
 ### 9.3 Migrations
 
@@ -589,13 +619,19 @@ downgrade with a newer schema is unsupported.
 | `KAPO_FORCE_SECURE_COOKIES` | unset | force `Secure` cookies when TLS termination is not visible as `X-Forwarded-Proto: https` |
 | `SESSION_SECRET` | unset | reserved; sessions are DB-backed random tokens and need no signing key |
 | `KAPO_PUBLIC_URL` | `http://localhost:3000` | metadata base URL / deployment guidance |
-| `KAPO_DISABLE_PURGE` | unset | `1` disables the in-process 6-hourly purge scheduler (external cron then owns purge) |
+| `KAPO_DISABLE_PURGE` | unset | `1` disables the in-process 6-hourly purge scheduler (external cron then owns purge); does not affect backups |
+| `KAPO_BACKUP_DIR` | `/backup` (Docker), `./data/backups` (dev fallback) | rolling backup destination; Compose mounts `kapo-backup` there |
+| `TZ` | `UTC` (Compose) | IANA timezone for the local backup schedule and backup folder names |
+| `KAPO_BIND` | `127.0.0.1` (Compose) | host interface that publishes the app port; `0.0.0.0` only for direct LAN access without a proxy |
+| `KAPO_PORT` | `3000` | host port published by Compose (container port stays 3000) |
 | `PORT` | `3000` | Next.js port |
 
 HTTPS is terminated by the operator's reverse proxy (Caddy/nginx/Traefik). The app sets `Secure`
 cookies only when `NODE_ENV=production` and it sees an HTTPS signal, so plain-HTTP localhost
 development still works. The purge scheduler runs at boot and every 6 hours (code constant); set
-`KAPO_DISABLE_PURGE=1` to disable it in environments that run `npm run db:purge` externally.
+`KAPO_DISABLE_PURGE=1` to disable it in environments that run `npm run db:purge` externally. The
+backup scheduler runs independently at the configured local time; `KAPO_BACKUP_DIR` and `TZ` are
+the only backup-related deployment variables.
 
 ## 10. Testing strategy
 
@@ -624,7 +660,8 @@ at least one such mutation manually.
 - Screen-reader and full keyboard traversal; only the documented a11y checklist is verified.
 - Load, throughput, and multi-process concurrency (unsupported architecture).
 - HTTPS termination, proxy configuration, container orchestration beyond a single Compose service.
-- Backup/restore automation (deferred feature).
+- Restore automation/UI: restores are manual and documented; backup creation, retention, settings
+  permissions and opening a backup for a known row are covered by unit/integration tests.
 - Email, password recovery delivery (not a feature), OAuth/SSO (not a feature).
 - Browser matrix beyond Chromium; Safari/iOS PWA install is manual.
 - End-to-end add-on behaviour: no add-on ships. The registry contract and the Inbox-exit hook gate
@@ -664,7 +701,7 @@ Severity = impact if it goes wrong in the MVP. Code-level findings are tracked i
 | R23 | New-account Root access — **resolved:** `users.createUser`/`updateUser` call `syncRootProjectRole`, which writes the explicit Root `project_roles` row for app Users (`user`) and Viewers (`viewer`) and removes any stale explicit row on promotion to app Admin (implicit Root Admin fallback); last-app-Admin demotion is still guarded | Formerly major, now closed | Keep account create/update as the single owner of Root membership; test that promotion removes the stale row and demotion is rejected when it is the last Admin. |
 
 Deferred (explicitly out of scope, do not build): Assignee and its dashboard widget, descriptions,
-tags/custom fields, additional collection views (Portfolio), rolling backup management, freeform
+tags/custom fields, additional collection views (Portfolio), a restore UI/automated restore, freeform
 dashboard layout / query builder / shared dashboards / engagement metrics, native apps, kiosk mode,
 offline operation, and the built-in **Completed last week** widget (removed from this iteration;
 reintroduction without schema change is documented in `add-ons.md` §13). Scope creep in any of
