@@ -1134,8 +1134,11 @@ export function getMoveInfo(
   };
 }
 
-/** Validates the simulated (post-move) subtree still has at least one Admin. */
-function assertMoveKeepsAdmin(
+/**
+ * Validates the simulated (post-move) subtree still has at least one Admin.
+ * Shared by every reparent operation (Move and Inbox Change parent).
+ */
+export function assertMoveKeepsAdmin(
   db: BetterSqliteDatabase,
   projectId: string,
   destinationId: string,

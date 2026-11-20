@@ -256,6 +256,8 @@ export interface InboxItem {
   startStatusId: string | null;
   startStatusName: string | null;
   canRelease: boolean;
+  /** True when the viewer is a project Admin and may reparent the capture. */
+  canChangeParent: boolean;
 }
 
 export interface SearchMatch {
