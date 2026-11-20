@@ -222,9 +222,6 @@ function viewMetaParts(
       case 'reporter':
         value = project.reporter ? formatPersonName(project.reporter.username) : null;
         break;
-      case 'priority':
-        value = String(project.priority + 1);
-        break;
       case 'created':
         value = formatDate(project.createdAt);
         break;

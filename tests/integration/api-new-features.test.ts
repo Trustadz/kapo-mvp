@@ -190,13 +190,13 @@ describe('per-view property slots (settings.view_fields)', () => {
   it('round-trips, partial-merges and de-duplicates view fields', async () => {
     const { project } = projectUnderRoot('View fields round trip');
     const response = await settingsPut(project.id, {
-      view_fields: { kanban: ['status', 'priority', 'status'], card: ['reporter'] },
+      view_fields: { kanban: ['status', 'created', 'status'], card: ['reporter'] },
     });
     expect(response.status).toBe(200);
     const payload = await json<{ settings: { view_fields: Record<string, string[]> } }>(
       response,
     );
-    expect(payload.settings.view_fields.kanban).toEqual(['status', 'priority']);
+    expect(payload.settings.view_fields.kanban).toEqual(['status', 'created']);
     expect(payload.settings.view_fields.card).toEqual(['reporter']);
     // Untouched views keep their previous/default values.
     expect(payload.settings.view_fields.tree).toEqual(['status']);
@@ -205,6 +205,38 @@ describe('per-view property slots (settings.view_fields)', () => {
     const read = await settingsGet(project.id);
     const readPayload = await json<{ settings: { view_fields: Record<string, string[]> } }>(read);
     expect(readPayload.settings.view_fields).toEqual(payload.settings.view_fields);
+  });
+
+  it('drops retired Priority from submitted view fields without reordering siblings', async () => {
+    const { project } = projectUnderRoot('View fields retired priority');
+    const response = await settingsPut(project.id, {
+      view_fields: { kanban: ['parent', 'priority', 'status'], list: ['priority'] },
+    });
+    expect(response.status).toBe(200);
+    const payload = await json<{ settings: { view_fields: Record<string, string[]> } }>(response);
+    expect(payload.settings.view_fields.kanban).toEqual(['parent', 'status']);
+    expect(payload.settings.view_fields.list).toEqual([]);
+  });
+
+  it('ignores Priority already stored in view_fields while keeping sibling order', async () => {
+    const { project } = projectUnderRoot('View fields stored priority');
+    const row = getProjectRow(db, project.id)!;
+    const stored = JSON.parse(row.settings) as Record<string, unknown>;
+    db.prepare('UPDATE projects SET settings = ? WHERE id = ?').run(
+      JSON.stringify({
+        ...stored,
+        view_fields: {
+          ...((stored.view_fields ?? {}) as Record<string, unknown>),
+          kanban: ['parent', 'priority', 'status'],
+        },
+      }),
+      project.id,
+    );
+
+    const response = await settingsGet(project.id);
+    expect(response.status).toBe(200);
+    const payload = await json<{ settings: { view_fields: Record<string, string[]> } }>(response);
+    expect(payload.settings.view_fields.kanban).toEqual(['parent', 'status']);
   });
 
   it('rejects unknown property keys with 422 and writes nothing', async () => {
@@ -216,6 +248,8 @@ describe('per-view property slots (settings.view_fields)', () => {
       { kanban: ['gantt'] },
       { kanban: ['status', 42] },
       { tree: 'status' },
+      // A retired key is dropped, but it must not shield an unknown key.
+      { kanban: ['priority', 'gantt'] },
     ]) {
       const response = await settingsPut(project.id, { view_fields: bad });
       expect(response.status).toBe(422);
@@ -232,7 +266,7 @@ describe('per-view property slots (settings.view_fields)', () => {
 
   it('exposes view_fields on the project page payload', async () => {
     const { project } = projectUnderRoot('View fields page payload');
-    await settingsPut(project.id, { view_fields: { list: ['priority', 'parent'] } });
+    await settingsPut(project.id, { view_fields: { list: ['created', 'parent'] } });
     const pageRoute = await import('@/app/api/projects/[id]/route');
     const response = await pageRoute.GET(
       request(`/api/projects/${project.id}`),
@@ -240,7 +274,7 @@ describe('per-view property slots (settings.view_fields)', () => {
     );
     expect(response.status).toBe(200);
     const payload = await json<{ settings: { view_fields: Record<string, string[]> } }>(response);
-    expect(payload.settings.view_fields.list).toEqual(['priority', 'parent']);
+    expect(payload.settings.view_fields.list).toEqual(['created', 'parent']);
     expect(payload.settings.view_fields.tree).toEqual(['status']);
   });
 });
