@@ -591,8 +591,11 @@ export const nl: Messages = {
     subtitle: 'Beheer je Kapo-installatie',
     defaults: 'Applicatiestandaarden',
     defaultRole: 'Standaardrol voor accounts',
-    trashRetention: 'Bewaartermijn prullenbak',
-    daysFixed: '{days} dagen (vast)',
+    trashPurgeEnabled: 'Prullenbak automatisch opschonen',
+    trashPurgeEnabledDescription:
+      'Verwijdert projecten in de prullenbak definitief na de bewaartermijn. Back-ups blijven gewoon doorgaan.',
+    trashRetention: 'Bewaar projecten in de prullenbak',
+    trashRetentionHint: 'Dagen tussen 1 en 365. Standaard 30.',
     note:
       'In deze release zijn geen add-onvelden nodig; items kunnen direct vanuit de Inbox worden vrijgegeven.',
     viewsAvailable: 'Weergaven beschikbaar voor projecten',

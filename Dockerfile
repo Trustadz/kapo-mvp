@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # Kapo production image: Next.js standalone output, Node 24, non-root user,
-# persistent SQLite/upload volume at /app/data.
+# persistent SQLite at /app/data, uploads at /app/upload and backups at /backup.
 
 FROM node:24-bookworm-slim AS base
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -26,7 +26,7 @@ ENV NODE_ENV=production \
     PORT=3000 \
     HOSTNAME=0.0.0.0 \
     DATABASE_PATH=/app/data/kapo.db \
-    UPLOAD_DIR=/app/data/uploads \
+    UPLOAD_DIR=/app/upload \
     KAPO_MIGRATIONS_DIR=/app/migrations \
     KAPO_BACKUP_DIR=/backup
 
@@ -37,7 +37,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/* \
   && groupadd --system --gid 1001 kapo \
   && useradd --system --uid 1001 --gid kapo --create-home kapo \
-  && mkdir -p /app/data/uploads /backup \
+  && mkdir -p /app/data /app/upload /backup \
   && chown -R kapo:kapo /app /backup
 
 WORKDIR /app
@@ -57,15 +57,15 @@ COPY --from=builder --chown=kapo:kapo /app/src/server/db/migrations ./migrations
 # data/ out of the build context, output tracing could otherwise carry a local
 # SQLite file into the image. The runtime volume provides the real data dir.
 RUN rm -rf /app/data \
-  && mkdir -p /app/data/uploads \
-  && chown -R kapo:kapo /app/data
+  && mkdir -p /app/data /app/upload \
+  && chown -R kapo:kapo /app/data /app/upload
 
 COPY scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod 0755 /usr/local/bin/docker-entrypoint.sh
 
 # Starts as root, fixes bind-mount ownership, then drops to kapo.
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-VOLUME ["/app/data", "/backup"]
+VOLUME ["/app/data", "/app/upload", "/backup"]
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

@@ -10,17 +10,21 @@ import {
   DEFAULT_BACKUP_ENABLED,
   DEFAULT_BACKUP_RETENTION,
   DEFAULT_BACKUP_START_TIME,
+  DEFAULT_TRASH_PURGE_ENABLED,
   MAX_BACKUP_RETENTION,
+  MAX_TRASH_RETENTION_DAYS,
   MIN_BACKUP_RETENTION,
+  MIN_TRASH_RETENTION_DAYS,
   TRASH_RETENTION_DAYS,
 } from '../db/bootstrap';
 import { getDb } from '../db/connection';
 import { getInstallationName } from '../db/shell-queries';
+import { addDaysIso } from '../db/util';
 
 /**
  * Application-wide settings (Admin only): default account role, enabled
- * collection views, the fixed 30-day trash retention and the rolling backup
- * schedule (issue #13).
+ * collection views, automatic trash purge/retention and the rolling backup
+ * schedule (issues #13 and #21).
  *
  * Route handlers translate {@link SettingsError} into the build-spec §7 error
  * envelope. Every value read back is normalised so a corrupt row cannot crash a
@@ -49,6 +53,7 @@ export class SettingsError extends Error {
 export interface ApplicationSettings {
   defaultAccountRole: AppRole;
   enabledViews: CollectionView[];
+  trashPurgeEnabled: boolean;
   trashRetentionDays: number;
   installationName: string;
   backupEnabled: boolean;
@@ -78,6 +83,15 @@ function parseBooleanSetting(raw: string | undefined, fallback: boolean): boolea
   if (raw === '1' || raw === 'true') return true;
   if (raw === '0' || raw === 'false') return false;
   return fallback;
+}
+
+function parseTrashRetention(raw: string | undefined): number {
+  const value = Number(raw);
+  return Number.isInteger(value) &&
+    value >= MIN_TRASH_RETENTION_DAYS &&
+    value <= MAX_TRASH_RETENTION_DAYS
+    ? value
+    : TRASH_RETENTION_DAYS;
 }
 
 function parseBackupRetention(raw: string | undefined): number {
@@ -124,8 +138,11 @@ export function getApplicationSettings(
   return {
     defaultAccountRole,
     enabledViews: parseEnabledViews(readSetting(db, 'enabled_views')),
-    // Retention is a product decision, not a user preference.
-    trashRetentionDays: TRASH_RETENTION_DAYS,
+    trashPurgeEnabled: parseBooleanSetting(
+      readSetting(db, 'trash_purge_enabled'),
+      DEFAULT_TRASH_PURGE_ENABLED,
+    ),
+    trashRetentionDays: parseTrashRetention(readSetting(db, 'trash_retention_days')),
     installationName: getInstallationName(db),
     backupEnabled: parseBooleanSetting(
       readSetting(db, 'backup_enabled'),
@@ -145,6 +162,7 @@ export function getDefaultAccountRole(db: BetterSqliteDatabase = getDb()): AppRo
 export interface UpdateApplicationSettingsInput {
   defaultAccountRole?: unknown;
   enabledViews?: unknown;
+  trashPurgeEnabled?: unknown;
   trashRetentionDays?: unknown;
   installationName?: unknown;
   backupEnabled?: unknown;
@@ -199,17 +217,29 @@ export function updateApplicationSettings(
     values.set('enabled_views', JSON.stringify(views));
   }
 
+  let nextTrashRetention: number | null = null;
+  if (input.trashPurgeEnabled !== undefined) {
+    if (typeof input.trashPurgeEnabled !== 'boolean') {
+      throw new SettingsError(422, 'validation_failed', 'Check the highlighted fields.', {
+        trashPurgeEnabled: 'Choose whether trash is purged automatically.',
+      });
+    }
+    values.set('trash_purge_enabled', input.trashPurgeEnabled ? '1' : '0');
+  }
+
   if (input.trashRetentionDays !== undefined) {
     const days = Number(input.trashRetentionDays);
-    if (days !== TRASH_RETENTION_DAYS) {
-      throw new SettingsError(
-        422,
-        'validation_failed',
-        `Trash retention is fixed at ${TRASH_RETENTION_DAYS} days.`,
-        { trashRetentionDays: `Trash retention is fixed at ${TRASH_RETENTION_DAYS} days.` },
-      );
+    if (
+      !Number.isInteger(days) ||
+      days < MIN_TRASH_RETENTION_DAYS ||
+      days > MAX_TRASH_RETENTION_DAYS
+    ) {
+      throw new SettingsError(422, 'validation_failed', 'Check the highlighted fields.', {
+        trashRetentionDays: `Keep trash between ${MIN_TRASH_RETENTION_DAYS} and ${MAX_TRASH_RETENTION_DAYS} days.`,
+      });
     }
-    values.set('trash_retention_days', String(TRASH_RETENTION_DAYS));
+    values.set('trash_retention_days', String(days));
+    nextTrashRetention = days;
   }
 
   if (input.installationName !== undefined) {
@@ -264,6 +294,17 @@ export function updateApplicationSettings(
   );
   db.transaction(() => {
     for (const [key, value] of values) upsert.run(key, value);
+    if (nextTrashRetention !== null) {
+      // Keep every trashed project's displayed deadline in sync with the new
+      // retention setting, including items already in Trash.
+      const rows = db
+        .prepare('SELECT id, trashed_at FROM projects WHERE trashed_at IS NOT NULL')
+        .all() as Array<{ id: string; trashed_at: string }>;
+      const updateDeadline = db.prepare('UPDATE projects SET purge_deadline = ? WHERE id = ?');
+      for (const row of rows) {
+        updateDeadline.run(addDaysIso(row.trashed_at, nextTrashRetention), row.id);
+      }
+    }
   })();
 
   return getApplicationSettings(db);

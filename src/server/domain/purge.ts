@@ -4,7 +4,8 @@ import { getDb } from '../db/connection';
 /**
  * Automatic trash purge (build-spec §6 rule 9, AR-020).
  *
- * Every project receives its own 30-day `purge_deadline` when it enters Trash.
+ * Every project receives its own `purge_deadline` when it enters Trash, based on
+ * the Admin retention setting (default 30 days).
  * This service removes every project whose deadline has passed, including its
  * complete descendant subtree (a trashed parent hides its subtree, so a
  * descendant may still have a later deadline than an expired ancestor).
@@ -20,8 +21,9 @@ import { getDb } from '../db/connection';
  *  - Root can never be purged (it has no purge deadline, and it is skipped
  *    defensively should data ever be corrupt).
  *
- * Called by `src/instrumentation.ts` at startup and every six hours, and by
- * `npm run db:purge` through `scripts/purge.ts`.
+ * Called by `src/instrumentation.ts` at startup and every six hours (when the
+ * Admin purge setting is enabled), and by `npm run db:purge` through
+ * `scripts/purge.ts` regardless of the automatic setting.
  */
 
 export interface PurgeResult {

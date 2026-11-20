@@ -6,6 +6,9 @@ import { newId, nowIso } from './util';
 /** Bootstrap defaults shared by /api/setup and the seed script. */
 
 export const TRASH_RETENTION_DAYS = 30;
+export const MIN_TRASH_RETENTION_DAYS = 1;
+export const MAX_TRASH_RETENTION_DAYS = 365;
+export const DEFAULT_TRASH_PURGE_ENABLED = true;
 
 /** Rolling database/uploads backups (Admin settings, issue #13). */
 export const DEFAULT_BACKUP_ENABLED = true;
@@ -23,6 +26,7 @@ export const DEFAULT_APP_SETTINGS: AppSettingDefault[] = [
   { key: 'default_account_role', value: 'user' },
   { key: 'enabled_views', value: JSON.stringify(['kanban', 'card', 'tree', 'list']) },
   { key: 'trash_retention_days', value: String(TRASH_RETENTION_DAYS) },
+  { key: 'trash_purge_enabled', value: DEFAULT_TRASH_PURGE_ENABLED ? '1' : '0' },
   { key: 'installation_name', value: 'Kapo' },
   { key: 'backup_enabled', value: DEFAULT_BACKUP_ENABLED ? '1' : '0' },
   { key: 'backup_start_time', value: DEFAULT_BACKUP_START_TIME },

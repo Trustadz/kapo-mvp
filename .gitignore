@@ -9,6 +9,7 @@ next-env.d.ts
 # runtime data (SQLite database, uploads, rolling backups)
 data/
 !data/.gitkeep
+upload/
 backup/
 
 # tests

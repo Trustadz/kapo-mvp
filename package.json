@@ -1,6 +1,6 @@
 {
   "name": "kapo",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Kapo — self-hosted household task and project management platform",
   "engines": {

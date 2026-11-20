@@ -9,6 +9,7 @@ import {
 import { DomainError } from '@/server/domain/permissions';
 import { replaceWorkflow } from '@/server/domain/workflow';
 import { purgeExpired } from '@/server/domain/purge';
+import { updateApplicationSettings } from '@/server/domain/settings';
 import { createTestDatabase, type TestDatabase } from '../helpers/db';
 import {
   createProject,
@@ -141,6 +142,44 @@ describe('trashProjects', () => {
     expect(auditActions(parent.id)).toContain('project.child_trashed');
     // The trashed project's own parent logs it too.
     expect(auditActions(homeId)).toContain('project.child_trashed');
+  });
+
+  it('uses the configured retention and rewrites existing deadlines when it changes', () => {
+    const parent = createProject(db, {
+      title: 'Retention parent',
+      parentId: homeId,
+      reporterId: admin.id,
+    });
+    createWorkflow(db, parent.id, { names: ['One', 'Two'] });
+    const child = createProject(db, {
+      title: 'Retention child',
+      parentId: parent.id,
+      reporterId: admin.id,
+    });
+
+    try {
+      updateApplicationSettings(db, { trashRetentionDays: 7, trashPurgeEnabled: true });
+      trashProjects(db, actor(admin), [parent.id]);
+      const trashed = row(parent.id);
+      const trashedAt = new Date(trashed.trashed_at!).getTime();
+      const deadline = new Date(trashed.purge_deadline!).getTime();
+      expect(deadline - trashedAt).toBeGreaterThan(6.9 * 86_400_000);
+      expect(deadline - trashedAt).toBeLessThan(7.1 * 86_400_000);
+
+      updateApplicationSettings(db, { trashRetentionDays: 14 });
+      const extended = row(parent.id);
+      const extendedDeadline = new Date(extended.purge_deadline!).getTime();
+      expect(extendedDeadline - trashedAt).toBeGreaterThan(13.9 * 86_400_000);
+      expect(extendedDeadline - trashedAt).toBeLessThan(14.1 * 86_400_000);
+      expect(extended.purge_deadline).not.toBe(trashed.purge_deadline);
+      expect(row(child.id).purge_deadline).toBe(extended.purge_deadline);
+    } finally {
+      updateApplicationSettings(db, { trashRetentionDays: 30, trashPurgeEnabled: true });
+      // Remove the test rows from the shared fixture for later tests.
+      db.prepare('DELETE FROM project_search WHERE project_id IN (?, ?)').run(parent.id, child.id);
+      db.prepare('DELETE FROM projects WHERE id = ?').run(child.id);
+      db.prepare('DELETE FROM projects WHERE id = ?').run(parent.id);
+    }
   });
 
   it('keeps the original action and deadline for a descendant already in Trash', () => {

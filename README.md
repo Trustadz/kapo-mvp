@@ -8,7 +8,7 @@ This repository contains the Next.js/SQLite implementation of the MVP.
 - **Stack:** Next.js 16 (App Router), React 19, TypeScript (strict), SQLite via
   `better-sqlite3`, CSS Modules with design tokens. No Tailwind, no component
   library.
-- **Deployment:** one Docker Compose service with host-side `data/` and `backup/` folders.
+- **Deployment:** one Docker Compose service with host-side `data/`, `upload/` and `backup/` folders.
 - **Source docs:** [`docs/build-spec.md`](docs/build-spec.md) is the binding
   engineering contract; [`product.md`](product.md) the product specification;
   `docs/reference/*.png` and the Penpot file are the visual source of truth.
@@ -79,7 +79,7 @@ weekend trip), three Inbox captures, three favorites and activity history.
 | `npm run db:migrate` | Apply pending SQL migrations |
 | `npm run db:seed` | Replace database contents with demo data |
 | `npm run db:reset` | Drop the database, migrate and seed |
-| `npm run db:purge` | Remove projects whose 30-day trash deadline passed |
+| `npm run db:purge` | Remove projects past the trash retention setting (default 30 days) |
 
 `npm run test:e2e` expects Playwright browsers (`npx playwright install chromium`)
 and a Playwright config; the tester owns `tests/**` and `playwright.config.ts`.
@@ -91,11 +91,10 @@ Copy `.env.example` to `.env.local` if you need to override defaults:
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `DATABASE_PATH` | `./data/kapo.db` | SQLite database file |
-| `UPLOAD_DIR` | `./data/uploads` | Profile picture uploads |
+| `UPLOAD_DIR` | `./upload` | Profile picture uploads |
 | `KAPO_PUBLIC_URL` | `http://localhost:3000` | Absolute URL for metadata |
 | `KAPO_MIGRATIONS_DIR` | `./src/server/db/migrations` | SQL migration directory |
 | `KAPO_FORCE_SECURE_COOKIES` | unset | Force `Secure` cookies behind TLS proxies |
-| `KAPO_DISABLE_PURGE` | unset | `1` disables the automatic trash purge (backups continue) |
 | `KAPO_BACKUP_DIR` | `/backup` (Docker), `./data/backups` (dev fallback) | Rolling-backup destination |
 
 Sessions are random, database-backed tokens (`sessions.token_hash` stores only a
@@ -104,9 +103,9 @@ SHA-256 hash), so no session secret is required.
 ## Run on a server (Docker Compose)
 
 The repository is public; clone it directly on the server. Compose runs one
-application container with two host folders: `./data` (SQLite database and
-uploads) and `./backup` (rolling backups). Both live next to
-`docker-compose.yaml`, so they are easy to inspect, copy and back up.
+application container with three host folders: `./data` (SQLite database),
+`./upload` (profile pictures) and `./backup` (rolling backups). They live next
+to `docker-compose.yaml`, so they are easy to inspect and back up.
 
 ### Prerequisites
 
@@ -140,8 +139,8 @@ What the Compose file provides:
 - `restart: unless-stopped` and a 30-second `/healthz` healthcheck (20s start period, 3 retries).
 - Listens on **`127.0.0.1:3000`**, ready for a Caddy/nginx proxy on the same
   host. Change the port mapping to `"3000:3000"` for direct LAN access.
-- `./data:/app/data` (database + uploads) and `./backup:/backup` (backups),
-  both ordinary host folders.
+- `./data:/app/data` (database), `./upload:/app/upload` (uploads) and
+  `./backup:/backup` (backups), all ordinary host folders.
 - The image entrypoint starts as root briefly, creates/chowns those folders,
   then drops to the non-root `kapo` user (UID/GID 1001). There is no extra init
   container and no manual `chown`.
@@ -214,7 +213,7 @@ Data and backups are ordinary host directories next to the Compose file:
 
 ```
 ./data/kapo.db        SQLite database
-./data/uploads/       profile pictures
+./upload/             profile pictures
 ./backup/kapo-.../    rolling backup folders
 ```
 
@@ -291,7 +290,7 @@ container). Each run creates a timestamped folder:
 ```
 /backup/kapo-YYYYMMDD-HHMMSS/
   kapo.db        consistent SQLite snapshot (single file, rollback journal)
-  uploads/       copy of UPLOAD_DIR, when it exists
+  uploads/       copy of ./upload, when it exists
 ```
 
 The database is captured with better-sqlite3's online backup API, not by copying
@@ -331,16 +330,16 @@ docker compose run --rm --no-deps --user root --entrypoint sh kapo -c '
   set -e
   rm -f /app/data/kapo.db /app/data/kapo.db-wal /app/data/kapo.db-shm
   cp /backup/kapo-YYYYMMDD-HHMMSS/kapo.db /app/data/kapo.db
-  rm -rf /app/data/uploads
-  cp -a /backup/kapo-YYYYMMDD-HHMMSS/uploads /app/data/uploads
-  chown -R 1001:1001 /app/data
+  rm -rf /app/upload
+  cp -a /backup/kapo-YYYYMMDD-HHMMSS/uploads /app/upload
+  chown -R 1001:1001 /app/data /app/upload
 '
 
 docker compose start kapo
 ```
 
 Replace `kapo-YYYYMMDD-HHMMSS` with the folder chosen above. If a backup has no
-`uploads/` folder (an installation with no avatars), leave `/app/data/uploads`
+`uploads/` folder (an installation with no avatars), leave `/app/upload`
 empty instead of copying.
 
 Verify the restored database before relying on it:
@@ -360,11 +359,12 @@ Then sign in and open a known project. Restore from a different backup if the
 integrity check fails; the previous database file has been removed, so keep
 your off-site copy until the restore is verified.
 
-The app also sweeps expired trash when it starts and every six hours via
-`src/instrumentation.ts`, so no cron job or `scripts/` copy is needed in the
-container. Set `KAPO_DISABLE_PURGE=1` to disable only that sweep (for example
-while inspecting a restored snapshot). Backups have their own independent
-schedule.
+Automatic trash purge is an Admin setting: **Settings → Application settings →
+Automatically purge trash**, with a retention of **30 days by default** (1–365).
+The app sweeps when it starts and every six hours; a sweep only deletes items
+older than the configured retention, and changing the retention updates the
+deadlines of items already in Trash. No cron job, env switch or `scripts/` copy
+is needed. Backups have their own independent schedule.
 
 Demo accounts from `npm run db:reset` are for local testing only. Never seed
 them on a public server; create the first Admin through `/setup`.
@@ -516,9 +516,16 @@ curl -i http://localhost:3100/login        # 200 sign-in card
 - Sign-in is throttled in-process after repeated failures; put TLS and
   reverse-proxy rate limits in front of production deployments.
 - Profile picture uploads are validated separately by the profile API; the
-  foundation only defines `UPLOAD_DIR`.
+  foundation only defines `UPLOAD_DIR`; Docker uses the separate `/app/upload` mount.
 - There is no email delivery or recovery flow: password resets are performed by
   an application Admin, matching the product specification.
+
+## Releases
+
+Kapo is treated as production software. Upgrade notes and breaking deployment
+changes are recorded in [CHANGELOG.md](CHANGELOG.md) and in the corresponding
+GitHub Release before a version is tagged. Check the release notes before
+upgrading a server, and back up `./data`, `./upload` and `./backup` first.
 
 ## Project documentation
 
