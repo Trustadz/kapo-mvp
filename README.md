@@ -137,7 +137,7 @@ same URL serves the app at `/login`.
 What the Compose file provides:
 
 - Pulls the published `ghcr.io/trustadz/kapo-mvp:latest` image.
-- `restart: unless-stopped`; the image's `/healthz` healthcheck is inherited.
+- `restart: unless-stopped` and a 30-second `/healthz` healthcheck (20s start period, 3 retries).
 - Listens on **`127.0.0.1:3000`**, ready for a Caddy/nginx proxy on the same
   host. Change the port mapping to `"3000:3000"` for direct LAN access.
 - `./data:/app/data` (database + uploads) and `./backup:/backup` (backups),
