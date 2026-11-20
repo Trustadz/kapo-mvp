@@ -11,12 +11,23 @@
  * Themes are selected with [data-theme="light"] / [data-theme="dark"] on <html>.
  * "System" resolves to one of the two before first paint (see ThemeScript).
  *
- * WCAG AA additions (small text only; the Penpot brand tokens are unchanged):
+ * WCAG AA (issue #34; see docs/accessibility-contrast.md for measured pairs):
+ *   --color-muted          light #5D7063 (4.77:1 on canvas, 5.30:1 on surface,
+ *                          4.63:1 on brandLight, 4.69:1 on pulled)
+ *                          dark  #AFBBAF (8.65:1 on canvas, 7.36:1 on surface)
  *   --color-muted-strong   light #5B6D61 (4.97:1 on canvas, 5.52:1 on surface)
- *                          dark  #C2CDC4 (10.5:1 on canvas, 8.95:1 on surface)
+ *                          dark  #C2CDC4 (10.52:1 on canvas, 8.95:1 on surface)
+ *   --color-input-border   light #868C85 (3.10:1 on canvas, 3.44:1 on surface)
+ *                          dark  #7B8D80 (4.16:1 on surface, 3.09:1 on brandLight)
+ *   --color-action         dark  #3D8067 (white text 4.69:1; fill vs canvas
+ *                          3.68:1, vs surface 3.13:1)
+ *   --color-danger-action  light #A33A2F (white text 6.56:1)
+ *                          dark  #BE4D41 (white text 4.85:1, vs surface 3.02:1)
  *   --color-warning-strong light #94562A (5.27:1 on warningBg #FFF2E5)
  *                          dark  #F5C08B (7.23:1 on warningBg #453424)
- * Use muted-strong for 14px copy placed on the cream/dark canvas and
+ * --color-border and --color-soft are decorative: borders separate surfaces and
+ * soft colours only paint decorative icons/separators, never required labels.
+ * Use muted-strong where the design calls for stronger secondary copy, and
  * warning-strong for warning badge/tag text.
  */
 
@@ -39,11 +50,11 @@
 
   /* lines */
   --color-border: #dddcd5;
-  --color-input-border: #dddcd5;
+  --color-input-border: #868c85;
 
   /* text */
   --color-text: #173629;
-  --color-muted: #65786b;
+  --color-muted: #5d7063;
   --color-muted-strong: #5b6d61;
   --color-soft: #9aaba0;
 
@@ -57,6 +68,7 @@
   --color-warning-strong: #94562a;
   --color-warning-bg: #fff2e5;
   --color-danger: #a33a2f;
+  --color-danger-action: #a33a2f;
   --color-danger-bg: #fbeae7;
   --color-success: #28614a;
   --color-success-bg: #e8f2ec;
@@ -72,7 +84,7 @@
   --avatar-2-bg: #f0dde8;
   --avatar-2-text: #894f6a;
   --avatar-3-bg: #f4e4cd;
-  --avatar-3-text: #886338;
+  --avatar-3-text: #7a5730;
   --avatar-4-bg: #e5dff2;
   --avatar-4-text: #66508a;
 
@@ -136,7 +148,7 @@
 
   /* lines */
   --color-border: #48534a;
-  --color-input-border: #75877a;
+  --color-input-border: #7b8d80;
 
   /* text */
   --color-text: #e9eee7;
@@ -145,8 +157,8 @@
   --color-soft: #88978b;
 
   /* actions / feedback */
-  --color-action: #28614a;
-  --color-action-hover: #1d4a38;
+  --color-action: #3d8067;
+  --color-action-hover: #35755d;
   --color-action-text: #ffffff;
   --color-accent: #9bd6b3;
   --color-focus: #9bd6b3;
@@ -154,6 +166,7 @@
   --color-warning-strong: #f5c08b;
   --color-warning-bg: #453424;
   --color-danger: #f0a497;
+  --color-danger-action: #be4d41;
   --color-danger-bg: #452a26;
   --color-success: #9bd6b3;
   --color-success-bg: #2b4234;

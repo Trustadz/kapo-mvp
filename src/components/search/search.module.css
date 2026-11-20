@@ -29,7 +29,7 @@
 }
 
 .tab[data-active] {
-  border-color: var(--color-brand);
+  border-color: var(--color-accent);
   background: var(--color-surface);
   color: var(--color-brand-dark);
 }

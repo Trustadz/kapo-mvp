@@ -101,7 +101,7 @@
 }
 
 .favoriteButton[aria-pressed='true'] {
-  color: var(--color-brand);
+  color: var(--color-accent);
 }
 
 .iconButton {
