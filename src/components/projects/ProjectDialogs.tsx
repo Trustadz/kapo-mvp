@@ -92,9 +92,14 @@ export function AddProjectDialog({
         </div>
       }
     >
-      <form id="add-project-form" className={styles.dialogForm} onSubmit={submit} noValidate>
-        {error ? <Notice tone="error">{error}</Notice> : null}
-        <Field label="Title" htmlFor="add-project-title" required error={undefined}>
+      <form
+        id="add-project-form"
+        className={styles.dialogForm}
+        onSubmit={submit}
+        noValidate
+        aria-label="Add child project"
+      >
+        <Field label="Title" htmlFor="add-project-title" required error={error ?? undefined}>
           <Input
             ref={titleRef}
             id="add-project-title"
@@ -219,7 +224,7 @@ export function MoveDialog({
         {error ? <Notice tone="error">{error}</Notice> : null}
         {info ? (
           <>
-            <Field label="Destination" htmlFor="move-destination">
+            <Field label="Destination" htmlFor="move-destination" required>
               <Select
                 id="move-destination"
                 value={destinationId}
@@ -869,7 +874,7 @@ export function BulkMoveDialog({ open, projects, onClose, onMoved }: BulkMoveDia
         ) : null}
         {destinationOptions.length > 0 ? (
           <>
-            <Field label="Destination" htmlFor="bulk-move-destination">
+            <Field label="Destination" htmlFor="bulk-move-destination" required>
               <Select
                 id="bulk-move-destination"
                 value={destinationId}

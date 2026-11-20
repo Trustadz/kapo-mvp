@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/Input';
 import { Notice } from '@/components/ui/Notice';
 import { Select } from '@/components/ui/Select';
 import { Toast } from '@/components/ui/Toast';
+import { useToastMessage } from '@/components/ui/use-live-announcer';
 import { requestJson } from '@/lib/api-client';
 import { formatPersonName } from '@/lib/format';
 import { APP_ROLES, type AppRole } from '@/lib/types';
@@ -53,7 +54,7 @@ export function UsersManager({ users, defaultRole }: UsersManagerProps) {
   const [dialog, setDialog] = useState<
     { mode: 'add' } | { mode: 'edit'; user: AccountUser } | null
   >(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const { toast, notify, dismiss } = useToastMessage();
 
   const changeRole = async (account: AccountUser, appRole: AppRole) => {
     if (appRole === account.appRole) return;
@@ -72,7 +73,7 @@ export function UsersManager({ users, defaultRole }: UsersManagerProps) {
       setList((current) =>
         sortUsers(current.map((entry) => (entry.id === account.id ? result.data.user : entry))),
       );
-      setToast(`${formatPersonName(account.username)} is now ${ROLE_SHORT_LABELS[appRole]}.`);
+      notify(`${formatPersonName(account.username)} is now ${ROLE_SHORT_LABELS[appRole]}.`);
       router.refresh();
     } catch {
       setListError('Could not reach the server. Check your connection and try again.');
@@ -87,7 +88,7 @@ export function UsersManager({ users, defaultRole }: UsersManagerProps) {
       return sortUsers([...without, user]);
     });
     setDialog(null);
-    setToast(
+    notify(
       mode === 'add'
         ? `Account ${formatPersonName(user.username)} created.`
         : 'Account saved.',
@@ -109,7 +110,7 @@ export function UsersManager({ users, defaultRole }: UsersManagerProps) {
           </div>
         ) : null}
 
-        <ul className={styles.userList}>
+        <ul className={styles.userList} aria-label="Accounts">
           {list.map((account) => {
             const saving = roleSavingId === account.id;
             return (
@@ -186,7 +187,13 @@ export function UsersManager({ users, defaultRole }: UsersManagerProps) {
         />
       ) : null}
 
-      <Toast open={toast !== null} message={toast ?? ''} onClose={() => setToast(null)} />
+      <Toast
+        open={toast !== null}
+        message={toast?.message ?? ''}
+        tone={toast?.tone ?? 'success'}
+        announcementKey={toast?.sequence}
+        onClose={dismiss}
+      />
     </>
   );
 }
@@ -287,13 +294,20 @@ function UserDialog({ open, mode, user, defaultRole, onClose, onSaved }: UserDia
         </>
       }
     >
-      <form id="user-dialog-form" className={styles.dialogForm} onSubmit={handleSubmit} noValidate>
+      <form
+        id="user-dialog-form"
+        className={styles.dialogForm}
+        onSubmit={handleSubmit}
+        noValidate
+        aria-label={mode === 'add' ? 'Add user' : 'Edit user'}
+      >
         {formError ? <Notice tone="error">{formError}</Notice> : null}
 
         <Field
           label="Username"
           htmlFor="user-dialog-username"
           error={fieldErrors.username}
+          required
           labelWidth={160}
         >
           <Input
@@ -308,7 +322,13 @@ function UserDialog({ open, mode, user, defaultRole, onClose, onSaved }: UserDia
           />
         </Field>
 
-        <Field label="Email" htmlFor="user-dialog-email" error={fieldErrors.email} labelWidth={160}>
+        <Field
+          label="Email"
+          htmlFor="user-dialog-email"
+          error={fieldErrors.email}
+          required
+          labelWidth={160}
+        >
           <Input
             id="user-dialog-email"
             name="email"
@@ -325,6 +345,7 @@ function UserDialog({ open, mode, user, defaultRole, onClose, onSaved }: UserDia
           label="Application role"
           htmlFor="user-dialog-role"
           error={fieldErrors.appRole}
+          required
           labelWidth={160}
         >
           <Select
@@ -347,6 +368,7 @@ function UserDialog({ open, mode, user, defaultRole, onClose, onSaved }: UserDia
           htmlFor="user-dialog-password"
           error={fieldErrors.password}
           hint={mode === 'edit' ? 'Leave blank to keep the current password.' : undefined}
+          required={mode === 'add'}
           labelWidth={160}
         >
           <Input

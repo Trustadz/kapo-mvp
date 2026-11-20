@@ -9,14 +9,24 @@ export interface EmptyStateProps {
   description?: string;
   action?: ReactNode;
   className?: string;
+  /** Heading level; use 1 when the empty state is the whole page. */
+  level?: 1 | 2;
 }
 
 /** Short and actionable empty state (build-spec §8). */
-export function EmptyState({ icon = 'inbox', title, description, action, className }: EmptyStateProps) {
+export function EmptyState({
+  icon = 'inbox',
+  title,
+  description,
+  action,
+  className,
+  level = 2,
+}: EmptyStateProps) {
+  const Heading = level === 1 ? 'h1' : 'h2';
   return (
     <div className={cn(styles.empty, className)}>
       <Icon name={icon} size={32} className={styles.icon} />
-      <h2 className={styles.title}>{title}</h2>
+      <Heading className={styles.title}>{title}</Heading>
       {description ? <p className={styles.description}>{description}</p> : null}
       {action ? <div className={styles.action}>{action}</div> : null}
     </div>

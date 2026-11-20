@@ -157,6 +157,7 @@ export function ChildProjects({
 
   return (
     <section aria-label="Child projects">
+      <h2 className="visually-hidden">Child projects</h2>
       {hasChildren ? (
         <ProjectFilterBar
           filters={filters}

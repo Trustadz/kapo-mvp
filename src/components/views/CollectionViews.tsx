@@ -1110,6 +1110,11 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
           data-flip-key={project.id}
           data-archived={project.archived || undefined}
           data-context={contextRow || undefined}
+          aria-describedby={
+            ctx.canEdit && project.id !== ctx.projectId && !contextRow
+              ? 'tree-drag-hint'
+              : undefined
+          }
           draggable={ctx.canEdit && project.id !== ctx.projectId && !contextRow}
           onDragStart={(event) => {
             if (contextRow || (event.target as HTMLElement).closest('[data-no-drag]')) {
@@ -1191,7 +1196,7 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
               />
             </td>
           ) : null}
-          <td className={styles.treeNameCell}>
+          <th scope="row" className={styles.treeNameCell}>
             <div className={styles.treeName}>
               {Array.from({ length: depth }).map((_, index) => (
                 <span key={index} className={styles.indentGuide} aria-hidden="true" />
@@ -1221,7 +1226,7 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
               {project.inbox ? <Badge tone="warning">Inbox</Badge> : null}
               <ViewMeta project={project} fields={ctx.settings.view_fields.tree} />
             </div>
-          </td>
+          </th>
           <td className={styles.treeStatusCell}>
             {contextRow ? (
               <span className={styles.readonlyStatus}>{project.statusName ?? '—'}</span>
@@ -1277,6 +1282,9 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
         aria-label="Child projects"
         aria-describedby="tree-drag-hint"
       >
+        <caption className="visually-hidden">
+          Child projects with status, selection and row actions
+        </caption>
         <thead>
           <tr>
             {selectable.length > 0 ? (

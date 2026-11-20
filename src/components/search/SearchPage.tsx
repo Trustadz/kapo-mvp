@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { Badge, Button, EmptyState, Icon, Input, Toast } from '@/components/ui';
+import { useToastMessage } from '@/components/ui/use-live-announcer';
 import { RestoreDialog } from '@/components/projects/ProjectDialogs';
 import { formatDate, formatPersonName } from '@/lib/format';
 import type { SearchResultItem, TrashGroup, TrashItem } from '@/components/projects/types';
@@ -24,7 +25,7 @@ export interface SearchPageProps {
 export function SearchPage({ tab, query, results, trashItems, trashGroups }: SearchPageProps) {
   const router = useRouter();
   const [value, setValue] = useState(query);
-  const [toast, setToast] = useState<string | null>(null);
+  const { toast, notify, dismiss } = useToastMessage();
   const [restore, setRestore] = useState<TrashItem | null>(null);
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
@@ -74,7 +75,12 @@ export function SearchPage({ tab, query, results, trashItems, trashGroups }: Sea
         </p>
       </header>
 
-      <form className={styles.searchForm} role="search" onSubmit={submit}>
+      <form
+        className={styles.searchForm}
+        role="search"
+        aria-label={tab === 'trash' ? 'Filter trashed projects' : 'Search projects'}
+        onSubmit={submit}
+      >
         <label className="visually-hidden" htmlFor="project-search-input">
           {tab === 'trash' ? 'Filter trashed projects' : 'Search projects'}
         </label>
@@ -229,11 +235,17 @@ export function SearchPage({ tab, query, results, trashItems, trashGroups }: Sea
         projectTitle={restore?.title ?? ''}
         onClose={() => setRestore(null)}
         onRestored={() => {
-          setToast('Project restored.');
+          notify('Project restored.');
           router.refresh();
         }}
       />
-      <Toast open={toast !== null} message={toast ?? ''} onClose={() => setToast(null)} />
+      <Toast
+        open={toast !== null}
+        message={toast?.message ?? ''}
+        tone={toast?.tone ?? 'success'}
+        announcementKey={toast?.sequence}
+        onClose={dismiss}
+      />
     </div>
   );
 }

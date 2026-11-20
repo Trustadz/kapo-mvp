@@ -9,6 +9,7 @@ import {
   Checkbox,
   Dialog,
   Field,
+  FieldGroup,
   Icon,
   Input,
   Notice,
@@ -31,6 +32,7 @@ import { DEFAULT_VIEW_FIELDS, VIEW_FIELD_KEYS, VIEW_FIELD_LABELS } from '@/lib/p
 import { formatPersonName } from '@/lib/format';
 import { markFieldChanged } from '@/lib/changed-fields';
 import { useFieldChanged } from '@/lib/use-field-changed';
+import { useToastMessage } from '@/components/ui/use-live-announcer';
 import { saveMembers, saveProjectSettings, saveWorkflow, updateProjectFields } from './api';
 import styles from './ProjectSettings.module.css';
 
@@ -73,11 +75,7 @@ export function ProjectSettingsPage({
   tab,
 }: SettingsPageProps) {
   const router = useRouter();
-  const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' | 'info' } | null>(
-    null,
-  );
-  const notify = (message: string, tone: 'success' | 'error' | 'info' = 'success') =>
-    setToast({ message, tone });
+  const { toast, notify, dismiss } = useToastMessage();
   const refresh = () => router.refresh();
   const project = data.project;
   const activeTab = TABS.find((entry) => entry.id === tab) ?? TABS[0]!;
@@ -130,7 +128,13 @@ export function ProjectSettingsPage({
         <LayoutTab data={data} workflow={workflow} notify={notify} refresh={refresh} />
       ) : null}
 
-      <Toast open={toast !== null} message={toast?.message ?? ''} tone={toast?.tone ?? 'success'} onClose={() => setToast(null)} />
+      <Toast
+        open={toast !== null}
+        message={toast?.message ?? ''}
+        tone={toast?.tone ?? 'success'}
+        announcementKey={toast?.sequence}
+        onClose={dismiss}
+      />
     </div>
   );
 }
@@ -232,7 +236,7 @@ function GeneralTab({
 
   return (
     <Card className={styles.card}>
-      <h2 className={styles.cardTitle}>General</h2>
+      <h2 className={styles.cardTitle}>Project defaults</h2>
       <p className={styles.cardHint}>Core project details and how children behave.</p>
       {error ? <Notice tone="error">{error}</Notice> : null}
       <div className={styles.fields}>
@@ -248,8 +252,11 @@ function GeneralTab({
         <Field label="Reporter" htmlFor="settings-reporter">
           <Input id="settings-reporter" value={project.reporter.username} readOnly disabled />
         </Field>
-        <Field label="Child projects appear" htmlFor="settings-child-position" changed={childPositionChanged}>
-          <div className={styles.radios} id="settings-child-position">
+        <FieldGroup
+          legend="Child projects appear"
+          changed={childPositionChanged}
+          controlClassName={styles.radios}
+        >
             <Radio
               name="child-position"
               value="below"
@@ -257,15 +264,14 @@ function GeneralTab({
               checked={childPosition === 'below'}
               onChange={() => setChildPosition('below')}
             />
-            <Radio
-              name="child-position"
-              value="above"
-              label="Above the project details"
-              checked={childPosition === 'above'}
-              onChange={() => setChildPosition('above')}
-            />
-          </div>
-        </Field>
+          <Radio
+            name="child-position"
+            value="above"
+            label="Above the project details"
+            checked={childPosition === 'above'}
+            onChange={() => setChildPosition('above')}
+          />
+        </FieldGroup>
         <Field label="Default view" htmlFor="settings-default-view" error={fieldErrors.default_view} changed={defaultViewChanged}>
           <Select
             id="settings-default-view"
@@ -540,6 +546,7 @@ export function WorkflowTab({
                   name={`start-${row.key}`}
                   value="start"
                   label="Start"
+                  aria-label={`Set ${row.name || 'this status'} as the Start status`}
                   checked={row.isStart}
                   onChange={() =>
                     setRows((current) =>
@@ -551,6 +558,7 @@ export function WorkflowTab({
                   name={`finish-${row.key}`}
                   value="finish"
                   label="Finish"
+                  aria-label={`Set ${row.name || 'this status'} as the Finish status`}
                   checked={row.isFinish}
                   onChange={() =>
                     setRows((current) =>
@@ -818,21 +826,21 @@ function MembersTab({
 
   return (
     <Card className={styles.card}>
-      <h2 className={styles.cardTitle}>Members</h2>
+      <h2 className={styles.cardTitle}>Project members</h2>
       <p className={styles.cardHint}>
         Explicit grants only. Reducing or removing a role here also restricts descendants after
         confirmation; increasing access never propagates automatically.
       </p>
       {error ? <Notice tone="error">{error}</Notice> : null}
       <div className={styles.accessBlock}>
-        <Field label="Access" htmlFor="members-access-mode" changed={accessFieldChanged}>
+        <FieldGroup legend="Access" changed={accessFieldChanged}>
           {project.isRoot ? (
             <p className={styles.cardHint}>
               Root always uses <strong>Custom access</strong>: its explicit grants plus the implicit
               Admin for application Admins.
             </p>
           ) : (
-            <div className={styles.radios} id="members-access-mode">
+            <div className={styles.radios}>
               <Radio
                 name="access-mode"
                 value="inherit"
@@ -851,7 +859,7 @@ function MembersTab({
               />
             </div>
           )}
-        </Field>
+        </FieldGroup>
         {!project.isRoot && access === 'custom' ? (
           <p className={styles.privateState}>
             <Icon name="lock" size={18} />
@@ -1278,7 +1286,7 @@ function LayoutTab({
 
   return (
     <Card className={styles.card}>
-      <h2 className={styles.cardTitle}>Layout</h2>
+      <h2 className={styles.cardTitle}>Layout and views</h2>
       <p className={styles.cardHint}>
         Choose where project fields appear, which views are available and which statuses are hidden.
       </p>
@@ -1339,8 +1347,7 @@ function LayoutTab({
             ))}
           </Select>
         </Field>
-        <Field label="Enabled views" htmlFor="layout-enabled-views">
-          <div className={styles.checkList} id="layout-enabled-views">
+        <FieldGroup legend="Enabled views" controlClassName={styles.checkList}>
             {COLLECTION_VIEWS.map((view) => (
               <Checkbox
                 key={view}
@@ -1349,10 +1356,8 @@ function LayoutTab({
                 onChange={() => toggleView(view)}
               />
             ))}
-          </div>
-        </Field>
-        <Field label="Hidden statuses" htmlFor="layout-hidden-statuses">
-          <div className={styles.checkList} id="layout-hidden-statuses">
+        </FieldGroup>
+        <FieldGroup legend="Hidden statuses" controlClassName={styles.checkList}>
             {workflow.statuses.length === 0 ? (
               <p className={styles.cardHint}>This project has no child workflow statuses yet.</p>
             ) : (
@@ -1371,8 +1376,7 @@ function LayoutTab({
                 />
               ))
             )}
-          </div>
-        </Field>
+        </FieldGroup>
       </div>
 
       <div className={styles.footer}>

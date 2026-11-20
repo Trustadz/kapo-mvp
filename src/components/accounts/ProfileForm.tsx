@@ -20,6 +20,7 @@ import { Notice } from '@/components/ui/Notice';
 import { Radio } from '@/components/ui/Radio';
 import { Select } from '@/components/ui/Select';
 import { Toast } from '@/components/ui/Toast';
+import { useToastMessage } from '@/components/ui/use-live-announcer';
 import { patchJson } from '@/lib/api-client';
 import { formatPersonName } from '@/lib/format';
 import { applyAppearance } from '@/lib/theme';
@@ -81,9 +82,7 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
-  const [toast, setToast] = useState<{ message: string; tone: 'success' | 'error' } | null>(
-    null,
-  );
+  const { toast, notify, dismiss } = useToastMessage();
   const usernameId = useId();
   const emailId = useId();
   const landingId = useId();
@@ -140,7 +139,7 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
       setSaved(next);
       setValues(next);
       applyAppearance(next.appearance);
-      setToast({ message: 'Profile saved.', tone: 'success' });
+      notify('Profile saved.');
       router.refresh();
     } finally {
       setSaving(false);
@@ -195,7 +194,7 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
           ? (payload as { avatar: string }).avatar
           : null;
       if (nextAvatar) setAvatar(nextAvatar);
-      setToast({ message: 'Profile picture updated.', tone: 'success' });
+      notify('Profile picture updated.');
       router.refresh();
     } catch {
       setAvatarError('Could not reach the server. Check your connection and try again.');
@@ -244,10 +243,21 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
           </div>
         ) : null}
 
-        <form className={styles.form} onSubmit={handleSubmit} noValidate>
+        <form
+          className={styles.form}
+          onSubmit={handleSubmit}
+          noValidate
+          aria-label="Account profile"
+        >
           {formError ? <Notice tone="error">{formError}</Notice> : null}
 
-          <Field label="Username" htmlFor={usernameId} error={fieldErrors.username} labelWidth={190}>
+          <Field
+            label="Username"
+            htmlFor={usernameId}
+            error={fieldErrors.username}
+            required
+            labelWidth={190}
+          >
             <Input
               ref={usernameRef}
               id={usernameId}
@@ -260,7 +270,13 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
             />
           </Field>
 
-          <Field label="Email" htmlFor={emailId} error={fieldErrors.email} labelWidth={190}>
+          <Field
+            label="Email"
+            htmlFor={emailId}
+            error={fieldErrors.email}
+            required
+            labelWidth={190}
+          >
             <Input
               id={emailId}
               name="email"
@@ -343,7 +359,7 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
         onClose={() => setPasswordOpen(false)}
         onChanged={() => {
           setPasswordOpen(false);
-          setToast({ message: 'Password changed.', tone: 'success' });
+          notify('Password changed.');
         }}
       />
 
@@ -351,7 +367,8 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
         open={toast !== null}
         message={toast?.message ?? ''}
         tone={toast?.tone ?? 'success'}
-        onClose={() => setToast(null)}
+        announcementKey={toast?.sequence}
+        onClose={dismiss}
       />
     </>
   );
@@ -477,12 +494,19 @@ export function ChangePasswordDialog({ open, onClose, onChanged }: ChangePasswor
         </>
       }
     >
-      <form id="change-password-form" className={styles.dialogForm} onSubmit={handleSubmit} noValidate>
+      <form
+        id="change-password-form"
+        className={styles.dialogForm}
+        onSubmit={handleSubmit}
+        noValidate
+        aria-label="Change password"
+      >
         {formError ? <Notice tone="error">{formError}</Notice> : null}
         <Field
           label="Current password"
           htmlFor="password-current"
           error={fieldErrors.currentPassword}
+          required
           labelWidth={160}
         >
           <Input
@@ -501,6 +525,7 @@ export function ChangePasswordDialog({ open, onClose, onChanged }: ChangePasswor
           label="New password"
           htmlFor="password-new"
           error={fieldErrors.newPassword}
+          required
           labelWidth={160}
         >
           <Input
@@ -518,6 +543,7 @@ export function ChangePasswordDialog({ open, onClose, onChanged }: ChangePasswor
           label="Confirm password"
           htmlFor="password-confirmation"
           error={fieldErrors.confirmation}
+          required
           labelWidth={160}
         >
           <Input

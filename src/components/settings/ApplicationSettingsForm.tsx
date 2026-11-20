@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { Notice } from '@/components/ui/Notice';
 import { Select } from '@/components/ui/Select';
 import { Toast } from '@/components/ui/Toast';
+import { useToastMessage } from '@/components/ui/use-live-announcer';
 import { requestJson } from '@/lib/api-client';
 import { formatDateTime } from '@/lib/format';
 import {
@@ -66,7 +67,7 @@ export function ApplicationSettingsForm({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const { toast, notify, dismiss } = useToastMessage();
 
   const dirty =
     values.defaultAccountRole !== saved.defaultAccountRole ||
@@ -147,7 +148,7 @@ export function ApplicationSettingsForm({
       setSaved(next);
       setValues(next);
       if (result.data.backupStatus) setStatus(result.data.backupStatus);
-      setToast('Application settings saved.');
+      notify('Application settings saved.');
     } catch {
       setFormError('Could not reach the server. Check your connection and try again.');
     } finally {
@@ -165,7 +166,12 @@ export function ApplicationSettingsForm({
     <>
       <Card className={styles.card}>
         <CardHeader title="Application defaults" />
-        <form className={styles.form} onSubmit={handleSubmit} noValidate>
+        <form
+          className={styles.form}
+          onSubmit={handleSubmit}
+          noValidate
+          aria-label="Application settings"
+        >
           {formError ? <Notice tone="error">{formError}</Notice> : null}
 
           <Field
@@ -204,10 +210,16 @@ export function ApplicationSettingsForm({
             Inbox.
           </p>
 
-          <fieldset className={styles.viewsFieldset} aria-describedby="views-hint">
+          <fieldset
+            className={styles.viewsFieldset}
+            aria-describedby={
+              fieldErrors.enabledViews ? 'views-hint views-error' : 'views-hint'
+            }
+            aria-invalid={fieldErrors.enabledViews ? true : undefined}
+          >
             <legend className={styles.viewsLegend}>Views available to projects</legend>
             {fieldErrors.enabledViews ? (
-              <p className={styles.fieldError} role="alert">
+              <p id="views-error" className={styles.fieldError} role="alert">
                 {fieldErrors.enabledViews}
               </p>
             ) : null}
@@ -357,7 +369,13 @@ export function ApplicationSettingsForm({
         </form>
       </Card>
 
-      <Toast open={toast !== null} message={toast ?? ''} onClose={() => setToast(null)} />
+      <Toast
+        open={toast !== null}
+        message={toast?.message ?? ''}
+        tone={toast?.tone ?? 'success'}
+        announcementKey={toast?.sequence}
+        onClose={dismiss}
+      />
     </>
   );
 }

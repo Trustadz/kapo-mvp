@@ -6,6 +6,7 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Icon } from '@/components/ui/Icon';
 import { Menu, type MenuItem } from '@/components/ui/Menu';
 import { Toast } from '@/components/ui/Toast';
+import { useToastMessage } from '@/components/ui/use-live-announcer';
 import type { AuthUser, Appearance } from '@/lib/types';
 import { APPEARANCE_LABELS, ACCOUNT_ROLE_LABELS } from '@/lib/types';
 import { formatPersonName } from '@/lib/format';
@@ -36,7 +37,7 @@ export function AccountMenu({
   const router = useRouter();
   const displayName = formatPersonName(user.username);
   const [appearance, setAppearance] = useState<Appearance>(user.appearance);
-  const [toast, setToast] = useState<string | null>(null);
+  const { toast, notify, dismiss } = useToastMessage();
 
   const changeAppearance = useCallback(
     async (preference: Appearance) => {
@@ -49,10 +50,10 @@ export function AccountMenu({
           body: JSON.stringify({ appearance: preference }),
         });
         if (!response.ok) {
-          setToast('Appearance changed for this visit, but could not be saved.');
+          notify('Appearance changed for this visit, but could not be saved.', 'error');
         }
       } catch {
-        setToast('Appearance changed for this visit, but could not be saved.');
+        notify('Appearance changed for this visit, but could not be saved.', 'error');
       }
     },
     [],
@@ -135,7 +136,13 @@ export function AccountMenu({
           </button>
         )}
       />
-      <Toast open={toast !== null} message={toast ?? ''} tone="error" onClose={() => setToast(null)} />
+      <Toast
+        open={toast !== null}
+        message={toast?.message ?? ''}
+        tone={toast?.tone ?? 'error'}
+        announcementKey={toast?.sequence}
+        onClose={dismiss}
+      />
     </>
   );
 }

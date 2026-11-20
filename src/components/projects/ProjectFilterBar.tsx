@@ -62,7 +62,7 @@ export function ProjectFilterBar({
         ))}
       </Select>
       {active ? (
-        <span className={styles.filterCount} role="status" aria-live="polite">
+        <span className={styles.filterCount} role="status" aria-live="polite" aria-atomic="true">
           {matchingCount} of {totalCount} project{totalCount === 1 ? '' : 's'}
         </span>
       ) : null}

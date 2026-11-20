@@ -18,6 +18,7 @@ export { Field, FieldGroup, type FieldGroupProps, type FieldProps } from './Fiel
 export { Icon, type IconProps } from './Icon';
 export { InlineError, type InlineErrorProps } from './InlineError';
 export { Input, type InputProps } from './Input';
+export { LiveRegion, type LiveRegionProps, type LiveTone } from './LiveRegion';
 export { Menu, type MenuActionItem, type MenuItem, type MenuProps, type MenuSeparator, type MenuSubmenuItem, type MenuTriggerProps } from './Menu';
 export { Notice, type NoticeProps, type NoticeTone } from './Notice';
 export { Radio, type RadioProps } from './Radio';

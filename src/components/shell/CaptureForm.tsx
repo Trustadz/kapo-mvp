@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { InlineError } from '@/components/ui/InlineError';
+import { LiveRegion } from '@/components/ui/LiveRegion';
+import { useAnnouncer } from '@/components/ui/use-live-announcer';
 import { cleanTitle, validateProjectTitle } from '@/lib/validation';
 import { cn } from '@/lib/cn';
 import styles from './CaptureForm.module.css';
@@ -16,6 +18,11 @@ export interface CaptureFormProps {
   onSuccess?: (title: string) => void;
   onCancel?: () => void;
   className?: string;
+  /**
+   * Set false when the form lives in a dialog that closes on success: the
+   * parent then owns a persistent live region instead of this unmounting one.
+   */
+  announceSuccess?: boolean;
 }
 
 async function readErrorMessage(response: Response): Promise<string> {
@@ -47,12 +54,14 @@ export function CaptureForm({
   onSuccess,
   onCancel,
   className,
+  announceSuccess = true,
 }: CaptureFormProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [title, setTitle] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const { announcement, announce } = useAnnouncer();
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -84,8 +93,10 @@ export function CaptureForm({
         return;
       }
       const createdTitle = cleanTitle(title);
+      const message = `Added "${createdTitle}" to Inbox.`;
       setTitle('');
-      setStatus(`Added "${createdTitle}" to Inbox.`);
+      setStatus(message);
+      if (announceSuccess) announce(message);
       onSuccess?.(createdTitle);
       router.refresh();
       inputRef.current?.focus();
@@ -98,7 +109,13 @@ export function CaptureForm({
 
   if (variant === 'mobile') {
     return (
-      <form className={cn(styles.form, styles.mobile, className)} onSubmit={handleSubmit} noValidate>
+      <form
+        className={cn(styles.form, styles.mobile, className)}
+        onSubmit={handleSubmit}
+        noValidate
+        aria-label="Add a project to Root"
+      >
+        <LiveRegion message={announcement.message} sequence={announcement.sequence} />
         <label className={styles.mobileLabel} htmlFor="capture-title-mobile">
           Project title
         </label>
@@ -123,9 +140,7 @@ export function CaptureForm({
           </div>
         ) : null}
         {status ? (
-          <p className={styles.status} role="status">
-            {status}
-          </p>
+          <p className={styles.status}>{status}</p>
         ) : null}
         <div className={styles.mobileActions}>
           <Button type="submit" loading={submitting} disabled={!title.trim()}>
@@ -142,7 +157,13 @@ export function CaptureForm({
   }
 
   return (
-    <form className={cn(styles.form, className)} onSubmit={handleSubmit} noValidate>
+    <form
+      className={cn(styles.form, className)}
+      onSubmit={handleSubmit}
+      noValidate
+      aria-label="Add a project to Root"
+    >
+      <LiveRegion message={announcement.message} sequence={announcement.sequence} />
       <div className={styles.field}>
         <label className="visually-hidden" htmlFor="capture-title">
           Add a project to Root
@@ -170,11 +191,7 @@ export function CaptureForm({
           <InlineError>{error}</InlineError>
         </div>
       ) : null}
-      {status ? (
-        <p className={styles.status} role="status">
-          {status}
-        </p>
-      ) : null}
+      {status ? <p className={styles.status}>{status}</p> : null}
     </form>
   );
 }

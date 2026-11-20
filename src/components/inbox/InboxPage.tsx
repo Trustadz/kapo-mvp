@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useMemo, useRef, useState, type DragEvent } from 'react';
-import { Badge, Button, Checkbox, EmptyState, Icon, InlineError } from '@/components/ui';
+import { Badge, Button, Checkbox, EmptyState, Icon, InlineError, LiveRegion } from '@/components/ui';
+import { useAnnouncer } from '@/components/ui/use-live-announcer';
 import type { InboxItem, InboxTreeNode, ProjectCard } from '@/components/projects/types';
 import {
   changeInboxParentRequest,
@@ -180,6 +181,7 @@ export function InboxTree({
 
   return (
     <div className={styles.treeWrap} role="region" aria-label="Application tree">
+      <h2 className="visually-hidden">Application tree</h2>
       {items.length > 0 ? (
         <div className={styles.bulkToolbar} role="region" aria-label="Bulk release">
           <span className={styles.bulkCount}>
@@ -209,7 +211,14 @@ export function InboxTree({
       )}
 
       <div className={styles.treeScroll}>
-        <table className={styles.treeTable} aria-label="Application projects">
+        <table
+          className={styles.treeTable}
+          aria-label="Application projects"
+          aria-describedby="inbox-tree-drag-hint"
+        >
+          <caption className="visually-hidden">
+            Application projects and Inbox captures, with status and available actions
+          </caption>
           <thead>
             <tr>
               <th scope="col" className={styles.treeSelectHeader}>
@@ -256,6 +265,7 @@ export function InboxTree({
                   data-archived={node.archived || undefined}
                   data-dragging={draggingId === node.id || undefined}
                   data-drop={dropTarget?.id === node.id ? dropTarget.zone : undefined}
+                  aria-describedby={selectableItem ? 'inbox-tree-drag-hint' : undefined}
                   draggable={selectableItem}
                   onDragStart={(event) => {
                     if (!selectableItem) {
@@ -316,7 +326,7 @@ export function InboxTree({
                       />
                     ) : null}
                   </td>
-                  <td className={styles.treeNameCell}>
+                  <th scope="row" className={styles.treeNameCell}>
                     <div
                       className={styles.treeName}
                       style={{ paddingInlineStart: depth * 14 }}
@@ -349,7 +359,7 @@ export function InboxTree({
                         </span>
                       ) : null}
                     </div>
-                  </td>
+                  </th>
                   <td className={styles.treeStatusCell}>{node.statusName ?? '—'}</td>
                   <td className={styles.treeActionCell}>
                     {inboxRow ? (
@@ -371,7 +381,7 @@ export function InboxTree({
         </table>
       </div>
 
-      <p className={styles.hint}>
+      <p className={styles.hint} id="inbox-tree-drag-hint">
         Inbox captures are highlighted, selectable for bulk release, and draggable. Drop one on
         another row’s middle to move it under that project, or between rows to reorder it in the
         global sequence. Non-Inbox rows are drop targets but read-only context. Use the chevron to
@@ -402,7 +412,7 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [bulkPending, setBulkPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const { announcement, announce } = useAnnouncer();
   const [changeParentItem, setChangeParentItem] = useState<InboxItem | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dropActive, setDropActive] = useState(false);
@@ -455,7 +465,6 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
     if (pendingId || bulkPending || movePending) return;
     setPendingId(item.project.id);
     setError(null);
-    setNotice(null);
     const result = await releaseInboxProject(item.project.id);
     setPendingId(null);
     if (!result.ok) {
@@ -463,7 +472,11 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
       return;
     }
     markReleased([item.project.id]);
-    setNotice(`Released “${item.project.title}”.`);
+    announce(
+      `Released “${item.project.title}” to ${
+        item.startStatusName ?? 'the start status'
+      }.`,
+    );
     setLastReleased(item);
   };
 
@@ -475,7 +488,6 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
     if (targets.length === 0) return;
     setBulkPending(true);
     setError(null);
-    setNotice(null);
     const released: string[] = [];
     const failures: string[] = [];
     for (const item of targets) {
@@ -486,9 +498,7 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
     setBulkPending(false);
     markReleased(released);
     if (released.length > 0) {
-      setNotice(
-        `Released ${released.length} capture${released.length === 1 ? '' : 's'}.`,
-      );
+      announce(`Released ${released.length} capture${released.length === 1 ? '' : 's'}.`);
     }
     if (failures.length > 0) {
       const count = failures.length;
@@ -608,7 +618,6 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
     }
     setMovePending(true);
     setError(null);
-    setNotice(null);
     const result = await reorderInboxRequest(item.project.id, { targetId, edge });
     setMovePending(false);
     if (!result.ok) {
@@ -618,7 +627,7 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
     // Server-validated state is the source of truth; apply it locally so the
     // list/tree refresh immediately and released (Pulled) rows stay put.
     applyLocalReorder(item.project.id, targetId, edge);
-    setNotice(`Reordered “${item.project.title}”.`);
+    announce(`Reordered “${item.project.title}”.`);
   };
 
   /** Reparent an Inbox capture while keeping it in the Inbox (issue #53). */
@@ -629,7 +638,6 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
     }
     setMovePending(true);
     setError(null);
-    setNotice(null);
     const result = await changeInboxParentRequest(item.project.id, targetId);
     setMovePending(false);
     if (!result.ok) {
@@ -638,7 +646,7 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
     }
     applyParentChange(result.data.project);
     const parentTitle = tree.find((node) => node.id === targetId)?.title;
-    setNotice(
+    announce(
       `Moved “${item.project.title}” under ${parentTitle ?? 'the new parent'}; it stays in the Inbox.`,
     );
   };
@@ -694,9 +702,7 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
         <InboxViewSwitch view={view} onChange={setView} />
       </header>
 
-      <p className="visually-hidden" aria-live="polite" aria-atomic="true">
-        {notice ?? ''}
-      </p>
+      <LiveRegion message={announcement.message} sequence={announcement.sequence} />
 
       {error ? (
         <div className={styles.error}>
@@ -788,16 +794,19 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
             </section>
           ) : null}
 
-          <p className="visually-hidden" aria-live="polite" aria-atomic="true">
-            {lastReleased
-              ? `${lastReleased.project.title} released to ${
-                  lastReleased.startStatusName ?? 'the start status'
-                }.`
-              : ''}
+          <p id="inbox-card-drag-hint" className="visually-hidden">
+            Drag a capture above or below another card to reorder it in the global sequence.
+            Dragging a capture onto the release rail moves it into work. Every drag action also
+            has a keyboard-operable button: Release, Change parent, or Open.
           </p>
           </div>
 
-          <ul ref={listRef} className={styles.list} aria-label="Projects in the Inbox">
+          <ul
+            ref={listRef}
+            className={styles.list}
+            aria-label="Projects in the Inbox"
+            aria-describedby="inbox-card-drag-hint"
+          >
             {items.map((item) => {
               const isPulled = pulled.has(item.project.id);
               const canDrag = !isPulled && item.canRelease;

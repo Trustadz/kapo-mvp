@@ -74,7 +74,7 @@ export function SetupForm() {
   };
 
   return (
-    <form className={styles.form} onSubmit={handleSubmit} noValidate>
+    <form className={styles.form} onSubmit={handleSubmit} noValidate aria-label="Create account">
       <div className={styles.intro}>
         <h1 className={styles.heading}>Create account</h1>
         <p className={styles.subheading}>Set up your first Admin account</p>
@@ -84,7 +84,13 @@ export function SetupForm() {
       {formError ? <Notice tone="error">{formError}</Notice> : null}
 
       <div className={styles.fields}>
-        <Field label="Username" htmlFor="setup-username" error={fieldErrors.username} labelWidth={190}>
+        <Field
+          label="Username"
+          htmlFor="setup-username"
+          error={fieldErrors.username}
+          required
+          labelWidth={190}
+        >
           <Input
             ref={usernameRef}
             id="setup-username"
@@ -98,7 +104,13 @@ export function SetupForm() {
             className={styles.input}
           />
         </Field>
-        <Field label="Email" htmlFor="setup-email" error={fieldErrors.email} labelWidth={190}>
+        <Field
+          label="Email"
+          htmlFor="setup-email"
+          error={fieldErrors.email}
+          required
+          labelWidth={190}
+        >
           <Input
             id="setup-email"
             name="email"
@@ -110,7 +122,13 @@ export function SetupForm() {
             className={styles.input}
           />
         </Field>
-        <Field label="Password" htmlFor="setup-password" error={fieldErrors.password} labelWidth={190}>
+        <Field
+          label="Password"
+          htmlFor="setup-password"
+          error={fieldErrors.password}
+          required
+          labelWidth={190}
+        >
           <Input
             id="setup-password"
             name="password"
@@ -126,6 +144,7 @@ export function SetupForm() {
           label="Confirm password"
           htmlFor="setup-confirmation"
           error={fieldErrors.confirmation}
+          required
           labelWidth={190}
         >
           <Input
