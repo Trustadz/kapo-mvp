@@ -16,21 +16,9 @@
   box-shadow: var(--shadow-none);
 }
 
-.sideTop {
-  bottom: calc(100% + var(--space-2));
-}
-
-.sideBottom {
-  top: calc(100% + var(--space-2));
-}
-
-.alignStart {
-  left: 0;
-}
-
-.alignEnd {
-  right: 0;
-}
+/* Top/left are set inline after measuring the trigger and panel. Keeping the
+ * panel free of CSS offsets avoids over-constrained stretching when both a
+ * start/end anchor and the measured coordinate would otherwise apply. */
 
 .menuHeader {
   padding: var(--space-1) var(--space-2) var(--space-3);

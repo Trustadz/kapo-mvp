@@ -5,14 +5,30 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from 'react';
 import { cn } from '@/lib/cn';
+import { computeMenuPosition, type MenuPosition } from '@/lib/menu-position';
 import { Icon } from './Icon';
 import styles from './Menu.module.css';
+
+/**
+ * `useLayoutEffect` warns during server rendering. The menu is only ever open
+ * after a client interaction, but the component itself is still pre-rendered.
+ */
+const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
+
+function viewportSize(): { width: number; height: number } {
+  const root = document.documentElement;
+  return {
+    width: root.clientWidth || window.innerWidth,
+    height: root.clientHeight || window.innerHeight,
+  };
+}
 
 export interface MenuActionItem {
   id: string;
@@ -85,6 +101,7 @@ export function Menu({
 }: MenuProps) {
   const [open, setOpen] = useState(false);
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
+  const [position, setPosition] = useState<MenuPosition | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -95,8 +112,69 @@ export function Menu({
   const close = useCallback(() => {
     setOpen(false);
     setOpenSubmenu(null);
+    setPosition(null);
     triggerRef.current?.focus();
   }, []);
+
+  const updatePosition = useCallback(() => {
+    const trigger = triggerRef.current;
+    const panel = panelRef.current;
+    const root = rootRef.current;
+    if (!trigger || !panel || !root) return;
+    const triggerRect = trigger.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    const next = computeMenuPosition(
+      triggerRect,
+      { width: panelRect.width, height: panelRect.height },
+      viewportSize(),
+      { align, side },
+    );
+    // Absolute panels are positioned inside the root's padding box; fixed
+    // panels use the viewport coordinates directly.
+    const rootRect = root.getBoundingClientRect();
+    const resolved = {
+      top: next.top - (rootRect.top + root.clientTop),
+      left: next.left - (rootRect.left + root.clientLeft),
+    };
+    setPosition((current) =>
+      current && current.top === resolved.top && current.left === resolved.left
+        ? current
+        : resolved,
+    );
+  }, [align, side]);
+
+  useIsomorphicLayoutEffect(() => {
+    if (!open) return;
+    // Measure synchronously after the panel mounts so it paints in place.
+    updatePosition();
+
+    let frame = 0;
+    const scheduleUpdate = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        updatePosition();
+      });
+    };
+    const observer =
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(scheduleUpdate);
+
+    window.addEventListener('resize', scheduleUpdate);
+    // Capture scroll events from nested scroll containers such as Kanban.
+    window.addEventListener('scroll', scheduleUpdate, true);
+    if (observer && panelRef.current) observer.observe(panelRef.current);
+
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener('resize', scheduleUpdate);
+      window.removeEventListener('scroll', scheduleUpdate, true);
+      observer?.disconnect();
+    };
+  }, [open, updatePosition]);
+
+  useEffect(() => {
+    if (!open) setPosition(null);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -219,7 +297,15 @@ export function Menu({
       }}
     >
       {trigger({
-        onClick: () => setOpen((value) => !value),
+        onClick: () => {
+          if (open) {
+            setOpen(false);
+            setOpenSubmenu(null);
+          } else {
+            setPosition(null);
+            setOpen(true);
+          }
+        },
         'aria-expanded': open,
         'aria-haspopup': 'menu',
         'aria-controls': panelId,
@@ -235,7 +321,8 @@ export function Menu({
           id={panelId}
           role="menu"
           aria-label={label}
-          className={cn(styles.panel, side === 'top' ? styles.sideTop : styles.sideBottom, align === 'end' ? styles.alignEnd : styles.alignStart)}
+          className={cn(styles.panel)}
+          style={position ? { top: position.top, left: position.left } : undefined}
           onKeyDown={handlePanelKeyDown}
         >
           {header ? <div className={styles.menuHeader}>{header}</div> : null}
