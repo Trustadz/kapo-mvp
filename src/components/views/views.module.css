@@ -408,6 +408,21 @@
   width: 240px;
 }
 
+.treeActionHeader,
+.treeActionCell {
+  width: 44px;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.treeActionCell {
+  text-align: right;
+}
+
+.treeActionCell > span {
+  display: inline-flex;
+}
+
 .treeSelectHeader,
 .treeSelectCell {
   width: 44px;
@@ -553,7 +568,7 @@
   }
 
   .treeTable {
-    min-width: 520px;
+    min-width: 560px;
   }
 
   .treeStatusHeader,
