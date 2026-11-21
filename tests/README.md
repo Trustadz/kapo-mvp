@@ -22,6 +22,10 @@ PLAYWRIGHT_BROWSERS_PATH=./data/pw-browsers npx playwright install chromium
 back to `/tmp/pw-browsers`). If the browser cannot be installed the e2e suite
 cannot run in that environment; `npx playwright test --list` still works.
 
+GitHub Actions runs typecheck, Vitest, and the production build in the
+**Verify** workflow for every pull request and push to `main`. The Playwright
+suite runs locally before a PR; the CI gate does not run it yet.
+
 ## Isolation rules
 
 - Every Vitest file gets its own SQLite file (`data/test-<label>-<pid>-.db`),
@@ -31,7 +35,13 @@ cannot run in that environment; `npx playwright test --list` still works.
   `DATABASE_PATH` set to a temp file.
 - Playwright uses `data/test-e2e.db`, `.next-tests/` and port 3301;
   `tests/e2e/start-server.mjs` rebuilds only when needed and resets the test
-  database on every run.
+  database on every run. `KAPO_E2E_PORT` and `KAPO_E2E_DATABASE` override the
+  port and database file (and `tests/e2e/first-install.spec.ts` seeds the same
+  file), so parallel worktrees do not collide:
+
+  ```bash
+  KAPO_E2E_PORT=3311 KAPO_E2E_DATABASE=./data/test-e2e-2.db npm run test:e2e
+  ```
 - `data/kapo.db`, `data/projects.db` and `data/settings.db` are never opened.
 
 ## Layout
@@ -52,7 +62,9 @@ tests/integration/ real route handlers: auth/setup, projects, accounts,
 tests/regressions/ architecture-review fix pass (AR-021…AR-052)
 tests/e2e/       first-install + seeded desktop journeys, including the
                  Assignee add-on field-slot journey (Details, Properties,
-                 view meta, dialog edit and unavailable filtering)
+                 view meta, dialog edit and unavailable filtering), the
+                 focused Assignee add-on enable/save/persist journey, and the
+                 MCP enable → token → AI-provenance → revoke journey
 ```
 
 ## Known expected failures

@@ -190,6 +190,8 @@ export interface ActivityEvent {
   createdAt: string;
   actor: ActivityActor | null;
   target: { id: string; title: string } | null;
+  /** Non-null when the change came through an MCP client (the user's AI agent). */
+  via: { channel: string; agent: string } | null;
 }
 
 export interface ActivityPageData {

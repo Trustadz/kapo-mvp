@@ -13,6 +13,54 @@
   compact add-on meta values, unavailable add-ons hide their slots and layout
   selectors only offer fields from add-ons effectively available for the
   project. No schema migration.
+- Container images and GitHub Releases are published only by the manual
+  **Publish container** workflow. Pull requests and pushes to `main` run the
+  automatic **Verify** workflow without publishing; publishing calculates the
+  next version from the latest stable tag (`patch`, `minor`, or `major`), so no
+  release-version commit is needed. Release notes combine the curated
+  `## Unreleased` section with GitHub's generated PR list.
+
+## 0.4.0 — 2026-11-21
+
+### Added
+
+- **AI access (MCP)**: an opt-in core MCP server (`POST /api/mcp`, Streamable
+  HTTP, personal bearer tokens) lets a user's own local AI client — Open WebUI
+  with llama.cpp, Claude Desktop, or any MCP-capable client — read and update
+  the board as that user. It ships 11 generic tools over the existing domain
+  commands; add-on data is read through `get_project` and written through
+  `set_addon_values`, with no per-add-on tools.
+- **Per-user MCP tokens** under Profile → AI access: create, name, copy once and
+  revoke. Tokens are hashed at rest, capped at 10 active per user, and
+  revocation is immediate.
+- **AI provenance in history**: MCP writes remain attributed to the human owner
+  and show a small AI badge plus `(via <token label>)` in project activity and
+  dashboard recent changes. The label is snapshotted from the token row, so a
+  client cannot relabel itself.
+- **Admin toggle** under Settings → AI access (MCP), off by default. Disabling
+  blocks every token immediately without deleting tokens or history.
+- `docs/mcp.md`: a user guide for enabling the feature, creating a token,
+  connecting Open WebUI / Claude Desktop / other clients, what the assistant
+  can and cannot do, security and troubleshooting.
+
+### Changed
+
+- MCP output omits internal bookkeeping: no `KAP-…` display numbers, no sibling
+  priority values and no raw add-on audit detail. Projects are addressed by
+  opaque ids and referred to by title.
+- `KAPO_DEV_ORIGINS` lets `next dev` accept extra hostnames/IPs (a VM or LAN
+  address). Without it the HMR socket is rejected and pages do not hydrate.
+  `KAPO_E2E_PORT` and `KAPO_E2E_DATABASE` let parallel worktrees run the e2e
+  suite without sharing a port or database.
+
+### Upgrade notes
+
+- Apply migration `004_mcp.sql`: it creates `mcp_tokens` and adds three nullable
+  provenance columns to `audit_events`. It is additive; existing history is
+  unchanged and shows no AI marker.
+- MCP is off by default on existing installations. Enable it under
+  Settings → AI access, then create a personal token under Profile → AI access.
+- Back up `./data`, `./upload` and `./backup` before upgrading as usual.
 
 ## 0.3.0 — 2026-11-21
 
