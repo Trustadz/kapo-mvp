@@ -5,6 +5,7 @@ import {
   listToolMetadata,
   type McpToolContext,
 } from './tools';
+import packageJson from '../../../package.json';
 
 /**
  * Minimal MCP server over JSON-RPC 2.0 (Streamable HTTP, POST only).
@@ -17,7 +18,9 @@ import {
  */
 
 export const MCP_SERVER_NAME = 'kapo';
-export const MCP_SERVER_VERSION = '0.4.0';
+/** The release image sets KAPO_RELEASE_VERSION from the published Git tag. */
+export const MCP_SERVER_VERSION =
+  process.env.KAPO_RELEASE_VERSION?.trim() || packageJson.version;
 
 /** Newest first. The server echoes the client's version when it is supported. */
 export const MCP_PROTOCOL_VERSIONS = ['2025-06-18', '2025-03-26', '2024-11-05'] as const;

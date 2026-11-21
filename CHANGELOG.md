@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Container images and GitHub Releases are published only by the manual
+  **Publish container** workflow. Pull requests and pushes to `main` run the
+  automatic **Verify** workflow without publishing; publishing calculates the
+  next version from the latest stable tag (`patch`, `minor`, or `major`), so no
+  release-version commit is needed. Release notes combine the curated
+  `## Unreleased` section with GitHub's generated PR list.
+
 ## 0.4.0 — 2026-11-21
 
 ### Added
