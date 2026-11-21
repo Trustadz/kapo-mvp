@@ -148,3 +148,13 @@
     flex: 1;
   }
 }
+
+.addonGroup {
+  margin-top: var(--space-4);
+}
+
+.addonModes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}

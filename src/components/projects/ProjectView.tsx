@@ -13,6 +13,7 @@ import { useToastMessage } from '@/components/ui/use-live-announcer';
 import { markFieldChanged } from '@/lib/changed-fields';
 import { useFieldChanged } from '@/lib/use-field-changed';
 import { ActivityPanel } from './ActivityPanel';
+import { AddonEditor } from './AddonEditor';
 import { ChildProjects } from './ChildProjects';
 import {
   readShowInboxPreference,
@@ -498,6 +499,13 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
       </div>
 
       {!childPositionAbove ? childSection : null}
+
+      <AddonEditor
+        projectId={project.id}
+        data={data.addons}
+        notify={notify}
+        onSaved={refresh}
+      />
 
       <ActivityPanel
         projectId={project.id}

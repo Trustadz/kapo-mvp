@@ -1,0 +1,89 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: var(--font-size-title);
+  font-weight: 600;
+}
+
+.readOnlyNote {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--font-size-small);
+}
+
+.addon {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.addon:first-of-type {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.addonHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.addonTitle {
+  margin: 0;
+  font-size: var(--font-size-body);
+  font-weight: 600;
+}
+
+.addonDescription {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--font-size-small);
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 32rem;
+}
+
+.footer {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.valueList {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.valueRow {
+  display: grid;
+  grid-template-columns: 10rem minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+.valueRow dt {
+  color: var(--color-muted);
+  font-size: var(--font-size-small);
+}
+
+.valueRow dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .valueRow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+}

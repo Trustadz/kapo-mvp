@@ -121,6 +121,15 @@ function describe(
         main: t('activity.inboxReleased', { actor }),
         detail: t('activity.detailReleased'),
       };
+    case 'project.addon_value_changed':
+      // Add-on values store their human field label in `field` (the raw ids
+      // live in `detail`), so no core add-on branch is needed here.
+      return {
+        main: event.field
+          ? t('activity.updatedField', { actor, field: fieldLabel(event.field, t) })
+          : t('activity.updatedProject', { actor }),
+        detail: values,
+      };
     case 'workflow.updated':
       return {
         main: t('activity.workflowUpdated', { actor }),

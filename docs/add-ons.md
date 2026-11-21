@@ -1,14 +1,18 @@
 # Building Kapo add-ons
 
 **Audience:** a developer adding a feature to Kapo that is not core project management.
-**Status:** MVP ships the add-on **contract** and an **empty registry** — `src/server/addons/types.ts`,
-`registry.ts`, `index.ts`; no add-on is registered, there are no add-on endpoints, no add-on settings
-surface, no add-on field/renderer UI and no add-on dashboard-widget consumer. The **Inbox-exit hook
-gate is wired** (`src/server/domain/addon-hooks.ts`, called from release/status-change/reorder/move/
-bulk-move/workflow-remap) and is a no-op while the registry is empty. This guide is the contract you
-code against, plus the forward contracts the core must add once, generically, when the first add-on
-lands. Sections marked **FORWARD** are not represented in the MVP TypeScript/code yet; implementing
-one is a core contract/plumbing change, never an add-on-specific branch.
+**Status:** Issue #7 ships the first add-on plumbing bundle: the contract plus the **Assignee**
+reference add-on (`src/server/addons/assignee/`), registry→`addons` table mode sync, application and
+project settings surfaces, the generic value endpoint
+(`PATCH /api/projects/:id/addons/:identifier`), a generic project-page field editor,
+availability/inheritance resolution (`src/server/domain/project-addons.ts`), add-on search
+maintenance, audit/activity integration and `onProjectPurge` hooks. Core still owns every invariant;
+the Assignee definition is registered only through the manifest and no core module branches on its
+identifier. The Inbox-exit hook gate (`src/server/domain/addon-hooks.ts`) now resolves the stored
+mode and runs the shipped add-on's hooks. Still **FORWARD**: a client renderer registry for
+`compactRenderer`, a consumer for add-on dashboard widgets, per-add-on settings controls, per-add-on
+project-page slots and project-level "required" (§2.3). Sections marked **FORWARD** remain the target
+contract for those surfaces.
 **Companion documents:** [architecture.md](architecture.md), [build-spec.md](build-spec.md) §5/§6/§12,
 [product.md](../product.md) §7.
 
@@ -70,12 +74,11 @@ the same modes — a Required add-on renders on Root — but Root never has Inbo
 `beforeLeaveInbox` can never fire there.
 
 Mode is stored in the `addons` table (`mode TEXT CHECK (mode IN ('required','always','optional',
-'unavailable'))`, build-spec §5). The table is empty in the MVP and there is no registry→table sync
-yet (FORWARD, §3.4) and no Admin mode UI, so the hook runner resolves mode as
-`addons.mode ?? 'optional'`. A `Required` add-on therefore **does not block Inbox exits until a row
-with mode `required` exists**. There is also no code that reads per-project enablement
-(`projects.settings.addons`); `present`/`available`/`required` semantics below are the target
-contract, not the current runtime.
+'unavailable'))`, build-spec §5). Startup sync inserts a row for every registered add-on using
+`AddonDefinition.defaultMode` (default `optional`), never overwriting an Admin choice; `/settings` →
+Add-ons lets an Admin change the mode. The hook runner and value endpoint resolve
+`addons.mode ?? definition.defaultMode ?? 'optional'`. Per-project enablement in
+`projects.settings.addons` is read by `src/server/domain/project-addons.ts`; see §2.1.
 
 ### 2.1 Inheritance to projects and children
 
@@ -96,11 +99,11 @@ The MVP storage contract (build-spec §12, implemented as a reserved JSON shape,
 ```
 
 `projects.settings.addons[identifier]` is keyed by add-on identifier. Reserved keys are `enabled`,
-`inheritFromParent` and `settings`; everything inside `settings` belongs to the add-on. Core must
-preserve unknown identifiers and unknown setting keys so forward/backward compatibility does not
-need migrations. **Not implemented today:** no code writes or reads `settings.addons`; the
-inheritance algorithm below is the required contract (§2.2) and the first add-on's settings surface
-must implement it centrally.
+`inheritFromParent` and `settings`; everything inside `settings` belongs to the add-on. Core
+preserves unknown identifiers, unknown entry keys and unknown setting keys on merge, so
+forward/backward compatibility does not need migrations. The inheritance algorithm below is
+implemented centrally in `src/server/domain/project-addons.ts` (not in the add-on) and is used by the
+value endpoint, the project page, search and the settings surfaces.
 
 Mode is global; availability and settings flow down the tree only when the parent says so:
 
@@ -125,7 +128,7 @@ Rules:
   "complete before refinement exit", not "never save incomplete".
 - **Root has no Inbox**, so Required validation never fires on Root; the fields still render.
 
-### 2.2 Resolution helper the core provides (FORWARD — not in MVP code)
+### 2.2 Resolution helper the core provides (implemented)
 
 ```ts
 // src/server/domain/project-addons.ts (core; owns inheritance, not the add-on)
@@ -141,8 +144,10 @@ function resolveAddonConfig(db: Db, projectId: string, identifier: string): Reso
 function resolveProjectAddons(db: Db, projectId: string): readonly ResolvedAddonConfig[];
 ```
 
-Every surface (slots, validation, search body, dashboard) asks this helper; no module re-implements
-inheritance.
+`resolveAddonConfig` / `resolveProjectAddons` are implemented in
+`src/server/domain/project-addons.ts`; every shipped surface (value save, page editor, settings,
+search) calls them. Project-level `required` remains the gap in §2.3, so `required` is still derived
+from the global mode only.
 
 ### 2.3 Project-level "required" is a contract gap (FORWARD)
 
@@ -258,15 +263,17 @@ export function clearAddonsForTests(): void; // test/development only; product n
 | Field key | non-empty, unique within the add-on |
 | `select` field | has non-empty static `options` **or** `optionsSource === 'users'` |
 | `user` field | must define **neither** static `options` **nor** `optionsSource` (both are rejected by `registry.ts`; the picker list is core-provided at render time) |
-| `searchFields` | every listed key must exist in `fields` (the registry does not yet enforce that it is a text field — see §8) |
+| `searchFields` | every listed key must exist in `fields` and be a `text`/`longtext` field (§8) |
 
 A malformed definition must be a **failure of that add-on, not of the app**: log the identifier and
-error, continue booting, register nothing for it. A broken add-on must never take Kapo down. The MVP
-`registerAddon` throws immediately (there are no add-ons to catch it); the manifest that registers
-the first add-on must wrap each `registerAddon` call in a per-add-on try/catch, otherwise importing
-the manifest would crash startup. That wrapper is part of the generic plumbing, not per-add-on code.
+error, continue booting, register nothing for it. A broken add-on must never take Kapo down.
+`registerAddon` still throws immediately; the shipped manifest wraps each `registerAddon` call in a
+per-add-on try/catch so importing the manifest cannot crash startup. That wrapper is part of the
+generic plumbing, not per-add-on code.
 
-Registration lives in one server manifest and (FORWARD) one client UI manifest — no core edits:
+Registration lives in one server manifest and (FORWARD) one client UI manifest — no core edits.
+The server manifest below is implemented in `src/server/addons/index.ts`, wrapping each
+`registerAddon` call in a per-add-on try/catch (a malformed definition is logged and skipped):
 
 ```ts
 // src/server/addons/index.ts — the only server-side registration point
@@ -303,18 +310,28 @@ UI and endpoints:
 |---|---|
 | Application config | `/settings` → "Add-ons" section: one row per registered add-on with name, version, description, mode radio (`Required` / `Always on` / `Available` / `Unavailable`) and the add-on's global settings. Save via `PUT /api/settings` body `{ addons: { "<id>": { mode, settings } } }`. |
 | Project config | `/p/[id]/settings?tab=addons` (tab hidden when the registry is empty). Per add-on: Enable, Inherit from parent, add-on settings; inherited values shown with an Override action. Save via `PUT /api/projects/:id/settings` body `{ addons: { "<id>": { enabled, inheritFromParent, settings } } }`. |
-| Value write | `PATCH /api/projects/:id/addons/:identifier` body `{ values: { "<fieldKey>": value } }` (partial merge). 403/404 when not writable (Viewer, trashed, unavailable, no access); 422 `addon_validation` with `fields` (same code/status as the implemented Inbox-exit gate). This endpoint is **contracted and not built in the MVP**. |
+| Value write | `PATCH /api/projects/:id/addons/:identifier` body `{ values: { "<fieldKey>": value } }` (partial merge). 403/404 when not writable (Viewer, trashed, unavailable, no access); 422 `addon_validation` with `fields` (same code/status as the implemented Inbox-exit gate). Implemented. |
 
-The value endpoint must be generic: resolve availability/required, run the core field-type checks,
-call `hooks.validate`, merge values preserving unknown keys, append an audit event, update FTS if a
-`searchFields` value changed, all in one transaction. An add-on must never add its own route. The
-hook context has no `trigger` field (`{ projectId, values, mode }` only), so an add-on cannot tell
-"save" from "Inbox exit" inside `validate`; use `beforeLeaveInbox` for exit-only rules.
+The value endpoint is implemented as `PATCH /api/projects/:id/addons/:identifier` in
+`src/app/api/projects/[id]/addons/[identifier]/route.ts`, backed by
+`writeAddonValues()` in `src/server/domain/project-addons.ts`. It resolves availability, runs the
+generic field-type checks, calls `hooks.validate`, merges values preserving unknown keys/fields,
+appends `project.addon_value_changed` audit events and updates FTS in one transaction. An add-on
+never adds its own route. The hook context has no `trigger` field (`{ projectId, values, mode }`
+only), so an add-on cannot tell "save" from "Inbox exit" inside `validate`; use
+`beforeLeaveInbox` for exit-only rules. The shipped endpoints are:
 
-### 3.3 FORWARD: lifecycle and migration contract
+| Surface | Status |
+|---|---|
+| `PUT /api/settings` body `{ addons: { "<id>": { mode, settings } } }` | implemented |
+| `PUT /api/projects/:id/settings` body `{ addons: { "<id>": { enabled, inheritFromParent, settings } } }` | implemented |
+| `PATCH /api/projects/:id/addons/:identifier` body `{ values: { "<fieldKey>": value } }` | implemented |
 
-Not in `types.ts` today. The first add-on that needs tables/versioning requires one generic contract
-change; do not put SQL in `dashboardWidgets` or ids in `settings`:
+### 3.3 Lifecycle and migration contract (purge hook implemented; migrations FORWARD)
+
+`hooks.onProjectPurge` is implemented in `types.ts` and called by the purge transaction. The
+remaining lifecycle fields are not in `types.ts`; the first add-on that needs tables/versioning
+requires one generic contract change. Do not put SQL in `dashboardWidgets` or ids in `settings`:
 
 ```ts
 // proposed addition to AddonDefinition — reviewed centrally, not per add-on
@@ -323,9 +340,11 @@ migrations?: readonly { id: string; up(ctx: { exec(sql: string): void }): void }
 hooks?: AddonHooks & {
   onInstall?(ctx): void;                          // inside startup tx; may seed namespaced tables
   onModeChange?(ctx: { from: AddonMode; to: AddonMode }): void;  // inside mode-change tx
-  onProjectPurge?(ctx: { projectIds: readonly string[]; exec(sql: string): void }): void;
+  onProjectPurge?(ctx: { projectIds: readonly string[]; exec(sql: string): void }): void; // shipped
 };
 ```
+
+`onProjectPurge` is part of the shipped `AddonHooks`; the other fields above are still proposed.
 
 Rules now: no add-on migration may alter a core table; add-on tables are named
 `addon_<identifier_with_underscores>_<table>` and reference `projects(id) ON DELETE CASCADE`;
@@ -333,7 +352,7 @@ migrations are forward-only, namespaced ids (`assignee/001_<slug>`), recorded in
 and idempotent on retry. Preference order for MVP add-ons: JSON in `addon_data` first, own tables only
 for volume the JSON column cannot reasonably hold.
 
-### 3.4 FORWARD: registry ↔ `addons` table sync
+### 3.4 Registry ↔ `addons` table sync (implemented)
 
 Code is the source of truth for definitions; the `addons` table stores the Admin-chosen mode and
 application-level settings. At startup, after migrations: insert a row for each registered identifier
@@ -341,22 +360,25 @@ application-level settings. At startup, after migrations: insert a row for each 
 overwrite an existing mode, never delete rows for unregistered identifiers (their data must survive
 code removal). `Unavailable` is a stored mode, not a deletion.
 
-**Current state:** no code inserts or updates `addons` rows; the table is empty and the hook runner
-falls back to `mode = 'optional'`. The first add-on must implement this sync (plus an Admin mode
-surface) or Required semantics will not work (§4.2).
+**Implemented:** `syncAddonRegistry()` in `src/server/domain/project-addons.ts` runs at startup
+(instrumentation), after first-run setup and after `db:seed`. It inserts missing rows with
+`defaultMode`, updates the display name, never overwrites `mode`/`settings`, and never deletes rows
+for unregistered identifiers. `/settings` → Add-ons is the Admin mode surface. The hook runner and
+the value endpoint resolve the stored mode, so Required semantics now work once an Admin selects
+Required.
 
 ---
 
 ## 4. Field types, values, validation
 
 The **type definitions** below are implemented in `types.ts` and enforced at registration where the
-registry can do so (shape of `options`/`optionsSource`). There is **no generic add-on field control,
-field-type validator, value endpoint or field-slot renderer in the MVP**, so the "Core control" and
-"Validation" columns are the target contract for the first add-on's generic plumbing; only an
-add-on's own hooks validate values today. The "Searchable" column likewise describes intent —
-add-on text is not indexed yet (§8).
+registry can do so (shape of `options`/`optionsSource`, and `searchFields` must be `text`/`longtext`).
+The first add-on bundle also implements the generic value endpoint and field-type validation
+(`fieldValueError` in `src/server/domain/project-addons.ts`) plus a generic project-page editor
+driven by field definitions. `select`/`user` values are checked against declared options or existing
+`users.id` rows. `compactRenderer` and dashboard widgets still have no core consumer (§6/§7/§9).
 
-| Type | Stored JSON | Core control (FORWARD) | Validation (target; today only add-on hooks) | Searchable (FORWARD) | Compact default (FORWARD) |
+| Type | Stored JSON | Core control | Validation | Searchable | Compact default (FORWARD) |
 |---|---|---|---|---|---|
 | `boolean` | `true` / `false` / `null` | checkbox | must be boolean; `null` = not set; required + `required` means **true** (explicit acknowledgement), not merely non-null | no | check / em dash |
 | `number` | number / `null` | number input | finite, no `NaN`; `min`/`max` honoured; reject numeric strings | no | plain number |
@@ -382,16 +404,16 @@ Notes:
 
 ### 4.1 Validation pipeline (current implementation)
 
-There are two pipelines today; only the Inbox-exit one exists.
+There are two pipelines today: Inbox exit and value save. Both share the same hook signatures and core field checks.
 
 **Implemented — Inbox exit** (`src/server/domain/addon-hooks.ts`,
 `assertInboxExitAllowed(db, projectId)`), called before the transition writes:
 
 ```
-list registry add-ons            (empty in the MVP -> immediate no-op)
+list registry add-ons
   -> for each add-on, in registry insertion order:
        values = projects.addon_data[<identifier>] ?? {}
-       mode   = addons.mode for identifier, default 'optional'
+       mode   = addons.mode, default definition.defaultMode, else 'optional'
        run  hooks.beforeLeaveInbox({ projectId, values, mode })   (if defined)
        then hooks.validate({ projectId, values, mode })           (if defined)
   -> aggregate every issue from every add-on (all add-ons are evaluated; no early exit)
@@ -417,30 +439,29 @@ Actual semantics to rely on:
   first, then `validate`. An add-on that puts exit-only checks in `validate` will also run them
   during the exit.
 - The gate is not mode-filtered by core: every registered add-on's hooks run, and the add-on
-  receives `mode` so it can decide whether it applies. Mode is read from the `addons` table and
-  **defaults to `'optional'`** because the registry↔table sync (§3.4) is FORWARD. Consequence: a
-  Required add-on whose hook checks `mode === 'required'` will **not block** until that sync (or an
-  admin-written `addons` row) exists.
+  receives `mode` so it can decide whether it applies. Mode is read from the synced `addons` table
+  (default `optional`), so a Required add-on whose hook checks `mode === 'required'` blocks as soon
+  as an Admin selects Required.
 - `skip_inbox` needs no special case: the gate is only called when the project is actually exiting
   the Inbox (`inbox = 1`), and skip-Inbox children never enter it.
 - The gate throws `422 addon_validation` (not `409 ADDON_VALIDATION_FAILED`); `fields` only contains
   entries for issues that set `field`. There is no namespacing of field keys by core today —
   duplicate field names across add-ons overwrite each other in the error map (a contract gap when
   more than one add-on ships).
-- A hook that throws is **not caught**: it propagates as a 500 from the route. Per-add-on failure
-  isolation is FORWARD (§11).
+- A throwing hook is isolated per add-on: it is logged and converted to a `422 addon_validation`
+  failure rather than a 500 (implemented in the gate and the value endpoint).
 
-**FORWARD — value save** (`PATCH /api/projects/:id/addons/:identifier`, §3.2): core field-type
-checks → `hooks.validate` → merge/audit/FTS → commit. No add-on value write endpoint or generic
-field editor exists in the MVP, so the documented save pipeline, client controls and "validate on
-every save" behaviour are not implemented yet.
+**Implemented — value save** (`PATCH /api/projects/:id/addons/:identifier`, §3.2): core field-type
+checks → `hooks.validate` → merge/audit/FTS → commit. The generic project-page editor calls this
+endpoint, so controls and "validate on every save" are live.
 
 Hook rules that hold today:
 
 - Signature: `(ctx: { projectId, values, mode }) => AddonValidationIssue[]`; **empty array = valid**.
 - Synchronous and pure: the context carries **no database handle, no query helper, no network**.
   Anything needing a lookup (does this user exist?) is core field-type validation or the
-  `user`/`optionsSource` resolution, never the hook.
+  `user`/`optionsSource` resolution, never the hook. The core checks run before `validate`, and
+  `validate` runs on every save and on every Inbox exit.
 - Issues are displayed by the calling handler as a form-level message; the API error map is
   `<issue.field>: <message>`. Messages must be sentences, actionable, no stack traces or internal ids.
 
@@ -464,8 +485,9 @@ replaceWorkflow (remapped child)(workflow.ts)
 The function loads every registered add-on (`listAddons()`), reads the project's
 `addon_data[identifier]`, resolves `mode` from the `addons` table with default `'optional'`, calls
 `hooks.beforeLeaveInbox` **then** `hooks.validate` for that add-on, aggregates all issues, and
-throws `DomainError(422, 'addon_validation', …)` with an optional `fields` map. With the empty MVP
-registry it returns immediately — no add-on hooks run and no add-on can block anything.
+throws `DomainError(422, 'addon_validation', …)` with an optional `fields` map. A throwing hook is
+logged and converted to the same 422 envelope. The Assignee add-on is registered, so its
+`beforeLeaveInbox` gate is live when the global mode is `required`.
 
 Rules that are true today:
 
@@ -480,23 +502,20 @@ Rules that are true today:
 - Status changes from a collection view use the same `updateProject`/`reorderProject` paths, so
   they are gated too.
 
+**Implemented:** registry↔table sync and the `/settings` mode surface (§3.4); project-level
+enablement/inheritance (`projects.settings.addons`); the generic value editor/endpoint; and
+per-add-on hook isolation (a throwing hook becomes a `422 addon_validation` failure, not a 500).
+
 **What is still missing / FORWARD:**
 
-- **Registry ↔ `addons` table sync** (§3.4) is not implemented. No startup code inserts registry rows,
-  there is no Admin mode UI for add-ons, and the mode lookup therefore falls back to `'optional'`.
-  A `Required` add-on will not block Inbox exits until the mode is actually stored (sync + the
-  settings surface, or a manual DB row) and its hook honours `mode`.
-- **Project-level enablement/requirement** (`projects.settings.addons[identifier]`) is documented but
-  not written or read by any code; availability inheritance is not resolved.
-- **Project-level required under `Available`** has no storage key in the MVP contract (§2.3); only
-  the global mode can require fields once sync exists.
-- **No add-on value editor or write endpoint** exists, so in practice `addon_data` values can only
-  come from seed/manual data today; the save pipeline in §4.1 is the target contract.
+- **Project-level required under `Available`** has no storage key in the shipped contract (§2.3);
+  only the global mode can require fields. Do not put a `required` flag in add-on-owned `settings`.
 - The gate is not transactional with the caller's write (it runs before `db.transaction` starts).
   That is safe while hooks are pure and reads happen in the same single-threaded process, but a
   future async/fallible hook must not be added there.
-- A throwing hook is not isolated (500), and duplicate field names across add-ons overwrite each
-  other in the error map — both are §11/contract follow-ups, not current behaviour.
+- Duplicate field names across add-ons still overwrite each other in the error map — a §11
+  follow-up when more than one add-on ships.
+- A per-add-on client renderer registry and dashboard-widget consumer are still FORWARD (§6/§7/§9).
 
 Do not put validation logic anywhere except `hooks.beforeLeaveInbox` / `hooks.validate` when they
 are expanded; and do not assume `validate` is save-only (it runs on exit too).
@@ -505,7 +524,9 @@ are expanded; and do not assume `validate` is save-only (it runs on exit too).
 
 ## 5. Project settings and the settings UI contract
 
-Storage is §2.1/§3.2. UI contracts (FORWARD; the MVP `AddonDefinition` has no settings-control type):
+Storage is §2.1/§3.2. The application mode surface and the project enable/inherit surface are
+implemented in `/settings` and `/p/[id]/settings?tab=addons`. Per-add-on **settings controls** remain
+FORWARD (the contract has no settings-control type; Assignee has no global setting):
 
 ```ts
 interface AddonSettingsProps {
@@ -530,19 +551,18 @@ Placement:
 - Application settings (`/settings`, Admin): "Add-ons" section, one panel per registered add-on.
   Mode radio plus `show_avatar`-style global settings; the panel explains Unavailable: "Existing
   values are kept and hidden."
-- Project settings (`/p/[id]/settings?tab=addons`): Enable for this project (hidden for
-  Required/Always on), Inherit from parent, the add-on's project settings, and inherited-state
-  display with Override. This tab does not exist in the shipped MVP (no add-on registered, no
-  settings renderer); it is part of the FORWARD surface.
+- Project settings (`/p/[id]/settings?tab=addons`, implemented): Enable for this project (hidden
+  for Required/Always on), Inherit from parent, the add-on's project settings when a settings control
+  exists, and inherited-state display. The tab is hidden while the registry is empty.
 - Value editing happens at the project page/view slots only; settings panels never edit values.
 
 ---
 
-## 6. Project page placement — main / sidebar (FORWARD)
+## 6. Project page placement — main / sidebar (partially implemented)
 
-The MVP `AddonDefinition` has no page-slot field; only `compactRenderer` and `dashboardWidgets` are
-representable, and neither has a core UI consumer today. Before an add-on with a project-page editor
-ships, extend the contract once:
+The shipped generic project-page editor renders an "Add-ons" card from `AddonDefinition.fields`; it
+is not per-add-on placement and there is still no `projectPage.sidebar` slot in the contract. Before
+an add-on needs a specific main/sidebar slot, extend the contract once:
 
 ```ts
 // proposed addition to AddonDefinition
@@ -646,26 +666,24 @@ Rules for that future bridge:
 Declare searchable field keys in `definition.searchFields: string[]`. Only `text` and `longtext`
 fields may be listed.
 
-**Current state (accurate as of the final review):** add-on value text is **not indexed anywhere
-yet**. `src/server/db/search.ts` provides `searchBodyFromAddonValues(addonData, searchableFields)`,
-but it has **no caller**; every `indexProject(...)` call in the domain/seed/bootstrap passes
-`body: ''`. `projects.title` is indexed and searchable today; add-on text is FORWARD. No reindex
-happens on availability/mode change, and there is no generic add-on value write path to hook.
+**Implemented:** `src/server/domain/project-addons.ts` computes the body from effectively available
+add-ons only and calls `indexProject` inside the value-write transaction. It reindexes the affected
+subtree on project enable/inherit changes, every project on application mode changes, and the whole
+installation at startup (`syncAddonRegistryAndSearch`). `registry.ts` rejects non-`text`/`longtext`
+`searchFields`. Assignee deliberately declares `searchFields: []` (§12.4).
 
-When an add-on wants searchable text, the integrator (core plumbing, not per-add-on) must wire:
+The generic search bridge is implemented centrally (not per-add-on):
 
-1. On every path that writes add-on values or changes add-on availability: compute the body from the
-   project's `addon_data` using that add-on's `searchFields` and `searchBodyFromAddonValues`, then
-   call `indexProject(db, { projectId, title, body })` **inside the same transaction** as the value
-   write (existing `indexProject`/`removeProjectFromSearch` primitives are already there).
-2. Reindex affected projects on availability/mode change, project move/restore, and on startup/repair
-   rebuild (loop over projects; there is no registry-driven rebuild yet).
-3. Enforce that only `text`/`longtext` fields are indexed — `registry.ts` currently checks only that
-   `searchFields` keys exist in `fields`, not their type; the indexing bridge must reject
-   non-text fields (or the registry must be tightened).
-4. Keep the privacy rule: index only while the add-on is effectively available for the project;
-   when it becomes unavailable, reindex to remove the field from `body`. The value stays in
-   `addon_data` but must be unsearchable.
+1. Every add-on value write computes the body from `addon_data` using the available add-ons'
+   `searchFields` and calls `indexProject` inside the same transaction.
+2. Add-on-aware FTS maintenance replaces the old `body: ''` writes on title/status rename, reorder,
+   move, Inbox release/reparent, workflow remap and restore; project configuration changes reindex
+   the affected subtree, application mode changes reindex every project, and startup repairs the
+   whole installation (`syncAddonRegistryAndSearch`).
+3. `registry.ts` rejects a `searchFields` entry whose field is not `text`/`longtext`, and the bridge
+   only indexes available add-ons.
+4. Privacy: when an add-on becomes unavailable, search is reindexed without its text. The stored
+   value remains in `addon_data` but is unsearchable.
 
 The query path itself is implemented: FTS5 prefix tokens, escaped syntax, trash excluded, archived
 follows `show_archived`, and results are permission-filtered before titles/snippets are returned.
@@ -793,31 +811,31 @@ add-on with the same identifier sees its old values again.
 
 ## 11. Lifecycle hooks and failure isolation
 
-**Hooks implemented today:** `validate` and `beforeLeaveInbox` only, both invoked together by
-`assertInboxExitAllowed` on Inbox exit (§4.1/§4.2). No other hook exists in `AddonHooks`; migrations,
-mode-change, install and purge hooks are FORWARD (§3.3). The only other add-on read surface with a
-defined type is the dashboard widget loader (`AddonDashboardWidget.load`), which has **no consumer**
-(§9).
+**Hooks implemented today:** `validate`, `beforeLeaveInbox` and `onProjectPurge`. Both validation
+hooks are invoked together by `assertInboxExitAllowed` on Inbox exit (§4.1/§4.2) and by the value
+save endpoint. `onProjectPurge` runs inside the purge transaction before the core cascade; a throwing
+purge hook is logged and isolated. Migrations, mode-change and install hooks are still FORWARD
+(§3.3). The dashboard widget loader (`AddonDashboardWidget.load`) still has **no consumer** (§9).
 
 ```
-startup        -> registry validates definitions (per-add-on try/catch in the manifest is FORWARD)
-                  sync addons rows, compatibility check, add-on migrations: FORWARD
-value save     -> core type-check -> hooks.validate -> merge/audit/FTS -> commit: FORWARD
+startup        -> manifest registers each add-on in a per-add-on try/catch: IMPLEMENTED
+                  sync addons rows + reindex search: IMPLEMENTED
+                  compatibility check + add-on migrations: FORWARD
+value save     -> core type-check -> hooks.validate -> merge/audit/FTS -> commit: IMPLEMENTED
 inbox exit     -> hooks.beforeLeaveInbox then hooks.validate -> clear inbox/status/audit -> commit: IMPLEMENTED
                   (gate runs before the caller's transaction starts)
-mode change    -> onModeChange, update mode + reindex: FORWARD
-project purge  -> onProjectPurge, delete add-on rows/values: FORWARD
+mode change    -> update mode + reindex: IMPLEMENTED; onModeChange hook: FORWARD
+project purge  -> onProjectPurge, delete add-on rows/values: IMPLEMENTED
 ```
 
 Isolation rules (target) and current reality:
 
-1. **Validation never writes.** True: the hook context has no DB/query/network. But a hook that
-   **throws** is not caught today — it propagates as a 500. Per-add-on try/catch, logging and
-   conversion to a validation failure are FORWARD. Aggregation across add-ons is implemented (all
-   registered add-ons are evaluated before failing).
-2. **Transactional hooks.** The Inbox gate runs before the caller's write transaction. Future
-   in-transaction hooks (`onModeChange`, `onProjectPurge`, `onInstall`) must roll back on throw and
-   be isolated per add-on; neither exists yet.
+1. **Validation never writes.** True: the hook context has no DB/query/network. A hook that
+   **throws** is caught per add-on, logged and converted to a `422 addon_validation` failure.
+   Aggregation across add-ons is implemented (all registered add-ons are evaluated before failing).
+2. **Transactional hooks.** The Inbox gate runs before the caller's write transaction.
+   `onProjectPurge` runs inside the purge transaction and is isolated per add-on; future
+   in-transaction hooks (`onModeChange`, `onInstall`) must roll back on throw and be isolated too.
 3. **Post-commit work is not a hook.** Notifications/external calls and anything fallible belong
    outside the transaction; add-ons must not add network I/O inside hooks (it blocks SQLite's writer
    and the Node event loop).
@@ -830,10 +848,9 @@ Isolation rules (target) and current reality:
    and core mutation functions; `AddonWidgetContext.visibleProjectIds` is core-computed and must
    never be expanded (read-only invariant, §9). This is enforced by type shape, not only by review.
 
-**Not implemented / known gaps:** `validate` has no save trigger (no value endpoint), hooks are not
-wrapped or isolated, add-on field keys in `fields` from multiple add-ons are not namespaced in the
-error map, and there is no `onProjectPurge` (add-on tables would rely on FK cascade; add-on JSON is
-deleted with the project row regardless).
+**Known gaps:** add-on field keys from multiple add-ons are not namespaced in the error map,
+`onModeChange`/`onInstall` are still FORWARD, and read-side widget/renderer isolation has nothing to
+wrap until the dashboard and compact-renderer bridges ship.
 
 An add-on **must not bypass core invariants** (product.md §9). It cannot change a project's status,
 inbox flag, parent, archived/trash state, priority or roles; write/suppress audit; mark a required
@@ -842,16 +859,19 @@ inaccessible projects from search/dashboard.
 
 ---
 
-## 12. Worked example: the Assignee add-on (deferred from MVP)
+## 12. Worked example: the Assignee add-on (shipped)
 
-Assignee is specified in product.md §7 and deferred from this iteration. It is the reference exercise
-for the contract: zero or one assignee per project, optional by default, application- and project-level
-availability/requirement, compact rendering in views, an **Assigned to me** dashboard widget. Building
-it must not add special-case logic to core; if it does, the contract has failed.
+Assignee is specified in product.md §7 and shipped by issue #7 as the reference exercise for the
+contract: zero or one assignee per project, optional by default, application- and project-level
+availability, a required Inbox-exit gate, generic project-page editing, and an **Assigned to me**
+dashboard widget definition. Building it added **no** `identifier === 'assignee'` branch to core;
+the definition lives only in `src/server/addons/assignee/` and registers through the manifest. The
+dashboard-widget consumer and `compactRenderer` bridge remain FORWARD (§7/§9).
 
 It exercises every current type: the `user` field (zero-or-one), `hooks.validate` and
-`hooks.beforeLeaveInbox` (both wired at Inbox exit), `compactRenderer` (declared but no core consumer
-yet), `dashboardWidgets` (declared but no consumer yet), and the FORWARD project-page/settings slots.
+`hooks.beforeLeaveInbox` (both wired at Inbox exit), the generic project-page editor and settings
+surfaces, `compactRenderer` (declared but still no core consumer), and `dashboardWidgets` (declared
+but still no consumer).
 
 ### 12.1 Definition and registration
 
@@ -917,19 +937,20 @@ import { assigneeAddon } from './assignee';
 registerAddon(assigneeAddon);
 ```
 
-No core file changes. v1 stores values in `addon_data` (no table, no migration). If a later version
+No add-on-specific core file changes; generic plumbing lives in core. v1 stores values in
+`addon_data` (no table, no migration). If a later version
 adds a table, it adds `migrations: [{ id: 'assignee/001_scope', up: ctx => ctx.exec('CREATE TABLE …') }]`
 with `REFERENCES projects(id) ON DELETE CASCADE`.
 
 ### 12.2 Validation hooks
 
-- Zero-or-one is inherent in one `user` field. **There is no generic core field-type validation yet**
-  (no add-on value endpoint), so the add-on hook must reject arrays/blank/wrong-shaped values itself;
-  user existence and the permission-filtered picker are FORWARD with the value endpoint.
-- Requirement is resolved, not assumed: `mode === 'required'` is the only MVP source, read from the
-  `addons` table with default `'optional'`; project-level requirement needs the FORWARD §2.3 contract
-  and the registry↔table sync before it can block. Do not put a `required` flag in `settings`
-  (add-on-owned settings are not a place for core policy).
+- Zero-or-one is inherent in one `user` field. The core value endpoint now rejects arrays and
+  non-existing user ids, and the add-on hook still rejects blank/wrong-shaped values. The picker is
+  core-provided from the account list; assignment never grants access.
+- Requirement is resolved, not assumed: `mode === 'required'` is the only source, read from the
+  synced `addons` table (default `optional`). Project-level requirement still needs the FORWARD §2.3
+  contract. Do not put a `required` flag in `settings` (add-on-owned settings are not a place for
+  core policy).
 - Both `beforeLeaveInbox` and `validate` run on an Inbox exit, `beforeLeaveInbox` first. Keep the
   required check in `beforeLeaveInbox` (and note `validate` runs on exit too); an add-on that returns
   required errors from `validate` still blocks, but is harder to reason about.
@@ -969,13 +990,14 @@ assignee is wanted later, add a core search filter parameter, not a fake searcha
 
 ### 12.5 Settings UI
 
-- **No add-on settings surface exists in the MVP.** The `/settings` Add-ons section and
-  `/p/[id]/settings?tab=addons` described in §5 are FORWARD. When built: application panel = mode radio
-  (Required / Always on / Available / Unavailable) + explanation for Unavailable ("Existing assignee
-  values are kept and hidden"); project panel = Enable for this project (Optional mode only), Inherit
-  from parent, "Inherited from <parent>" with Override. There is no global Assignee setting in v1.
-- Project page sidebar row (FORWARD `projectPage.sidebar`): "Assignee" + compact chip; edit popover
-  with the user picker; Viewer sees the value without an edit affordance.
+- **Implemented:** `/settings` Add-ons section = mode radio (Required / Always on / Available /
+  Unavailable) with the Unavailable retention explanation; `/p/[id]/settings?tab=addons` = Enable for
+  this project (Optional mode only), Inherit from parent, inherited-state text. There is no global
+  Assignee setting in v1.
+- **Implemented generically:** the project page renders an "Add-ons" card with the field controls from
+  the definition (the Assignee `user` field uses a core-provided account picker). A Viewer or a
+  trashed project sees values read-only. There is no per-add-on `projectPage.sidebar` renderer slot;
+  that finer placement remains FORWARD.
 - Dashboard editor: FORWARD — no add-on widget consumer exists (§9), so "Assigned to me" cannot appear
   until the generic widget bridge is built. Preference preservation is already implemented, so a saved
   entry survives until then.
@@ -1024,6 +1046,12 @@ function loadAssignedToMe(ctx: AddonWidgetContext): AddonWidgetItem[] {
   collection is deferred work, flagged for the product owner.
 
 ### 12.7 Test checklist for Assignee
+
+Coverage added by issue #7: `tests/integration/api-addons.test.ts` (sync, modes, inheritance,
+value writes, permissions, audit, search, required gate), `tests/integration/addon-purge.test.ts`
+(purge hook + isolation), `tests/unit/addons-manifest.test.ts`, and
+`tests/e2e/addons.spec.ts` (enable → save → persist → hide/restore). Items below that depend on a
+FORWARD surface (compact renderer, dashboard consumer) remain future tests.
 
 | # | Test | Expected |
 |---|---|---|

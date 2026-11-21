@@ -5,13 +5,17 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { Field } from '@/components/ui/Field';
+import { FieldGroup } from '@/components/ui/Field';
 import { Input } from '@/components/ui/Input';
 import { Notice } from '@/components/ui/Notice';
+import { Radio } from '@/components/ui/Radio';
 import { Select } from '@/components/ui/Select';
 import { Toast } from '@/components/ui/Toast';
 import { useToastMessage } from '@/components/ui/use-live-announcer';
 import { requestJson } from '@/lib/api-client';
 import { APP_ROLES, COLLECTION_VIEWS, type AppRole, type CollectionView } from '@/lib/types';
+import type { AddonApplicationConfig, AddonMode } from '@/lib/addons';
+import { ADDON_MODE_OPTIONS } from '@/lib/addons';
 import { COLLECTION_VIEW_MESSAGE_KEYS, SHORT_ROLE_MESSAGE_KEYS } from '@/i18n/domain-labels';
 import { useI18n } from '@/i18n/client';
 import type { BackupStatus } from '@/server/backup';
@@ -21,6 +25,7 @@ import styles from './ApplicationSettingsForm.module.css';
 export interface ApplicationSettingsFormProps {
   settings: ApplicationSettings;
   backupStatus: BackupStatus;
+  addons: AddonApplicationConfig[];
 }
 
 interface SettingsValues {
@@ -45,18 +50,48 @@ function valuesFromSettings(settings: ApplicationSettings): SettingsValues {
   };
 }
 
+const ADDON_MODE_MESSAGE_KEYS: Record<
+  AddonMode,
+  'addons.modeRequired' | 'addons.modeAlways' | 'addons.modeOptional' | 'addons.modeUnavailable'
+> = {
+  required: 'addons.modeRequired',
+  always: 'addons.modeAlways',
+  optional: 'addons.modeOptional',
+  unavailable: 'addons.modeUnavailable',
+};
+
+function modesFromAddons(addons: AddonApplicationConfig[]): Record<string, AddonMode> {
+  const modes: Record<string, AddonMode> = {};
+  for (const addon of addons) modes[addon.identifier] = addon.mode;
+  return modes;
+}
+
+function sameModes(a: Record<string, AddonMode>, b: Record<string, AddonMode>): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const key of keys) if (a[key] !== b[key]) return false;
+  return true;
+}
+
 /**
  * Application settings (Admin): default account role, automatic trash
- * purge/retention, the collection views available to projects and the rolling
- * backup schedule (issues #13 and #21). At least one view must remain.
+ * purge/retention, the collection views available to projects, registered
+ * add-on modes and the rolling backup schedule (issues #13 and #21).
+ * At least one view must remain.
  */
 export function ApplicationSettingsForm({
   settings,
   backupStatus,
+  addons,
 }: ApplicationSettingsFormProps) {
   const { t, formatDateTime } = useI18n();
   const [saved, setSaved] = useState<SettingsValues>(() => valuesFromSettings(settings));
   const [values, setValues] = useState<SettingsValues>(() => valuesFromSettings(settings));
+  const [savedAddonModes, setSavedAddonModes] = useState<Record<string, AddonMode>>(() =>
+    modesFromAddons(addons),
+  );
+  const [addonModes, setAddonModes] = useState<Record<string, AddonMode>>(() =>
+    modesFromAddons(addons),
+  );
   const [status, setStatus] = useState<BackupStatus>(backupStatus);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -71,7 +106,8 @@ export function ApplicationSettingsForm({
     values.trashRetentionDays !== saved.trashRetentionDays ||
     values.backupEnabled !== saved.backupEnabled ||
     values.backupStartTime !== saved.backupStartTime ||
-    values.backupRetention !== saved.backupRetention;
+    values.backupRetention !== saved.backupRetention ||
+    !sameModes(addonModes, savedAddonModes);
 
   const clearFieldError = (field: string) => {
     setFieldErrors((current) => {
@@ -123,6 +159,7 @@ export function ApplicationSettingsForm({
       const result = await requestJson<{
         settings: ApplicationSettings;
         backupStatus?: BackupStatus;
+        addons?: AddonApplicationConfig[];
       }>('/api/settings', {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
@@ -134,6 +171,13 @@ export function ApplicationSettingsForm({
           backupEnabled: values.backupEnabled,
           backupStartTime: values.backupStartTime,
           backupRetention: values.backupRetention,
+          ...(addons.length > 0
+            ? {
+                addons: Object.fromEntries(
+                  Object.entries(addonModes).map(([identifier, mode]) => [identifier, { mode }]),
+                ),
+              }
+            : {}),
         }),
       });
       if (!result.ok) {
@@ -145,6 +189,11 @@ export function ApplicationSettingsForm({
       setSaved(next);
       setValues(next);
       if (result.data.backupStatus) setStatus(result.data.backupStatus);
+      if (result.data.addons) {
+        const nextModes = modesFromAddons(result.data.addons);
+        setSavedAddonModes(nextModes);
+        setAddonModes(nextModes);
+      }
       notify(t('settings.saved'));
     } catch {
       setFormError(t('common.networkError'));
@@ -155,6 +204,7 @@ export function ApplicationSettingsForm({
 
   const handleCancel = () => {
     setValues(saved);
+    setAddonModes(savedAddonModes);
     setFieldErrors({});
     setFormError(null);
   };
@@ -271,6 +321,42 @@ export function ApplicationSettingsForm({
           <p id="views-hint" className={styles.hint}>
             {t('settings.oneViewRequired')}
           </p>
+
+          {addons.length > 0 ? (
+            <fieldset className={styles.backupFieldset}>
+              <legend className={styles.viewsLegend}>{t('addons.applicationHeading')}</legend>
+              <p className={styles.note}>{t('addons.applicationHint')}</p>
+              {addons.map((addon) => (
+                <FieldGroup
+                  key={addon.identifier}
+                  legend={`${addon.name} (v${addon.version})`}
+                  hint={addon.description}
+                  className={styles.addonGroup}
+                  controlClassName={styles.addonModes}
+                >
+                  {ADDON_MODE_OPTIONS.map((mode) => (
+                    <Radio
+                      key={mode}
+                      name={`addon-mode-${addon.identifier}`}
+                      value={mode}
+                      label={t(ADDON_MODE_MESSAGE_KEYS[mode])}
+                      aria-label={t(ADDON_MODE_MESSAGE_KEYS[mode])}
+                      description={
+                        mode === 'unavailable' ? t('addons.unavailableNote') : undefined
+                      }
+                      checked={addonModes[addon.identifier] === mode}
+                      onChange={() => {
+                        setAddonModes((current) => ({
+                          ...current,
+                          [addon.identifier]: mode,
+                        }));
+                      }}
+                    />
+                  ))}
+                </FieldGroup>
+              ))}
+            </fieldset>
+          ) : null}
 
           <fieldset className={styles.backupFieldset}>
             <legend className={styles.viewsLegend}>{t('settings.backups')}</legend>

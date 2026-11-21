@@ -1,24 +1,19 @@
 import type { Database as BetterSqliteDatabase } from 'better-sqlite3';
 import { listAddons } from '@/server/addons';
-import type { AddonFieldValue, AddonMode, AddonValidationIssue } from '@/server/addons';
+import type { AddonDefinition, AddonFieldValue, AddonValidationIssue } from '@/server/addons';
 import { parseJsonObject } from '@/server/db/util';
+import { getAddonMode } from './project-addons';
 import { DomainError } from './permissions';
 
 /**
- * Add-on lifecycle hooks (build-spec §12).
+ * Add-on lifecycle hooks (build-spec §12; docs/add-ons.md §4.1/§11).
  *
- * The registry ships empty in the MVP, so these functions are no-ops today, but
- * every Inbox exit (release, status change, move, workflow remap) goes through
- * here so a future Required add-on can block refinement with inline issues
- * without core code changes. Core invariants always win.
+ * Every Inbox exit (release, status change, move, workflow remap) goes through
+ * here so a Required add-on can block refinement with inline issues without
+ * core code changes. Core invariants always win. Hooks are isolated per add-on:
+ * a throwing hook is logged and converted into a validation failure instead of
+ * taking the request down with a 500.
  */
-
-function addonModeFor(db: BetterSqliteDatabase, identifier: string): AddonMode {
-  const row = db.prepare('SELECT mode FROM addons WHERE identifier = ?').get(identifier) as
-    | { mode: AddonMode }
-    | undefined;
-  return row?.mode ?? 'optional';
-}
 
 function addonValuesFor(
   db: BetterSqliteDatabase,
@@ -36,6 +31,25 @@ function addonValuesFor(
   return values;
 }
 
+function runHook(
+  definition: AddonDefinition,
+  hook: 'beforeLeaveInbox' | 'validate',
+  context: {
+    projectId: string;
+    values: Record<string, AddonFieldValue>;
+    mode: ReturnType<typeof getAddonMode>;
+  },
+): AddonValidationIssue[] {
+  const fn = definition.hooks?.[hook];
+  if (!fn) return [];
+  try {
+    return fn(context) ?? [];
+  } catch (error) {
+    console.error(`[kapo:addons] "${definition.identifier}" ${hook} hook failed`, error);
+    return [{ message: `${definition.name} could not validate this project. Try again.` }];
+  }
+}
+
 /**
  * Runs every registered add-on's `beforeLeaveInbox`/`validate` hook for a
  * project that is about to exit the Inbox. Throws a 422 with the issues when an
@@ -48,13 +62,10 @@ export function assertInboxExitAllowed(db: BetterSqliteDatabase, projectId: stri
   const issues: AddonValidationIssue[] = [];
   for (const addon of addons) {
     const addonValues = values[addon.identifier] ?? {};
-    const mode = addonModeFor(db, addon.identifier);
-    if (addon.hooks?.beforeLeaveInbox) {
-      issues.push(...addon.hooks.beforeLeaveInbox({ projectId, values: addonValues, mode }));
-    }
-    if (addon.hooks?.validate) {
-      issues.push(...addon.hooks.validate({ projectId, values: addonValues, mode }));
-    }
+    const mode = getAddonMode(db, addon.identifier);
+    const context = { projectId, values: addonValues, mode };
+    issues.push(...runHook(addon, 'beforeLeaveInbox', context));
+    issues.push(...runHook(addon, 'validate', context));
   }
   if (issues.length > 0) {
     const fields: Record<string, string> = {};

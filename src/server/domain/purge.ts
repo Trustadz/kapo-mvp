@@ -1,4 +1,5 @@
 import type { Database as BetterSqliteDatabase } from 'better-sqlite3';
+import { listAddons } from '@/server/addons';
 import { getDb } from '../db/connection';
 
 /**
@@ -109,6 +110,18 @@ function purgeExpiredInTransaction(db: BetterSqliteDatabase, cutoff: string): Pu
   };
 
   const ordered = [...targets].sort((a, b) => depthOf(b) - depthOf(a));
+
+  // Add-on purge hooks run before the core cascade. Each hook is isolated: a
+  // failure is logged and never blocks the purge (docs/add-ons.md §3.3/§11).
+  for (const addon of listAddons()) {
+    const hook = addon.hooks?.onProjectPurge;
+    if (!hook) continue;
+    try {
+      hook({ projectIds: ordered, exec: (sql) => db.exec(sql) });
+    } catch (error) {
+      console.error(`[kapo:addons] "${addon.identifier}" onProjectPurge hook failed`, error);
+    }
+  }
 
   const countSearch = db.prepare(
     'SELECT COUNT(*) AS count FROM project_search WHERE project_id = ?',

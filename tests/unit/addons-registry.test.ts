@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import type { AddonDefinition, AddonFieldDefinition } from '@/server/addons';
+import type { AddonDefinition, AddonFieldDefinition } from '@/server/addons/types';
 import {
   clearAddonsForTests,
   getAddon,
   listAddons,
   registerAddon,
-} from '@/server/addons';
+} from '@/server/addons/registry';
 
 /** Add-on registry validation (build-spec §12, product.md §7). */
 
@@ -28,7 +28,7 @@ function field(overrides: Partial<AddonFieldDefinition> = {}): AddonFieldDefinit
 }
 
 describe('empty registry', () => {
-  it('ships empty', () => {
+  it('starts empty when the manifest is not imported', () => {
     expect(listAddons()).toEqual([]);
     expect(getAddon('assignee')).toBeUndefined();
   });
@@ -103,6 +103,13 @@ describe('identifier validation', () => {
     expect(listAddons()).toHaveLength(1);
   });
 
+  it('rejects an invalid default mode', () => {
+    expect(() =>
+      registerAddon(addon({ defaultMode: 'sometimes' as never })),
+    ).toThrow(/defaultMode/);
+    expect(listAddons()).toEqual([]);
+  });
+
   it('rejects an empty name or version', () => {
     expect(() => registerAddon(addon({ name: '   ' }))).toThrow(/name/);
     expect(() => registerAddon(addon({ version: '' }))).toThrow(/version/);
@@ -157,6 +164,15 @@ describe('field validation', () => {
     expect(() =>
       registerAddon(addon({ fields: [field({ type: 'user', optionsSource: 'users' })] })),
     ).toThrow(/must not define options or optionsSource/);
+  });
+
+  it('rejects searchFields that are not text or longtext', () => {
+    expect(() =>
+      registerAddon(
+        addon({ fields: [field({ key: 'count', type: 'number' })], searchFields: ['count'] }),
+      ),
+    ).toThrow(/non-text search field/);
+    expect(listAddons()).toEqual([]);
   });
 
   it('rejects searchFields that reference unknown fields', () => {

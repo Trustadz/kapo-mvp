@@ -33,6 +33,11 @@ import {
 import { listActivity, recordAuditEvent } from './audit';
 import { assertInboxExitAllowed } from './addon-hooks';
 import {
+  getProjectAddonsForPage,
+  reindexProjectAddonSearch,
+  reindexProjectAddonSearchSubtree,
+} from './project-addons';
+import {
   DomainError,
   accessibleAncestors,
   canAdminProject,
@@ -636,6 +641,7 @@ export function getProjectPageData(
     activity,
     settings,
     layout: effectiveLayoutTemplate(db, projectId, settings),
+    addons: getProjectAddonsForPage(db, user, projectId),
     showArchived: ctx.user.showArchived,
   };
 }
@@ -723,7 +729,7 @@ export function createProject(
        ON CONFLICT(project_id, user_id) DO UPDATE SET role = 'admin'`,
     ).run(projectId, user.id);
 
-    indexProject(db, { projectId, title, body: '' });
+    reindexProjectAddonSearch(db, projectId);
     recordAuditEvent(db, {
       projectId,
       actorId: user.id,
@@ -878,7 +884,7 @@ export function updateProject(
         newValue: nextTitle,
         createdAt: timestamp,
       });
-      indexProject(db, { projectId, title: nextTitle, body: '' });
+      reindexProjectAddonSearch(db, projectId);
     }
     if (statusChanged) {
       recordAuditEvent(db, {
@@ -892,7 +898,7 @@ export function updateProject(
         detail: JSON.stringify({ fromId: row.status_id, toId: nextStatusId }),
         createdAt: timestamp,
       });
-      indexProject(db, { projectId, title: nextTitle, body: '' });
+      reindexProjectAddonSearch(db, projectId);
     }
     if (archivedChanged) {
       recordAuditEvent(db, {
@@ -1075,7 +1081,7 @@ export function reorderProject(
         createdAt: timestamp,
       });
     }
-    indexProject(db, { projectId, title: row.title, body: '' });
+    reindexProjectAddonSearch(db, projectId);
   });
   transaction();
 
@@ -1327,7 +1333,7 @@ export function moveProject(
       detail: JSON.stringify({ fromId: oldStatusId, toId: mappedStatus.id }),
       createdAt: timestamp,
     });
-    indexProject(db, { projectId, title: row.title, body: '' });
+    reindexProjectAddonSearchSubtree(db, projectId);
     db.prepare('UPDATE projects SET updated_at = ? WHERE id = ?').run(timestamp, destinationId);
   });
   transaction();
@@ -1502,7 +1508,7 @@ export function moveProjects(
         detail: JSON.stringify({ fromId: row.status_id, toId: target.id }),
         createdAt: timestamp,
       });
-      indexProject(db, { projectId: row.id, title: row.title, body: '' });
+      reindexProjectAddonSearchSubtree(db, row.id);
     }
     db.prepare('UPDATE projects SET updated_at = ? WHERE id = ?').run(timestamp, destinationId);
   });

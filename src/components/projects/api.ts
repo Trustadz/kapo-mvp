@@ -11,6 +11,7 @@ import type {
 } from './types';
 import type { ProjectRole, Status } from '@/lib/types';
 import type { ProjectAccessMode } from '@/lib/projects';
+import type { AddonFieldValue, ProjectAddonConfigView } from '@/lib/addons';
 
 /** Client-side calls to the project APIs; every error carries the §7 shape. */
 
@@ -135,6 +136,46 @@ export function saveProjectSettings(
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
+  });
+}
+
+export interface ProjectAddonPatch {
+  enabled?: boolean;
+  inheritFromParent?: boolean;
+  settings?: Record<string, AddonFieldValue>;
+}
+
+/** Saves the reserved `settings.addons` configuration for a project Admin. */
+export function saveProjectAddons(
+  projectId: string,
+  addons: Record<string, ProjectAddonPatch>,
+): Promise<ApiResult<{ settings: ProjectSettingsData; addons: ProjectAddonConfigView[] }>> {
+  return requestJson(`/api/projects/${projectId}/settings`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ addons }),
+  });
+}
+
+export interface AddonValueResponse {
+  addon: {
+    identifier: string;
+    values: Record<string, AddonFieldValue>;
+    mode: string;
+    available: boolean;
+  };
+}
+
+/** PATCH /api/projects/:id/addons/:identifier — generic value write. */
+export function saveAddonValues(
+  projectId: string,
+  identifier: string,
+  values: Record<string, AddonFieldValue>,
+): Promise<ApiResult<AddonValueResponse>> {
+  return requestJson(`/api/projects/${projectId}/addons/${identifier}`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ values }),
   });
 }
 

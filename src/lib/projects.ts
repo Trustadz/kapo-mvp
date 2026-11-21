@@ -1,4 +1,5 @@
 import type { AppRole, CollectionView, ProjectRole, Status } from './types';
+import type { ProjectAddonEditorData } from './addons';
 
 /**
  * Serializable view models shared by the project server pages and the client
@@ -194,6 +195,8 @@ export interface ProjectPageData {
   settings: ProjectSettingsData;
   /** Layout for this project's own fields (own template or inherited). */
   layout: ProjectLayoutTemplate;
+  /** Registered add-ons that are effectively available for this project. */
+  addons: ProjectAddonEditorData;
   showArchived: boolean;
 }
 
