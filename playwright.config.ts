@@ -78,7 +78,7 @@ export default defineConfig({
     },
     {
       name: 'mobile',
-      testMatch: /mobile(-favorites|-kanban-drag)?\.spec\.ts/,
+      testMatch: /mobile(-favorites|-kanban-drag|-touch-dnd)?\.spec\.ts/,
       dependencies: ['first-install'],
       use: {
         ...devices['Desktop Chrome'],

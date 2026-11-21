@@ -218,7 +218,7 @@ export const nl: Messages = {
     alreadyReleased: 'Al vrijgegeven',
     needEditToRelease: 'Je hebt bewerkrechten nodig om dit item vrij te geven',
     dragHint:
-      'Inbox-items zijn gemarkeerd, selecteerbaar voor bulk vrijgeven en versleepbaar. Sleep er één naar het midden van een andere rij om het onder dat project te plaatsen, of tussen rijen om het in de globale volgorde te verplaatsen. Rijen die niet in de Inbox staan, zijn wel sleepdoelen maar alleen-lezen context. Gebruik het pijltje om een tak in of uit te klappen — alle takken beginnen uitgeklapt.',
+      'Inbox-items zijn gemarkeerd, selecteerbaar voor bulk vrijgeven en versleepbaar. Sleep er één naar het midden van een andere rij om het onder dat project te plaatsen, of tussen rijen om het in de globale volgorde te verplaatsen. Houd op een touchscreen een Inbox-rij ingedrukt en sleep. Rijen die niet in de Inbox staan, zijn wel sleepdoelen maar alleen-lezen context. Gebruik het pijltje om een tak in of uit te klappen — alle takken beginnen uitgeklapt.',
     releaseAria: 'Vrijgegeven item',
     releaseSuccess: '‘{title}’ vrijgegeven naar {status}.',
     releaseBulkSuccess: '{count} items vrijgegeven.',
@@ -239,7 +239,7 @@ export const nl: Messages = {
     releasedTo: '‘{title}’ vrijgegeven naar {status}.',
     stillPulled: 'Staat hieronder nog als Opgepakt.',
     cardDragHint:
-      'Sleep een item boven of onder een andere kaart om het in de globale volgorde te verplaatsen. Sleep een item naar de vrijgeefrail om het in werk te zetten. Elke sleepactie heeft ook een toetsenbordbedienbare knop: Vrijgeven, Bovenliggend project wijzigen of Openen.',
+      'Sleep een item boven of onder een andere kaart om het in de globale volgorde te verplaatsen. Sleep een item naar de vrijgeefrail om het in werk te zetten. Houd op een touchscreen een kaart ingedrukt en sleep. Elke sleepactie heeft ook een toetsenbordbedienbare knop: Vrijgeven, Bovenliggend project wijzigen of Openen.',
     listAria: 'Projecten in de Inbox',
     emptyTitle: 'Inbox is leeg',
     emptyDescription:
@@ -384,13 +384,13 @@ export const nl: Messages = {
     kanbanHint:
       'Sleep een kaart naar een kolom om de status te wijzigen, of tussen kaarten om de volgorde te wijzigen. De gemarkeerde opening laat zien waar de kaart terechtkomt. Houd op een touchscreen een kaart ingedrukt en sleep. Toetsenbord- en menugebruikers: open Acties op een kaart om deze eerder of later te plaatsen, of naar een andere status of een ander project te verplaatsen.',
     cardHint:
-      'Sleep een kaart op een andere kaart om hem in dat project te plaatsen; sleep tussen kaarten om de volgorde te wijzigen. Toetsenbord- en menugebruikers: open Acties op een kaart om deze eerder of later te plaatsen, naar een andere status of naar een ander project te verplaatsen.',
+      'Sleep een kaart op een andere kaart om hem in dat project te plaatsen; sleep tussen kaarten om de volgorde te wijzigen. Houd op een touchscreen een kaart ingedrukt en sleep. Toetsenbord- en menugebruikers: open Acties op een kaart om deze eerder of later te plaatsen, naar een andere status of naar een ander project te verplaatsen.',
     treeHint:
-      'Sleep een project op een andere rij om het in dat project te plaatsen. Sleep tussen twee rijen om het tussen projecten met hetzelfde bovenliggende project te herordenen; slepen tussen rijen van een ander bovenliggend project opent het verplaatsdialoogvenster. Selecteer rijen om meerdere projecten samen te verplaatsen of naar de prullenbak te sturen. Toetsenbord- en menugebruikers: open Acties op een rij om deze eerder of later te plaatsen, naar een andere status of naar een ander project te verplaatsen.',
+      'Sleep een project op een andere rij om het in dat project te plaatsen. Sleep tussen twee rijen om het tussen projecten met hetzelfde bovenliggende project te herordenen; slepen tussen rijen van een ander bovenliggend project opent het verplaatsdialoogvenster. Houd op een touchscreen een rij ingedrukt en sleep. Selecteer rijen om meerdere projecten samen te verplaatsen of naar de prullenbak te sturen. Toetsenbord- en menugebruikers: open Acties op een rij om deze eerder of later te plaatsen, naar een andere status of naar een ander project te verplaatsen.',
     treeContextHint:
       'Rijen met Context zijn bovenliggende projecten die zichtbaar blijven zodat gevonden onderliggende projecten verbonden blijven; ze zijn alleen-lezen zolang er filters actief zijn.',
     listHint:
-      'Sleep een rij boven of onder een andere rij om de volgorde te wijzigen. Toetsenbord- en menugebruikers: open Acties op een rij om deze eerder of later te plaatsen, naar een andere status of naar een ander project te verplaatsen.',
+      'Sleep een rij boven of onder een andere rij om de volgorde te wijzigen. Houd op een touchscreen een rij ingedrukt en sleep. Toetsenbord- en menugebruikers: open Acties op een rij om deze eerder of later te plaatsen, naar een andere status of naar een ander project te verplaatsen.',
     bulkActions: 'Bulkacties',
     bulkMove: 'Bulk verplaatsen',
     bulkTrash: 'Bulk naar prullenbak',

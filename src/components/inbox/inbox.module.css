@@ -139,6 +139,22 @@
   outline-offset: -1px;
 }
 
+/* Issue #79: long-press feedback before the touch drag activates. Nothing here
+   disables panning, so a normal scroll still wins during the 300ms press. */
+.card[data-pressing] {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.card[data-pressing],
+.card[data-dragging],
+.treeRow[data-pressing] :is(td, th),
+.treeRow[data-dragging] :is(td, th) {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
 .card[draggable='true'] {
   cursor: grab;
 }
@@ -427,6 +443,13 @@
 
 .treeRow[data-dragging] :is(td, th) {
   opacity: 0.6;
+}
+
+/* Issue #79: same long-press highlight as the Card view, kept on the row cells
+   so the table borders stay crisp. */
+.treeRow[data-pressing] :is(td, th) {
+  background: var(--color-brand-light);
+  box-shadow: inset 0 0 0 1.5px var(--color-accent);
 }
 
 .treeRow[data-drop='before'] :is(td, th) {
