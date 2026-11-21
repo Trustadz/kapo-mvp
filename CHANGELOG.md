@@ -1,15 +1,27 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 — 2026-11-21
 
 ### Added
 
+- **Touch drag and drop** across Inbox Card/Tree and project Card/Tree/List,
+  with long-press activation, release rail, ghost/insertion previews,
+  autoscroll and cancel cleanup. Kanban keeps its existing touch path.
 - First add-on plumbing and the **Assignee** reference add-on (issue #7):
   application modes, per-project enablement/inheritance, the generic
   `PATCH /api/projects/:id/addons/:identifier` value endpoint, a
   definition-driven project-page editor, registry→`addons` table sync,
   add-on search maintenance, audit/activity entries and isolated
   `onProjectPurge` hooks.
+- Wider Inbox cards with the release rail fixed at sidebar width.
+- Project view position (above/below Details and Properties) from the
+  **Layout** tab, with Above listed first.
+- Mobile browser/overscroll edges now match the top and bottom bars.
+
+### Changed
+
+- Changed-field feedback is now a quiet background tint without the left
+  accent stripe or negative margins.
 
 ### Upgrade notes
 
@@ -18,6 +30,8 @@
   with mode `optional` without overwriting an existing Admin choice; existing
   installations therefore behave exactly as before until an Admin enables the
   add-on. Back up `./data` before upgrading as usual.
+- No other upgrade steps; use the normal `docker compose pull && docker compose
+  up -d` update flow.
 
 ## 0.2.0 — 2026-11-20
 
