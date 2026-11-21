@@ -886,7 +886,7 @@ export function writeAddonValues(
         });
         recordAuditEvent(db, {
           projectId,
-          actorId: user.id,
+          actor: user,
           action: AUDIT_ACTIONS.addonValueChanged,
           field: change.field.label,
           oldValue: displayValue(db, change.field, change.from),

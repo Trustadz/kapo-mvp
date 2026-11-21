@@ -146,6 +146,7 @@ describe('POST /api/setup', () => {
       'enabled_views',
       'inheritance_snapshot_v1',
       'installation_name',
+      'mcp_enabled',
       'trash_purge_enabled',
       'trash_retention_days',
     ]);

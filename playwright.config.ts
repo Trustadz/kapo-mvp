@@ -7,6 +7,8 @@ import fs from 'node:fs';
  * The suite runs against a real `next start` build on port 3301 with an
  * isolated SQLite file (./data/test-e2e.db) and an isolated dist directory
  * (.next-tests). The dev database ./data/kapo.db is never opened.
+ * `KAPO_E2E_PORT` and `KAPO_E2E_DATABASE` override the port and file so
+ * parallel worktrees never collide.
  *
  * Chromium is installed into a writable cache inside the workspace:
  *   PLAYWRIGHT_BROWSERS_PATH=./data/pw-browsers npx playwright install chromium
@@ -24,8 +26,11 @@ if (!process.env.PLAYWRIGHT_BROWSERS_PATH) {
     : TMP_BROWSERS_PATH;
 }
 
-export const TEST_PORT = 3301;
-export const TEST_DATABASE_PATH = './data/test-e2e.db';
+// Overridable so several worktrees can run the suite at the same time without
+// sharing a port or a database file. Defaults match the single-checkout setup.
+export const TEST_PORT = Number(process.env.KAPO_E2E_PORT ?? 3301);
+export const TEST_DATABASE_PATH =
+  process.env.KAPO_E2E_DATABASE ?? './data/test-e2e.db';
 export const TEST_DIST_DIR = '.next-tests';
 
 export default defineConfig({
@@ -70,7 +75,7 @@ export default defineConfig({
     {
       name: 'desktop',
       testMatch:
-        /(app|login|motion|views-reorder|project-filters|kanban-placeholder|inbox-tree|inbox-drag|a11y-keyboard|a11y-labels|contrast|drag-free|i18n|addons|settings-tabs)\.spec\.ts/,
+        /(app|login|motion|views-reorder|project-filters|kanban-placeholder|inbox-tree|inbox-drag|a11y-keyboard|a11y-labels|contrast|drag-free|i18n|addons|settings-tabs|mcp)\.spec\.ts/,
       dependencies: ['first-install'],
       // Drag/reorder specs should measure stable rects; the motion spec opts
       // back into animation explicitly.

@@ -99,6 +99,8 @@ interface RecentRow {
   actor_name: string;
   target_id: string | null;
   target_title: string | null;
+  via_channel: string | null;
+  via_agent: string | null;
 }
 
 function eventVerb(
@@ -147,6 +149,8 @@ export function getRecentWidget(
               p.title AS project_title,
               COALESCE(u.username, 'Someone') AS actor_name,
               e.target_id AS target_id,
+              e.via_channel AS via_channel,
+              e.via_agent AS via_agent,
               target.title AS target_title
          FROM audit_events e
          JOIN projects p ON p.id = e.project_id
@@ -176,6 +180,10 @@ export function getRecentWidget(
       summary: `${actorName} ${verb}`,
       createdAt: row.created_at,
       href: `/p/${row.project_id}#activity`,
+      via:
+        row.via_channel && row.via_agent
+          ? { channel: row.via_channel, agent: row.via_agent }
+          : null,
     });
   }
 

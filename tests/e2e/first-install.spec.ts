@@ -11,7 +11,9 @@ import path from 'node:path';
  */
 
 const ROOT = process.cwd();
-const DATABASE_PATH = './data/test-e2e.db';
+// Honor the same override as playwright.config.ts so parallel worktrees seed
+// the database their server actually uses.
+const DATABASE_PATH = process.env.KAPO_E2E_DATABASE ?? './data/test-e2e.db';
 
 test.describe.configure({ mode: 'serial' });
 

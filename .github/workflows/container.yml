@@ -1,0 +1,118 @@
+name: Publish container
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Patch for fixes, minor for features, or major for breaking changes
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    uses: ./.github/workflows/verify.yml
+
+  publish:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:
+      group: kapo-production-release
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Choose release version
+        id: release
+        env:
+          RELEASE_BUMP: ${{ inputs.bump }}
+        run: |
+          git fetch --tags origin
+          node .github/scripts/release-version.mjs >> "$GITHUB_OUTPUT"
+
+      - name: Publish version and latest
+        env:
+          IMAGE: ghcr.io/trustadz/kapo-mvp
+          VERSION: ${{ steps.release.outputs.version }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ensure_current_main() {
+            local current
+            current=$(git ls-remote origin refs/heads/main | cut -f1)
+            if [[ "$current" != "$GITHUB_SHA" ]]; then
+              echo "::error::Main changed after this run started. Run the release again for the new head."
+              exit 1
+            fi
+          }
+
+          ensure_current_main
+          tag="v$VERSION"
+          existing=$(git rev-parse --verify --quiet "refs/tags/$tag^{commit}" || true)
+          if [[ -n "$existing" && "$existing" != "$GITHUB_SHA" ]]; then
+            echo "::error::$tag already belongs to a different commit."
+            exit 1
+          fi
+
+          printf '%s\n' "$REGISTRY_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          if [[ -n "$existing" ]]; then
+            docker pull "$IMAGE:$tag"
+          else
+            docker build \
+              --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+              --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+              --label "org.opencontainers.image.version=$VERSION" \
+              --build-arg "KAPO_RELEASE_VERSION=$VERSION" \
+              -t "$IMAGE:$tag" .
+            docker push "$IMAGE:$tag"
+            ensure_current_main
+            git tag "$tag" "$GITHUB_SHA"
+            git push origin "refs/tags/$tag"
+          fi
+
+          ensure_current_main
+          docker tag "$IMAGE:$tag" "$IMAGE:latest"
+          docker push "$IMAGE:latest"
+
+      - name: Create GitHub Release
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+          PREVIOUS_TAG: ${{ steps.release.outputs.previous_tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          tag="v$VERSION"
+          if release=$(gh release view "$tag" --json isDraft,url); then
+            if [[ "$(jq -r '.isDraft' <<< "$release")" == true ]]; then
+              gh release edit "$tag" --draft=false --latest
+            else
+              jq -r '.url' <<< "$release"
+            fi
+            exit 0
+          fi
+
+          node .github/scripts/release-notes.mjs release-notes.md
+          gh release create "$tag" --verify-tag --latest \
+            --title "Kapo $tag" --notes-file release-notes.md
+          echo "::notice::Published $tag. If CHANGELOG.md still has the released ## Unreleased block, fold it under ## $VERSION in a docs-only follow-up."

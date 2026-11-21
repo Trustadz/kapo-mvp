@@ -40,6 +40,8 @@ export interface DashboardRecentEvent {
   summary: string;
   createdAt: string;
   href: string;
+  /** Set when an MCP client (the user's AI agent) made the change. */
+  via: { channel: string; agent: string } | null;
 }
 
 export interface DashboardRecentWidget {
@@ -90,7 +92,10 @@ function isRecentEvent(value: unknown): value is DashboardRecentEvent {
     (value.targetTitle === null || isString(value.targetTitle)) &&
     isString(value.summary) &&
     isString(value.createdAt) &&
-    isString(value.href)
+    isString(value.href) &&
+    (value.via === undefined ||
+      value.via === null ||
+      (isRecord(value.via) && isString(value.via.channel) && isString(value.via.agent)))
   );
 }
 
