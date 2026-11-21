@@ -22,6 +22,10 @@ PLAYWRIGHT_BROWSERS_PATH=./data/pw-browsers npx playwright install chromium
 back to `/tmp/pw-browsers`). If the browser cannot be installed the e2e suite
 cannot run in that environment; `npx playwright test --list` still works.
 
+GitHub Actions runs typecheck, Vitest, and the production build in the
+**Verify** workflow for every pull request and push to `main`. The Playwright
+suite runs locally before a PR; the CI gate does not run it yet.
+
 ## Isolation rules
 
 - Every Vitest file gets its own SQLite file (`data/test-<label>-<pid>-.db`),

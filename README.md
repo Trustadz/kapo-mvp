@@ -149,15 +149,18 @@ What the Compose file provides:
 
 ### Container image
 
-GitHub Actions publishes the image on every push to `main`:
+Release images are published by the manual **Publish container** workflow, not
+on every push to `main`:
 
 ```
 ghcr.io/trustadz/kapo-mvp:latest
-ghcr.io/trustadz/kapo-mvp:sha-<short-sha>
+ghcr.io/trustadz/kapo-mvp:vX.Y.Z
 ```
 
-Release tags (`v*`) are published as `ghcr.io/trustadz/kapo-mvp:<tag>`. The
-package page is
+`latest` tracks the newest published release, and each `vX.Y.Z` tag stays on
+that release. Ordinary pushes and pull requests run the automatic **Verify**
+workflow without publishing an image. See [Publish a
+release](#publish-a-release). The package page is
 [github.com/Trustadz/kapo-mvp/pkgs/container/kapo-mvp](https://github.com/Trustadz/kapo-mvp/pkgs/container/kapo-mvp).
 
 The image is built for **linux/amd64** (typical VPS). If your server is arm64,
@@ -519,6 +522,11 @@ npx playwright install chromium      # once, for e2e
 npm run test:e2e                     # Playwright
 ```
 
+GitHub Actions runs typecheck, Vitest, and the production build in **Verify** on
+every pull request and push to `main`; **Publish container** reruns them before
+a release. Run the Playwright suite locally before a PR that touches the UI,
+API, migrations, or release workflow.
+
 Manual smoke test:
 
 ```bash
@@ -543,14 +551,60 @@ curl -i http://localhost:3100/login        # 200 sign-in card
 ## Releases
 
 Kapo is treated as production software. Upgrade notes and breaking deployment
-changes are recorded in [CHANGELOG.md](CHANGELOG.md) and in the corresponding
-GitHub Release before a version is tagged. Check the release notes before
-upgrading a server, and back up `./data`, `./upload` and `./backup` first.
+changes belong in the release notes; back up `./data`, `./upload` and
+`./backup` before upgrading. [CHANGELOG.md](CHANGELOG.md) keeps the curated
+history.
+
+### Publish a release
+
+1. Open a pull request from a feature branch. Test the preview when applicable
+   and wait for the automatic **Verify** checks; they run for draft and ready
+   PRs.
+2. Merge the approved pull requests you want to ship together. Nothing is
+   merged or released automatically, so a release contains exactly the PRs you
+   pick.
+3. On GitHub, open **Actions → Publish container → Run workflow**. Select
+   **main** under **Use workflow from**, choose **patch** for fixes, **minor**
+   for features or **major** for breaking changes, and click **Run workflow**.
+
+The workflow reruns verification and calculates the next version from the latest
+stable Git tag. From `v0.4.0`, patch yields `v0.4.1`, minor yields `v0.5.0`, and
+major yields `v1.0.0`. It builds and pushes the version image, tags the commit,
+updates `latest`, and creates a GitHub Release. Running it again for the same
+tagged commit reuses that release number.
+
+The repository's `package.json` is not bumped by a release: the Git tag is the
+source of truth, and the image receives it as `KAPO_RELEASE_VERSION`.
+
+Release notes come from two places:
+
+- Curated changes and **upgrade notes** under `## Unreleased` in
+  [CHANGELOG.md](CHANGELOG.md) are included first, so operators read migrations
+  and breaking changes before pulling. Add them in the PRs you intend to ship.
+- GitHub generates the PR list and groups it using
+  [.github/release.yml](.github/release.yml). Label PRs `type: feature` for
+  **Added**, `type: bug` for **Fixed**, `type: improvement` /
+  `type: accessibility` / `type: design` for **Improved**, and `type: docs` for
+  **Documentation**. Unlabeled PRs appear under **Other changes**.
+
+After publishing, check that `vX.Y.Z` and `latest` both point at the release and
+that the notes contain the upgrade notes. Then fold the released `## Unreleased`
+block into `## X.Y.Z — YYYY-MM-DD` in a small docs change so the next release
+starts clean. You can edit the generated notes on the **Releases** page.
+
+From a terminal with the GitHub CLI:
+
+```bash
+gh workflow run container.yml --ref main                    # patch
+gh workflow run container.yml --ref main -f bump=minor
+gh workflow run container.yml --ref main -f bump=major
+```
 
 ## Project documentation
 
 | Document | Purpose |
 |---|---|
+| [AGENTS.md](AGENTS.md) | Agent workflow: branches, checks, review, and the manual release gate |
 | [product.md](product.md) | Product & architecture specification (the product source of truth) |
 | [dashboard.md](dashboard.md) | Dashboard MVP value review and decisions |
 | [design-handoff.md](design-handoff.md) | Penpot page map, interactions and shared patterns |

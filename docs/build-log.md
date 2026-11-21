@@ -112,3 +112,14 @@ test is a normal pass (22/22 in that file).
 Run `npm ci && npm run db:reset && npm run build && npm start`. Seeded accounts use password
 `kapo1234` (admin Admin, maya/jules Users, alex Viewer). The add-on developer guide is
 `docs/add-ons.md`; architecture and review history are in `docs/`.
+
+## Manual release gate (2026-11-21)
+
+- Replaced the publish-on-every-push workflow with the Aviarium-style split: **Verify** runs on
+  pull requests and pushes to `main`; **Publish container** is manual from `main` with a
+  `patch`/`minor`/`major` choice.
+- Publishing computes the version from the latest stable tag, so release-version PRs are gone. The
+  version is passed to the Docker build as `KAPO_RELEASE_VERSION` and reported by the MCP
+  handshake.
+- Release notes combine the curated `## Unreleased` CHANGELOG block with GitHub's generated PR list,
+  grouped by `.github/release.yml`. `AGENTS.md` documents the owner-controlled merge/publish flow.
