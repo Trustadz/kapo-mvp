@@ -290,7 +290,9 @@ function addonCompactValue(
   formatDate: I18nContextValue['formatDate'],
   formatNumber: I18nContextValue['formatNumber'],
 ): string | null {
-  if (field.value === null || field.value === undefined || field.value === '') return null;
+  if (field.value === null || field.value === undefined || field.value === '') {
+    return t('addons.notSet');
+  }
   if (field.type === 'boolean') return field.value === true ? t('addons.yes') : t('addons.no');
   if (field.type === 'date' && typeof field.value === 'string') return formatDate(field.value);
   if (field.type === 'number' && typeof field.value === 'number') return formatNumber(field.value);

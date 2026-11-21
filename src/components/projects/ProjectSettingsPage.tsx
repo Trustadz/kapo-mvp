@@ -1478,7 +1478,6 @@ function LayoutTab({
   const [childPosition, setChildPosition] = useState(data.settings.child_position);
   const [main, setMain] = useState<ProjectFieldKey[]>(data.layout.main);
   const [sidebar, setSidebar] = useState<ProjectFieldKey[]>(data.layout.sidebar);
-  const [asTemplate, setAsTemplate] = useState(data.settings.layout_template !== null);
   const [defaultView, setDefaultView] = useState<CollectionView>(data.settings.default_view);
   const [enabledViews, setEnabledViews] = useState<CollectionView[]>(data.settings.enabled_views);
   const [hiddenStatuses, setHiddenStatuses] = useState<string[]>(data.settings.hidden_statuses);
@@ -1519,7 +1518,6 @@ function LayoutTab({
     setChildPosition(data.settings.child_position);
     setMain(data.layout.main);
     setSidebar(data.layout.sidebar);
-    setAsTemplate(data.settings.layout_template !== null);
     setDefaultView(data.settings.default_view);
     setEnabledViews(data.settings.enabled_views);
     setHiddenStatuses(data.settings.hidden_statuses);
@@ -1542,10 +1540,6 @@ function LayoutTab({
   };
 
   const save = async () => {
-    if (asTemplate && main.length === 0 && sidebar.length === 0) {
-      setError(t('settings.chooseOneField'));
-      return;
-    }
     setError(null);
     setSaving(true);
     const result = await saveProjectSettings(project.id, {
@@ -1555,7 +1549,7 @@ function LayoutTab({
       enabled_views: enabledViews,
       hidden_statuses: hiddenStatuses,
       view_fields: viewFields,
-      layout_template: asTemplate ? { main, sidebar } : null,
+      layout_template: { main, sidebar },
     });
     setSaving(false);
     if (!result.ok) {
@@ -1580,14 +1574,6 @@ function LayoutTab({
             label={t('settings.inheritLayout')}
             checked={inheritLayout}
             onChange={(event) => setInheritLayout(event.target.checked)}
-          />
-        </Field>
-        <Field label={t('settings.useAsTemplate')} htmlFor="layout-template">
-          <Checkbox
-            id="layout-template"
-            label={t('settings.useAsTemplateLabel')}
-            checked={asTemplate}
-            onChange={(event) => setAsTemplate(event.target.checked)}
           />
         </Field>
       </div>
@@ -1709,8 +1695,7 @@ function LayoutTab({
             setChildPosition(data.settings.child_position);
             setMain(data.layout.main);
             setSidebar(data.layout.sidebar);
-            setAsTemplate(data.settings.layout_template !== null);
-            setDefaultView(data.settings.default_view);
+                    setDefaultView(data.settings.default_view);
             setEnabledViews(data.settings.enabled_views);
             setHiddenStatuses(data.settings.hidden_statuses);
             setViewFields({ ...DEFAULT_VIEW_FIELDS, ...data.settings.view_fields });

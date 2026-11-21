@@ -32,7 +32,7 @@ export const assigneeAddon: AddonDefinition = {
   name: 'Assignee',
   description: 'Assign a project to one household member.',
   version: '1.0.0',
-  defaultMode: 'optional',
+  defaultMode: 'always',
   fields: [
     {
       key: 'assignee',

@@ -73,11 +73,6 @@ async function addLayoutFields(page: Page, projectId: string): Promise<void> {
   await page.goto(`/p/${projectId}/settings?tab=layout`);
   await expect(page.getByRole('heading', { level: 1, name: 'Layout' })).toBeVisible();
 
-  // Use this layout for children too, so the child page inherits the add-on
-  // field slots when we set a value for the view.
-  const asTemplate = page.getByLabel('Use this layout as the template for child projects');
-  if (!(await asTemplate.isChecked())) await asTemplate.check();
-
   const mainSelect = page.getByRole('combobox', { name: 'Add a field to Main area' });
   if ((await mainSelect.count()) > 0 && (await mainSelect.isVisible())) {
     await mainSelect.selectOption({ label: ASSIGNEE_OPTION });
@@ -103,6 +98,30 @@ async function editAssignee(page: Page, card: ReturnType<Page['locator']>): Prom
   await expect(page.getByRole('status')).toContainText('Add-on saved.');
   await expect(dialog).toBeHidden();
 }
+
+
+/** Restore the seeded Home layout/value so later specs don't see add-on meta. */
+test.afterAll(async ({ browser }) => {
+  const page = await browser.newPage();
+  await login(page, 'admin');
+  const homeId = await findProjectId(page, 'Home improvement');
+  const childId = await findProjectId(page, 'Paint hallway');
+  await page.request.put(`/api/projects/${homeId}/settings`, {
+    data: {
+      layout_template: null,
+      view_fields: { kanban: [], card: [], tree: ['status'], list: [] },
+    },
+  });
+  for (const projectId of [homeId, childId]) {
+    await page.request.patch(`/api/projects/${projectId}/addons/assignee`, {
+      data: { values: { assignee: null } },
+    });
+  }
+  await page.request.put('/api/settings', {
+    data: { addons: { assignee: { mode: 'always' } } },
+  });
+  await page.close();
+});
 
 test.describe('Assignee add-on as a real layout field', () => {
   test('places add-on fields in Details, Properties and a view; edits via dialog', async ({
