@@ -36,6 +36,14 @@ import {
   isTouchLikePointer,
   movedBeyondTouchTolerance,
 } from '@/lib/kanban-drag';
+import {
+  measureTouchRows,
+  pointInRect,
+  reorderTargetAt,
+  touchDropTargetAt,
+} from '@/lib/touch-drag';
+import { useTouchDrag, type TouchDragPoint } from '@/lib/use-touch-drag';
+import { TouchDragGhost } from '@/components/dnd/TouchDragGhost';
 import { releaseInboxProject } from '@/components/projects/api';
 import {
   reorderProjectRequest,
@@ -908,6 +916,61 @@ export function CardView({ ctx }: { ctx: CollectionViewContext }) {
     setDropTarget(null);
   };
 
+  /** Shared by HTML5 and touch drops so both paths keep identical semantics. */
+  const applyCardDrop = (id: string, targetId: string, zone: DropZone): void => {
+    if (!id || id === targetId) return;
+    const dragged = ordered.find((candidate) => candidate.id === id);
+    if (!dragged) return;
+    // Drop on the card body = make it a child (explicit move + status mapping).
+    if (zone === 'inside') {
+      ctx.openMoveDialog(id, targetId);
+      return;
+    }
+    // Drop on an edge = sibling reorder. Cards are direct children of this page,
+    // so the dragged project is always a sibling of the target.
+    const plan = planSiblingReorder(
+      ordered.map((sibling) => sibling.id),
+      id,
+      targetId,
+      zone,
+    );
+    if (!plan) return;
+    void reorderBefore(ctx, dragged, plan.beforeId, t);
+  };
+
+  const resolveTouchTarget = (
+    x: number,
+    y: number,
+    draggedId: string,
+  ): { id: string; zone: DropZone } | null => {
+    const list = listRef.current;
+    if (!list || !pointInRect(x, y, list.getBoundingClientRect())) return null;
+    return touchDropTargetAt(y, measureTouchRows(list, draggedId));
+  };
+
+  const updateTouchTarget = (project: ProjectCard, point: TouchDragPoint): void => {
+    const next = resolveTouchTarget(point.x, point.y, project.id);
+    setDropTarget((current) =>
+      current?.id === next?.id && current?.zone === next?.zone ? current : next,
+    );
+  };
+
+  const touchDrag = useTouchDrag<ProjectCard>({
+    enabled: ctx.canEdit,
+    onDragStart: (project, point) => {
+      setDraggingId(project.id);
+      setDropTarget(null);
+      updateTouchTarget(project, point);
+    },
+    onDragMove: updateTouchTarget,
+    onDrop: (project, point) => {
+      const target = resolveTouchTarget(point.x, point.y, project.id);
+      resetDrag();
+      if (target) applyCardDrop(project.id, target.id, target.zone);
+    },
+    onCancel: resetDrag,
+  });
+
   const handleDragOver = (event: DragEvent<HTMLElement>, project: ProjectCard) => {
     if (!draggingId || draggingId === project.id) return;
     event.preventDefault();
@@ -923,24 +986,7 @@ export function CardView({ ctx }: { ctx: CollectionViewContext }) {
     const id = event.dataTransfer.getData('text/plain') || draggingId;
     const zone = dropZoneForEvent(event);
     resetDrag();
-    if (!id || id === project.id) return;
-    const dragged = ordered.find((candidate) => candidate.id === id);
-    if (!dragged) return;
-    // Drop on the card body = make it a child (explicit move + status mapping).
-    if (zone === 'inside') {
-      ctx.openMoveDialog(id, project.id);
-      return;
-    }
-    // Drop on an edge = sibling reorder. Cards are direct children of this page,
-    // so the dragged project is always a sibling of the target.
-    const plan = planSiblingReorder(
-      ordered.map((sibling) => sibling.id),
-      id,
-      project.id,
-      zone,
-    );
-    if (!plan) return;
-    void reorderBefore(ctx, dragged, plan.beforeId, t);
+    if (id) applyCardDrop(id, project.id, zone);
   };
 
   return (
@@ -957,8 +1003,16 @@ export function CardView({ ctx }: { ctx: CollectionViewContext }) {
               className={styles.projectCard}
               data-archived={project.archived || undefined}
               data-dragging={draggingId === project.id || undefined}
+              data-pressing={touchDrag.pending?.payload.id === project.id || undefined}
               data-drop={dropTarget?.id === project.id ? dropTarget.zone : undefined}
+              data-touch-id={project.id}
+              data-touch-target=""
               draggable={ctx.canEdit}
+              onPointerDown={(event) => touchDrag.start(event, project)}
+              onPointerMove={touchDrag.handlePointerMove}
+              onPointerUp={touchDrag.handlePointerUp}
+              onPointerCancel={touchDrag.handlePointerCancel}
+              onContextMenu={touchDrag.handleContextMenu}
               onDragStart={(event) => {
                 cancelFlipAnimations();
                 event.dataTransfer.setData('text/plain', project.id);
@@ -1032,6 +1086,13 @@ export function CardView({ ctx }: { ctx: CollectionViewContext }) {
         <p className={styles.hint} id="card-drag-hint">
           {t('views.cardHint')}
         </p>
+      ) : null}
+      {touchDrag.active ? (
+        <TouchDragGhost
+          x={touchDrag.active.x}
+          y={touchDrag.active.y}
+          label={touchDrag.active.payload.title}
+        />
       ) : null}
     </>
   );
@@ -1117,6 +1178,77 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
   // Flattened row order in render order, used as the FLIP signature.
   const rowOrder: string[] = [];
 
+  /** Shared by HTML5 and touch drops so both paths keep identical semantics. */
+  const applyTreeDrop = (
+    id: string,
+    targetId: string,
+    zone: DropZone,
+  ): void => {
+    if (!id || id === targetId) return;
+    // Middle of the row keeps the existing behaviour: reparent onto it.
+    if (zone === 'inside') {
+      ctx.openMoveDialog(id, targetId);
+      return;
+    }
+    const dragged = ctx.descendants.find((candidate) => candidate.id === id);
+    const target = ctx.descendants.find((candidate) => candidate.id === targetId);
+    if (!dragged || !target) return;
+    const draggedParentId = dragged.parentId ?? ctx.projectId;
+    const targetParentId = target.parentId ?? ctx.projectId;
+    if (targetParentId === id) return;
+    if (draggedParentId !== targetParentId) {
+      // Reordering is sibling-only. Dropping between rows of another parent
+      // opens the Move dialog for that parent instead of inventing a
+      // cross-parent order.
+      ctx.openMoveDialog(id, targetParentId);
+      return;
+    }
+    const siblingIds = (byParent.get(targetParentId) ?? []).map(
+      (sibling) => sibling.id,
+    );
+    const plan = planSiblingReorder(siblingIds, id, targetId, zone);
+    if (!plan) return;
+    void reorderBefore(ctx, dragged, plan.beforeId, t);
+  };
+
+  const resolveTouchTarget = (
+    x: number,
+    y: number,
+    draggedId: string,
+  ): { id: string; zone: DropZone } | null => {
+    const tbody = tbodyRef.current;
+    if (!tbody || !pointInRect(x, y, tbody.getBoundingClientRect())) return null;
+    return touchDropTargetAt(y, measureTouchRows(tbody, draggedId));
+  };
+
+  const updateTouchTarget = (
+    project: ProjectWithParent,
+    point: TouchDragPoint,
+  ): void => {
+    const next = resolveTouchTarget(point.x, point.y, project.id);
+    setDropTarget((current) =>
+      current?.id === next?.id && current?.zone === next?.zone ? current : next,
+    );
+  };
+
+  const touchDrag = useTouchDrag<ProjectWithParent>({
+    enabled: ctx.canEdit,
+    canStart: (_event, project) =>
+      project.id !== ctx.projectId && !isContext(project.id),
+    onDragStart: (project, point) => {
+      setDraggingId(project.id);
+      setDropTarget(null);
+      updateTouchTarget(project, point);
+    },
+    onDragMove: updateTouchTarget,
+    onDrop: (project, point) => {
+      const target = resolveTouchTarget(point.x, point.y, project.id);
+      resetDrag();
+      if (target) applyTreeDrop(project.id, target.id, target.zone);
+    },
+    onCancel: resetDrag,
+  });
+
   const renderRows = (parentId: string, depth: number): ReactElement[] => {
     const rows: ReactElement[] = [];
     for (const project of byParent.get(parentId) ?? []) {
@@ -1132,12 +1264,20 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
           data-flip-key={project.id}
           data-archived={project.archived || undefined}
           data-context={contextRow || undefined}
+          data-touch-id={project.id}
+          data-touch-target={contextRow ? undefined : ''}
+          data-pressing={touchDrag.pending?.payload.id === project.id || undefined}
           aria-describedby={
             ctx.canEdit && project.id !== ctx.projectId && !contextRow
               ? 'tree-drag-hint'
               : undefined
           }
           draggable={ctx.canEdit && project.id !== ctx.projectId && !contextRow}
+          onPointerDown={(event) => touchDrag.start(event, project)}
+          onPointerMove={touchDrag.handlePointerMove}
+          onPointerUp={touchDrag.handlePointerUp}
+          onPointerCancel={touchDrag.handlePointerCancel}
+          onContextMenu={touchDrag.handleContextMenu}
           onDragStart={(event) => {
             if (contextRow || (event.target as HTMLElement).closest('[data-no-drag]')) {
               event.preventDefault();
@@ -1173,30 +1313,7 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
             const id = event.dataTransfer.getData('text/plain') || draggingId;
             const zone = dropZoneForEvent(event);
             resetDrag();
-            if (!id || id === project.id) return;
-            // Middle of the row keeps the existing behaviour: reparent onto it.
-            if (zone === 'inside') {
-              ctx.openMoveDialog(id, project.id);
-              return;
-            }
-            const dragged = ctx.descendants.find((candidate) => candidate.id === id);
-            if (!dragged) return;
-            const draggedParentId = dragged.parentId ?? ctx.projectId;
-            const targetParentId = project.parentId ?? ctx.projectId;
-            if (targetParentId === id) return;
-            if (draggedParentId !== targetParentId) {
-              // Reordering is sibling-only. Dropping between rows of another
-              // parent opens the Move dialog for that parent instead of
-              // inventing a cross-parent order.
-              ctx.openMoveDialog(id, targetParentId);
-              return;
-            }
-            const siblingIds = (byParent.get(targetParentId) ?? []).map(
-              (sibling) => sibling.id,
-            );
-            const plan = planSiblingReorder(siblingIds, id, project.id, zone);
-            if (!plan) return;
-            void reorderBefore(ctx, dragged, plan.beforeId, t);
+            if (id) applyTreeDrop(id, project.id, zone);
           }}
           data-drop={dropTarget?.id === project.id ? dropTarget.zone : undefined}
         >
@@ -1298,97 +1415,106 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
   useFlipReorder(tbodyRef, rowOrder.join('|'), draggingId === null);
 
   return (
-    <div className={styles.treeWrap}>
-      {selectedProjects.length > 0 ? (
-        <div className={styles.bulkToolbar} role="region" aria-label={t('views.bulkActions')}>
-          <span className={styles.bulkCount}>
-            {t('views.selectedCount', { count: selectedProjects.length })}
-          </span>
-          <Button size="sm" variant="quiet" onClick={() => setBulkDialog('move')}>
-            {t('views.bulkMove')}
-          </Button>
-          <Button size="sm" variant="quiet" onClick={() => setBulkDialog('trash')}>
-            {t('views.bulkTrash')}
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
-            {t('common.clear')}
-          </Button>
-        </div>
-      ) : null}
-      <table
-        className={styles.treeTable}
-        aria-label={t('views.treeTableAria')}
-        aria-describedby="tree-drag-hint"
-      >
-        <caption className="visually-hidden">
-          {t('views.treeCaption')}
-        </caption>
-        <thead>
-          <tr>
-            {selectable.length > 0 ? (
-              <th scope="col" className={styles.treeSelectHeader}>
-                <Checkbox
-                  id="tree-select-all"
-                  ref={(node) => {
-                    if (node) node.indeterminate = someSelected && !allSelected;
-                  }}
-                  label={
-                    <span className="visually-hidden">{t('views.selectAll')}</span>
-                  }
-                  checked={allSelected}
-                  onChange={toggleAll}
-                />
+    <>
+      <div className={styles.treeWrap}>
+        {selectedProjects.length > 0 ? (
+          <div className={styles.bulkToolbar} role="region" aria-label={t('views.bulkActions')}>
+            <span className={styles.bulkCount}>
+              {t('views.selectedCount', { count: selectedProjects.length })}
+            </span>
+            <Button size="sm" variant="quiet" onClick={() => setBulkDialog('move')}>
+              {t('views.bulkMove')}
+            </Button>
+            <Button size="sm" variant="quiet" onClick={() => setBulkDialog('trash')}>
+              {t('views.bulkTrash')}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
+              {t('common.clear')}
+            </Button>
+          </div>
+        ) : null}
+        <table
+          className={styles.treeTable}
+          aria-label={t('views.treeTableAria')}
+          aria-describedby="tree-drag-hint"
+        >
+          <caption className="visually-hidden">
+            {t('views.treeCaption')}
+          </caption>
+          <thead>
+            <tr>
+              {selectable.length > 0 ? (
+                <th scope="col" className={styles.treeSelectHeader}>
+                  <Checkbox
+                    id="tree-select-all"
+                    ref={(node) => {
+                      if (node) node.indeterminate = someSelected && !allSelected;
+                    }}
+                    label={
+                      <span className="visually-hidden">{t('views.selectAll')}</span>
+                    }
+                    checked={allSelected}
+                    onChange={toggleAll}
+                  />
+                </th>
+              ) : null}
+              <th scope="col">{t('views.columnProject')}</th>
+              <th scope="col" className={styles.treeStatusHeader}>
+                {t('views.columnStatus')}
               </th>
-            ) : null}
-            <th scope="col">{t('views.columnProject')}</th>
-            <th scope="col" className={styles.treeStatusHeader}>
-              {t('views.columnStatus')}
-            </th>
-            {ctx.canEdit ? (
-              <th scope="col" className={styles.treeActionHeader}>
-                <span className="visually-hidden">{t('views.columnActions')}</span>
-              </th>
-            ) : null}
-          </tr>
-        </thead>
-        <tbody ref={tbodyRef}>{rows}</tbody>
-      </table>
-      <p className={styles.hint} id="tree-drag-hint">
-        {t('views.treeHint')}
-      </p>
-      {ctx.contextIds && ctx.contextIds.size > 0 ? (
-        <p className={styles.hint}>
-          {t('views.treeContextHint')}
+              {ctx.canEdit ? (
+                <th scope="col" className={styles.treeActionHeader}>
+                  <span className="visually-hidden">{t('views.columnActions')}</span>
+                </th>
+              ) : null}
+            </tr>
+          </thead>
+          <tbody ref={tbodyRef}>{rows}</tbody>
+        </table>
+        <p className={styles.hint} id="tree-drag-hint">
+          {t('views.treeHint')}
         </p>
-      ) : null}
-      <p className="visually-hidden" aria-live="polite">
-        {plural('plurals.directChildren', allSiblings.length)}
-        {selectedProjects.length > 0
-          ? ` ${t('views.selectedCount', { count: selectedProjects.length })}.`
-          : ''}
-      </p>
+        {ctx.contextIds && ctx.contextIds.size > 0 ? (
+          <p className={styles.hint}>
+            {t('views.treeContextHint')}
+          </p>
+        ) : null}
+        <p className="visually-hidden" aria-live="polite">
+          {plural('plurals.directChildren', allSiblings.length)}
+          {selectedProjects.length > 0
+            ? ` ${t('views.selectedCount', { count: selectedProjects.length })}.`
+            : ''}
+        </p>
 
-      <BulkMoveDialog
-        open={bulkDialog === 'move'}
-        projects={selectedProjects}
-        onClose={() => setBulkDialog(null)}
-        onMoved={(moved) => {
-          ctx.notify(plural('plurals.movedCount', moved.length));
-          setSelected(new Set());
-          ctx.refresh();
-        }}
-      />
-      <BulkTrashDialog
-        open={bulkDialog === 'trash'}
-        projects={selectedProjects}
-        onClose={() => setBulkDialog(null)}
-        onTrashed={(count) => {
-          ctx.notify(plural('plurals.trashedCount', count));
-          setSelected(new Set());
-          ctx.refresh();
-        }}
-      />
-    </div>
+        <BulkMoveDialog
+          open={bulkDialog === 'move'}
+          projects={selectedProjects}
+          onClose={() => setBulkDialog(null)}
+          onMoved={(moved) => {
+            ctx.notify(plural('plurals.movedCount', moved.length));
+            setSelected(new Set());
+            ctx.refresh();
+          }}
+        />
+        <BulkTrashDialog
+          open={bulkDialog === 'trash'}
+          projects={selectedProjects}
+          onClose={() => setBulkDialog(null)}
+          onTrashed={(count) => {
+            ctx.notify(plural('plurals.trashedCount', count));
+            setSelected(new Set());
+            ctx.refresh();
+          }}
+        />
+      </div>
+      {touchDrag.active ? (
+        <TouchDragGhost
+          x={touchDrag.active.x}
+          y={touchDrag.active.y}
+          label={touchDrag.active.payload.title}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -1414,6 +1540,58 @@ export function ListView({ ctx }: { ctx: CollectionViewContext }) {
     setDraggingId(null);
     setDropTarget(null);
   };
+
+  /** Shared by HTML5 and touch drops so both paths keep identical semantics. */
+  const applyListDrop = (
+    id: string,
+    targetId: string,
+    edge: ReorderEdge,
+  ): void => {
+    if (!id || id === targetId) return;
+    const dragged = ordered.find((candidate) => candidate.id === id);
+    if (!dragged) return;
+    const plan = planSiblingReorder(
+      ordered.map((sibling) => sibling.id),
+      id,
+      targetId,
+      edge,
+    );
+    if (!plan) return;
+    void reorderBefore(ctx, dragged, plan.beforeId, t);
+  };
+
+  const resolveTouchTarget = (
+    x: number,
+    y: number,
+    draggedId: string,
+  ): { id: string; edge: ReorderEdge } | null => {
+    const list = listRef.current;
+    if (!list || !pointInRect(x, y, list.getBoundingClientRect())) return null;
+    return reorderTargetAt(y, measureTouchRows(list, draggedId));
+  };
+
+  const updateTouchTarget = (project: ProjectCard, point: TouchDragPoint): void => {
+    const next = resolveTouchTarget(point.x, point.y, project.id);
+    setDropTarget((current) =>
+      current?.id === next?.id && current?.edge === next?.edge ? current : next,
+    );
+  };
+
+  const touchDrag = useTouchDrag<ProjectCard>({
+    enabled: ctx.canEdit,
+    onDragStart: (project, point) => {
+      setDraggingId(project.id);
+      setDropTarget(null);
+      updateTouchTarget(project, point);
+    },
+    onDragMove: updateTouchTarget,
+    onDrop: (project, point) => {
+      const target = resolveTouchTarget(point.x, point.y, project.id);
+      resetDrag();
+      if (target) applyListDrop(project.id, target.id, target.edge);
+    },
+    onCancel: resetDrag,
+  });
 
   const toggle = (project: ProjectCard, checked: boolean) => {
     const target = checked ? finish : start;
@@ -1442,8 +1620,16 @@ export function ListView({ ctx }: { ctx: CollectionViewContext }) {
               className={styles.listRow}
               data-archived={project.archived || undefined}
               data-dragging={draggingId === project.id || undefined}
+              data-pressing={touchDrag.pending?.payload.id === project.id || undefined}
               data-drop={dropTarget?.id === project.id ? dropTarget.edge : undefined}
+              data-touch-id={project.id}
+              data-touch-target=""
               draggable={ctx.canEdit}
+              onPointerDown={(event) => touchDrag.start(event, project)}
+              onPointerMove={touchDrag.handlePointerMove}
+              onPointerUp={touchDrag.handlePointerUp}
+              onPointerCancel={touchDrag.handlePointerCancel}
+              onContextMenu={touchDrag.handleContextMenu}
               onDragStart={(event) => {
                 if ((event.target as HTMLElement).closest('[data-no-drag]')) {
                   event.preventDefault();
@@ -1477,17 +1663,7 @@ export function ListView({ ctx }: { ctx: CollectionViewContext }) {
                 const rect = event.currentTarget.getBoundingClientRect();
                 const edge = reorderEdgeAt(event.clientY, rect.top, rect.height);
                 resetDrag();
-                if (!id || id === project.id) return;
-                const dragged = ordered.find((candidate) => candidate.id === id);
-                if (!dragged) return;
-                const plan = planSiblingReorder(
-                  ordered.map((sibling) => sibling.id),
-                  id,
-                  project.id,
-                  edge,
-                );
-                if (!plan) return;
-                void reorderBefore(ctx, dragged, plan.beforeId, t);
+                if (id) applyListDrop(id, project.id, edge);
               }}
             >
               <Checkbox
@@ -1529,6 +1705,13 @@ export function ListView({ ctx }: { ctx: CollectionViewContext }) {
         <p className={styles.hint} id="list-drag-hint">
           {t('views.listHint')}
         </p>
+      ) : null}
+      {touchDrag.active ? (
+        <TouchDragGhost
+          x={touchDrag.active.x}
+          y={touchDrag.active.y}
+          label={touchDrag.active.payload.title}
+        />
       ) : null}
     </>
   );

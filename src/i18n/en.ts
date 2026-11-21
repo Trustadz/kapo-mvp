@@ -217,7 +217,7 @@ export const en = {
     alreadyReleased: 'Already released',
     needEditToRelease: 'You need edit access to release this capture',
     dragHint:
-      'Inbox captures are highlighted, selectable for bulk release, and draggable. Drop one on another row’s middle to move it under that project, or between rows to reorder it in the global sequence. Non-Inbox rows are drop targets but read-only context. Use the chevron to expand or collapse a branch — all branches start expanded.',
+      'Inbox captures are highlighted, selectable for bulk release, and draggable. Drop one on another row’s middle to move it under that project, or between rows to reorder it in the global sequence. On touch, press and hold an Inbox row, then drag. Non-Inbox rows are drop targets but read-only context. Use the chevron to expand or collapse a branch — all branches start expanded.',
     releaseAria: 'Released capture',
     releaseSuccess: 'Released “{title}” to {status}.',
     releaseBulkSuccess: 'Released {count} captures.',
@@ -238,7 +238,7 @@ export const en = {
     releasedTo: '“{title}” released to {status}.',
     stillPulled: 'Still listed below as Pulled.',
     cardDragHint:
-      'Drag a capture above or below another card to reorder it in the global sequence. Dragging a capture onto the release rail moves it into work. Every drag action also has a keyboard-operable button: Release, Change parent, or Open.',
+      'Drag a capture above or below another card to reorder it in the global sequence. Dragging a capture onto the release rail moves it into work. On touch, press and hold a card, then drag. Every drag action also has a keyboard-operable button: Release, Change parent, or Open.',
     listAria: 'Projects in the Inbox',
     emptyTitle: 'Inbox is empty',
     emptyDescription:
@@ -377,13 +377,13 @@ export const en = {
     kanbanHint:
       'Drag a card onto a column to change its status, or between cards to reorder it. The highlighted gap shows where it will land. On touch, press and hold a card, then drag. Keyboard and menu users: open Actions on a card to move it earlier, later, or to another status or project.',
     cardHint:
-      'Drag a card onto another card to move it inside that project; drop between cards to reorder. Keyboard and menu users: open Actions on a card to move it earlier, later, to another status, or to another project.',
+      'Drag a card onto another card to move it inside that project; drop between cards to reorder. On touch, press and hold a card, then drag. Keyboard and menu users: open Actions on a card to move it earlier, later, to another status, or to another project.',
     treeHint:
-      'Drag a project onto another row to move it inside that project. Drag between two rows to reorder it among siblings of the same parent; dropping between rows of a different parent opens the move dialog. Select rows to move or trash several projects together. Keyboard and menu users: open Actions on a row to move it earlier, later, to another status, or to another project.',
+      'Drag a project onto another row to move it inside that project. Drag between two rows to reorder it among siblings of the same parent; dropping between rows of a different parent opens the move dialog. On touch, press and hold a row, then drag. Select rows to move or trash several projects together. Keyboard and menu users: open Actions on a row to move it earlier, later, to another status, or to another project.',
     treeContextHint:
       'Rows marked Context are ancestors kept visible so matching descendants stay connected; they are read-only while filters are active.',
     listHint:
-      'Drag a row above or below another row to reorder it. Keyboard and menu users: open Actions on a row to move it earlier, later, to another status, or to another project.',
+      'Drag a row above or below another row to reorder it. On touch, press and hold a row, then drag. Keyboard and menu users: open Actions on a row to move it earlier, later, to another status, or to another project.',
     bulkActions: 'Bulk actions',
     bulkMove: 'Bulk move',
     bulkTrash: 'Bulk trash',

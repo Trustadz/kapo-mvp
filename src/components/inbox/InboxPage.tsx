@@ -17,7 +17,16 @@ import {
   planSequenceMove,
 } from '@/lib/inbox-tree';
 import { dropZoneAt, reorderEdgeAt, type DropZone, type ReorderEdge } from '@/lib/reorder';
+import {
+  measureTouchRows,
+  pointInRect,
+  reorderTargetAt,
+  touchDropTargetAt,
+  touchElementAt,
+} from '@/lib/touch-drag';
+import { useTouchDrag, type TouchDragPoint } from '@/lib/use-touch-drag';
 import { cancelFlipAnimations, useFlipReorder } from '@/lib/use-flip-reorder';
+import { TouchDragGhost } from '@/components/dnd/TouchDragGhost';
 import { useI18n } from '@/i18n/client';
 import { ChangeParentDialog } from './ChangeParentDialog';
 import styles from './inbox.module.css';
@@ -179,6 +188,55 @@ export function InboxTree({
     setDropTarget(null);
   };
 
+  /**
+   * Resolve a touch point against the visible Tree rows. Non-Inbox rows are
+   * drop targets too (the row explicitly opts in with data-touch-target), so
+   * the measured list includes every rendered row except the dragged one.
+   */
+  const resolveTouchTarget = (
+    x: number,
+    y: number,
+    draggedId: string,
+  ): { id: string; zone: DropZone } | null => {
+    const tbody = tbodyRef.current;
+    if (!tbody || !pointInRect(x, y, tbody.getBoundingClientRect())) return null;
+    return touchDropTargetAt(y, measureTouchRows(tbody, draggedId));
+  };
+
+  const updateTouchTarget = (
+    node: InboxTreeNode,
+    point: TouchDragPoint,
+  ): void => {
+    const next = resolveTouchTarget(point.x, point.y, node.id);
+    setDropTarget((current) =>
+      current?.id === next?.id && current?.zone === next?.zone ? current : next,
+    );
+  };
+
+  const touchDrag = useTouchDrag<InboxTreeNode>({
+    enabled: !anyPending,
+    // Only Inbox captures are drag sources; non-Inbox rows stay drop targets.
+    canStart: (_event, node) => {
+      const item = itemById.get(node.id);
+      return Boolean(item && isSelectable(item, pulled));
+    },
+    onDragStart: (node, point) => {
+      setDraggingId(node.id);
+      setDropTarget(null);
+      updateTouchTarget(node, point);
+    },
+    onDragMove: updateTouchTarget,
+    onDrop: (node, point) => {
+      const target = resolveTouchTarget(point.x, point.y, node.id);
+      resetDrag();
+      if (!target) return;
+      // Middle = reparent, edges = reorder, matching the desktop drop zones.
+      if (target.zone === 'inside') onReparent(node.id, target.id);
+      else onReorder(node.id, target.id, target.zone);
+    },
+    onCancel: resetDrag,
+  });
+
   const toggleBranch = (projectId: string) => {
     setCollapsed((current) => {
       const next = new Set(current);
@@ -189,217 +247,234 @@ export function InboxTree({
   };
 
   return (
-    <div className={styles.treeWrap} role="region" aria-label={t('inbox.treeRegion')}>
-      <h2 className="visually-hidden">{t('inbox.treeRegion')}</h2>
-      {items.length > 0 ? (
-        <div className={styles.bulkToolbar} role="region" aria-label={t('inbox.bulkRelease')}>
-          <span className={styles.bulkCount}>
-            {selectedItems.length > 0
-              ? plural('plurals.inboxSelected', selectedItems.length)
-              : t('inbox.selectPrompt')}
-          </span>
-          <Button
-            size="sm"
-            variant="quiet"
-            onClick={onReleaseSelected}
-            loading={bulkPending}
-            disabled={selectedItems.length === 0 || anyPending}
-          >
-            {t('inbox.releaseSelected')}
-          </Button>
-          {selectedItems.length > 0 ? (
-            <Button size="sm" variant="ghost" onClick={onClearSelection} disabled={anyPending}>
-              {t('common.clear')}
+    <>
+      <div className={styles.treeWrap} role="region" aria-label={t('inbox.treeRegion')}>
+        <h2 className="visually-hidden">{t('inbox.treeRegion')}</h2>
+        {items.length > 0 ? (
+          <div className={styles.bulkToolbar} role="region" aria-label={t('inbox.bulkRelease')}>
+            <span className={styles.bulkCount}>
+              {selectedItems.length > 0
+                ? plural('plurals.inboxSelected', selectedItems.length)
+                : t('inbox.selectPrompt')}
+            </span>
+            <Button
+              size="sm"
+              variant="quiet"
+              onClick={onReleaseSelected}
+              loading={bulkPending}
+              disabled={selectedItems.length === 0 || anyPending}
+            >
+              {t('inbox.releaseSelected')}
             </Button>
-          ) : null}
-        </div>
-      ) : (
-        <p className={styles.treeEmptyNotice}>
-          {t('inbox.treeEmptyNotice')}
-        </p>
-      )}
+            {selectedItems.length > 0 ? (
+              <Button size="sm" variant="ghost" onClick={onClearSelection} disabled={anyPending}>
+                {t('common.clear')}
+              </Button>
+            ) : null}
+          </div>
+        ) : (
+          <p className={styles.treeEmptyNotice}>
+            {t('inbox.treeEmptyNotice')}
+          </p>
+        )}
 
-      <div className={styles.treeScroll}>
-        <table
-          className={styles.treeTable}
-          aria-label={t('inbox.tableAria')}
-          aria-describedby="inbox-tree-drag-hint"
-        >
-          <caption className="visually-hidden">
-            {t('inbox.caption')}
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col" className={styles.treeSelectHeader}>
-                <Checkbox
-                  id="inbox-tree-select-all"
-                  ref={(node) => {
-                    if (node) node.indeterminate = someSelected && !allSelected;
-                  }}
-                  label={<span className="visually-hidden">{t('inbox.selectAll')}</span>}
-                  checked={allSelected}
-                  disabled={selectable.length === 0}
-                  title={
-                    selectable.length === 0
-                      ? t('inbox.noCapturesReleasable')
-                      : t('inbox.selectAll')
-                  }
-                  onChange={onToggleAll}
-                />
-              </th>
-              <th scope="col">{t('inbox.columnProject')}</th>
-              <th scope="col" className={styles.treeStatusHeader}>
-                {t('inbox.columnStatus')}
-              </th>
-              <th scope="col" className={styles.treeActionHeader}>
-                <span className="visually-hidden">{t('inbox.columnActions')}</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody ref={tbodyRef}>
-            {rows.map(({ node, depth, hasChildren }) => {
-              const item = itemById.get(node.id);
-              const isPulled = pulled.has(node.id);
-              const inboxRow = node.inbox || Boolean(item) || isPulled;
-              const selectableItem = item ? isSelectable(item, pulled) : false;
-              const expanded = !collapsed.has(node.id);
-              return (
-                <tr
-                  key={node.id}
-                  className={styles.treeRow}
-                  data-flip-key={node.id}
-                  data-inbox={inboxRow || undefined}
-                  data-context={!inboxRow || undefined}
-                  data-pulled={isPulled || undefined}
-                  data-archived={node.archived || undefined}
-                  data-dragging={draggingId === node.id || undefined}
-                  data-drop={dropTarget?.id === node.id ? dropTarget.zone : undefined}
-                  aria-describedby={selectableItem ? 'inbox-tree-drag-hint' : undefined}
-                  draggable={selectableItem}
-                  onDragStart={(event) => {
-                    if (!selectableItem) {
+        <div className={styles.treeScroll}>
+          <table
+            className={styles.treeTable}
+            aria-label={t('inbox.tableAria')}
+            aria-describedby="inbox-tree-drag-hint"
+          >
+            <caption className="visually-hidden">
+              {t('inbox.caption')}
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col" className={styles.treeSelectHeader}>
+                  <Checkbox
+                    id="inbox-tree-select-all"
+                    ref={(node) => {
+                      if (node) node.indeterminate = someSelected && !allSelected;
+                    }}
+                    label={<span className="visually-hidden">{t('inbox.selectAll')}</span>}
+                    checked={allSelected}
+                    disabled={selectable.length === 0}
+                    title={
+                      selectable.length === 0
+                        ? t('inbox.noCapturesReleasable')
+                        : t('inbox.selectAll')
+                    }
+                    onChange={onToggleAll}
+                  />
+                </th>
+                <th scope="col">{t('inbox.columnProject')}</th>
+                <th scope="col" className={styles.treeStatusHeader}>
+                  {t('inbox.columnStatus')}
+                </th>
+                <th scope="col" className={styles.treeActionHeader}>
+                  <span className="visually-hidden">{t('inbox.columnActions')}</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody ref={tbodyRef}>
+              {rows.map(({ node, depth, hasChildren }) => {
+                const item = itemById.get(node.id);
+                const isPulled = pulled.has(node.id);
+                const inboxRow = node.inbox || Boolean(item) || isPulled;
+                const selectableItem = item ? isSelectable(item, pulled) : false;
+                const expanded = !collapsed.has(node.id);
+                return (
+                  <tr
+                    key={node.id}
+                    className={styles.treeRow}
+                    data-flip-key={node.id}
+                    data-inbox={inboxRow || undefined}
+                    data-context={!inboxRow || undefined}
+                    data-pulled={isPulled || undefined}
+                    data-archived={node.archived || undefined}
+                    data-dragging={draggingId === node.id || undefined}
+                    data-pressing={touchDrag.pending?.payload.id === node.id || undefined}
+                    data-drop={dropTarget?.id === node.id ? dropTarget.zone : undefined}
+                    data-touch-id={node.id}
+                    data-touch-target=""
+                    aria-describedby={selectableItem ? 'inbox-tree-drag-hint' : undefined}
+                    draggable={selectableItem}
+                    onPointerDown={(event) => touchDrag.start(event, node)}
+                    onPointerMove={touchDrag.handlePointerMove}
+                    onPointerUp={touchDrag.handlePointerUp}
+                    onPointerCancel={touchDrag.handlePointerCancel}
+                    onContextMenu={touchDrag.handleContextMenu}
+                    onDragStart={(event) => {
+                      if (!selectableItem) {
+                        event.preventDefault();
+                        return;
+                      }
+                      cancelFlipAnimations();
+                      event.dataTransfer.setData('text/plain', node.id);
+                      event.dataTransfer.effectAllowed = 'move';
+                      setDraggingId(node.id);
+                    }}
+                    onDragEnd={resetDrag}
+                    onDragOver={(event) => {
+                      if (!draggingId || draggingId === node.id) return;
                       event.preventDefault();
-                      return;
-                    }
-                    cancelFlipAnimations();
-                    event.dataTransfer.setData('text/plain', node.id);
-                    event.dataTransfer.effectAllowed = 'move';
-                    setDraggingId(node.id);
-                  }}
-                  onDragEnd={resetDrag}
-                  onDragOver={(event) => {
-                    if (!draggingId || draggingId === node.id) return;
-                    event.preventDefault();
-                    event.dataTransfer.dropEffect = 'move';
-                    const zone = dropZoneForEvent(event);
-                    setDropTarget((current) =>
-                      current?.id === node.id && current.zone === zone
-                        ? current
-                        : { id: node.id, zone },
-                    );
-                  }}
-                  onDragLeave={(event) => {
-                    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
-                    setDropTarget((current) => (current?.id === node.id ? null : current));
-                  }}
-                  onDrop={(event) => {
-                    event.preventDefault();
-                    const id = event.dataTransfer.getData('text/plain') || draggingId;
-                    const zone = dropZoneForEvent(event);
-                    resetDrag();
-                    if (!id || id === node.id) return;
-                    if (zone === 'inside') {
-                      onReparent(id, node.id);
-                      return;
-                    }
-                    onReorder(id, node.id, zone);
-                  }}
-                >
-                  <td className={styles.treeSelectCell}>
-                    {inboxRow ? (
-                      <Checkbox
-                        id={`inbox-tree-select-${node.id}`}
-                        label={
-                          <span className="visually-hidden">{t('inbox.selectProject', { title: node.title })}</span>
-                        }
-                        checked={selectableItem && selected.has(node.id)}
-                        disabled={!selectableItem}
-                        title={
-                          isPulled
-                            ? t('inbox.alreadyReleased')
-                            : !item?.canRelease
-                              ? t('inbox.needEditToRelease')
-                              : undefined
-                        }
-                        onChange={(event) => onToggle(node.id, event.target.checked)}
-                      />
-                    ) : null}
-                  </td>
-                  <th scope="row" className={styles.treeNameCell}>
-                    <div
-                      className={styles.treeName}
-                      style={{ paddingInlineStart: depth * 14 }}
-                    >
-                      {hasChildren ? (
-                        <button
-                          type="button"
-                          className={styles.chevronButton}
-                          aria-label={
-                            expanded
-                              ? t('common.collapseName', { title: node.title })
-                              : t('common.expandName', { title: node.title })
-                          }
-                          aria-expanded={expanded}
-                          onClick={() => toggleBranch(node.id)}
-                        >
-                          <Icon name={expanded ? 'expand_more' : 'chevron_right'} size={18} />
-                        </button>
-                      ) : (
-                        <span className={styles.chevronSpacer} aria-hidden="true" />
-                      )}
-                      <Link
-                        href={`/p/${node.id}`}
-                        className={styles.treeTitle}
-                        draggable={false}
-                      >
-                        {node.title}
-                      </Link>
-                      {isPulled ? <Badge tone="pulled">{t('common.pulled')}</Badge> : null}
-                      {node.archived ? (
-                        <Badge tone="archived">{t('common.archived')}</Badge>
-                      ) : null}
+                      event.dataTransfer.dropEffect = 'move';
+                      const zone = dropZoneForEvent(event);
+                      setDropTarget((current) =>
+                        current?.id === node.id && current.zone === zone
+                          ? current
+                          : { id: node.id, zone },
+                      );
+                    }}
+                    onDragLeave={(event) => {
+                      if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+                      setDropTarget((current) => (current?.id === node.id ? null : current));
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      const id = event.dataTransfer.getData('text/plain') || draggingId;
+                      const zone = dropZoneForEvent(event);
+                      resetDrag();
+                      if (!id || id === node.id) return;
+                      if (zone === 'inside') {
+                        onReparent(id, node.id);
+                        return;
+                      }
+                      onReorder(id, node.id, zone);
+                    }}
+                  >
+                    <td className={styles.treeSelectCell}>
                       {inboxRow ? (
-                        <span className={styles.treeInlineStatus} aria-hidden="true">
-                          {node.statusName ?? '—'}
-                        </span>
+                        <Checkbox
+                          id={`inbox-tree-select-${node.id}`}
+                          label={
+                            <span className="visually-hidden">{t('inbox.selectProject', { title: node.title })}</span>
+                          }
+                          checked={selectableItem && selected.has(node.id)}
+                          disabled={!selectableItem}
+                          title={
+                            isPulled
+                              ? t('inbox.alreadyReleased')
+                              : !item?.canRelease
+                                ? t('inbox.needEditToRelease')
+                                : undefined
+                          }
+                          onChange={(event) => onToggle(node.id, event.target.checked)}
+                        />
                       ) : null}
-                    </div>
-                  </th>
-                  <td className={styles.treeStatusCell}>{node.statusName ?? '—'}</td>
-                  <td className={styles.treeActionCell}>
-                    {inboxRow ? (
-                      <Link
-                        href={`/p/${node.id}`}
-                        className={styles.open}
-                        aria-label={t('common.openName', { title: node.title })}
-                        draggable={false}
+                    </td>
+                    <th scope="row" className={styles.treeNameCell}>
+                      <div
+                        className={styles.treeName}
+                        style={{ paddingInlineStart: depth * 14 }}
                       >
-                        <Icon name="open_in_new" size={18} />
-                        <span className={styles.openLabel}>{t('common.open')}</span>
-                      </Link>
-                    ) : null}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                        {hasChildren ? (
+                          <button
+                            type="button"
+                            className={styles.chevronButton}
+                            aria-label={
+                              expanded
+                                ? t('common.collapseName', { title: node.title })
+                                : t('common.expandName', { title: node.title })
+                            }
+                            aria-expanded={expanded}
+                            onClick={() => toggleBranch(node.id)}
+                          >
+                            <Icon name={expanded ? 'expand_more' : 'chevron_right'} size={18} />
+                          </button>
+                        ) : (
+                          <span className={styles.chevronSpacer} aria-hidden="true" />
+                        )}
+                        <Link
+                          href={`/p/${node.id}`}
+                          className={styles.treeTitle}
+                          draggable={false}
+                        >
+                          {node.title}
+                        </Link>
+                        {isPulled ? <Badge tone="pulled">{t('common.pulled')}</Badge> : null}
+                        {node.archived ? (
+                          <Badge tone="archived">{t('common.archived')}</Badge>
+                        ) : null}
+                        {inboxRow ? (
+                          <span className={styles.treeInlineStatus} aria-hidden="true">
+                            {node.statusName ?? '—'}
+                          </span>
+                        ) : null}
+                      </div>
+                    </th>
+                    <td className={styles.treeStatusCell}>{node.statusName ?? '—'}</td>
+                    <td className={styles.treeActionCell}>
+                      {inboxRow ? (
+                        <Link
+                          href={`/p/${node.id}`}
+                          className={styles.open}
+                          aria-label={t('common.openName', { title: node.title })}
+                          draggable={false}
+                        >
+                          <Icon name="open_in_new" size={18} />
+                          <span className={styles.openLabel}>{t('common.open')}</span>
+                        </Link>
+                      ) : null}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
 
-      <p className={styles.hint} id="inbox-tree-drag-hint">
-        {t('inbox.dragHint')}
-      </p>
-    </div>
+        <p className={styles.hint} id="inbox-tree-drag-hint">
+          {t('inbox.dragHint')}
+        </p>
+      </div>
+      {touchDrag.active ? (
+        <TouchDragGhost
+          x={touchDrag.active.x}
+          y={touchDrag.active.y}
+          label={touchDrag.active.payload.title}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -668,6 +743,84 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
     );
   };
 
+  const applyCardReorder = (
+    draggedId: string,
+    targetId: string,
+    edge: ReorderEdge,
+  ): void => {
+    if (!draggedId || draggedId === targetId || pulled.has(targetId)) return;
+    const dragged = items.find((entry) => entry.project.id === draggedId);
+    if (!dragged) return;
+    void reorderTo(dragged, targetId, edge);
+  };
+
+  type InboxCardTouchTarget =
+    | { kind: 'release' }
+    | { kind: 'reorder'; id: string; edge: ReorderEdge };
+
+  /**
+   * Card touch drops resolve to exactly two things: the release rail, or a
+   * before/after slot in the global Inbox sequence. There is no "inside" zone,
+   * so a card body never opens an ambiguous action.
+   */
+  const resolveTouchCardTarget = (
+    x: number,
+    y: number,
+    draggedId: string,
+  ): InboxCardTouchTarget | null => {
+    if (touchElementAt(x, y, '[data-drop-area="release"]')) {
+      return { kind: 'release' };
+    }
+    const list = listRef.current;
+    if (!list || !pointInRect(x, y, list.getBoundingClientRect())) return null;
+    const target = reorderTargetAt(y, measureTouchRows(list, draggedId));
+    return target ? { kind: 'reorder', ...target } : null;
+  };
+
+  const updateTouchCardTarget = (
+    item: InboxItem,
+    point: TouchDragPoint,
+  ): void => {
+    const target = resolveTouchCardTarget(point.x, point.y, item.project.id);
+    if (target?.kind === 'release') {
+      setDropActive(true);
+      setCardDropTarget(null);
+      return;
+    }
+    setDropActive(false);
+    setCardDropTarget((current) => {
+      const next =
+        target?.kind === 'reorder' ? { id: target.id, edge: target.edge } : null;
+      return current?.id === next?.id && current?.edge === next?.edge
+        ? current
+        : next;
+    });
+  };
+
+  const touchDrag = useTouchDrag<InboxItem>({
+    enabled: view === 'card' && !pendingId && !bulkPending && !movePending,
+    canStart: (_event, item) =>
+      item.canRelease && !pulled.has(item.project.id),
+    onDragStart: (item, point) => {
+      setDraggingId(item.project.id);
+      setCardDropTarget(null);
+      setDropActive(false);
+      updateTouchCardTarget(item, point);
+    },
+    onDragMove: updateTouchCardTarget,
+    onDrop: (item, point) => {
+      const target = resolveTouchCardTarget(point.x, point.y, item.project.id);
+      resetDrag();
+      if (!target) return;
+      if (target.kind === 'release') {
+        if (!pulled.has(item.project.id) && item.canRelease) void release(item);
+        return;
+      }
+      applyCardReorder(item.project.id, target.id, target.edge);
+    },
+    onCancel: resetDrag,
+  });
+
   const handleCardDragOver = (
     event: DragEvent<HTMLElement>,
     item: InboxItem,
@@ -691,10 +844,8 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
     const rect = event.currentTarget.getBoundingClientRect();
     const edge = reorderEdgeAt(event.clientY, rect.top, rect.height);
     resetDrag();
-    if (!id || id === item.project.id || pulled.has(item.project.id)) return;
-    const dragged = items.find((entry) => entry.project.id === id);
-    if (!dragged) return;
-    void reorderTo(dragged, item.project.id, edge);
+    if (!id) return;
+    applyCardReorder(id, item.project.id, edge);
   };
 
   const handleDrop = (event: DragEvent<HTMLElement>) => {
@@ -830,13 +981,21 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
                     className={styles.card}
                     data-pulled={isPulled || undefined}
                     data-dragging={draggingId === item.project.id || undefined}
+                    data-pressing={touchDrag.pending?.payload.project.id === item.project.id || undefined}
                     data-drop-area="reorder"
                     data-drop={
                       cardDropTarget?.id === item.project.id
                         ? cardDropTarget.edge
                         : undefined
                     }
+                    data-touch-id={item.project.id}
+                    data-touch-target={isPulled ? undefined : ''}
                     draggable={canDrag}
+                    onPointerDown={(event) => touchDrag.start(event, item)}
+                    onPointerMove={touchDrag.handlePointerMove}
+                    onPointerUp={touchDrag.handlePointerUp}
+                    onPointerCancel={touchDrag.handlePointerCancel}
+                    onContextMenu={touchDrag.handleContextMenu}
                     onDragStart={(event) => {
                       cancelFlipAnimations();
                       event.dataTransfer.setData('text/plain', item.project.id);
@@ -913,6 +1072,13 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
         onClose={() => setChangeParentItem(null)}
         onChanged={applyParentChange}
       />
+      {view === 'card' && touchDrag.active ? (
+        <TouchDragGhost
+          x={touchDrag.active.x}
+          y={touchDrag.active.y}
+          label={touchDrag.active.payload.project.title}
+        />
+      ) : null}
     </div>
   );
 }
