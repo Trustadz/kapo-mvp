@@ -369,7 +369,7 @@ export const nl: Messages = {
     applicationHint:
       'Kies hoe elke geregistreerde add-on zich in de hele installatie gedraagt. Bestaande waarden blijven bewaard maar worden verborgen als een add-on niet beschikbaar is.',
     projectHint:
-      'Schakel optionele add-ons in voor dit project en kies of de configuratie van het bovenliggende project mag doorwerken.',
+      'Schakel optionele add-ons in voor dit project. Elk project bewaart zijn eigen expliciete momentopname; wijzigingen in een bovenliggend project hebben geen invloed op bestaande onderliggende projecten.',
     modeLabel: 'Beschikbaarheid',
     modeRequired: 'Verplicht',
     modeAlways: 'Altijd aan',
@@ -379,10 +379,6 @@ export const nl: Messages = {
     alwaysNote: 'Aanwezig op elk project; velden blijven optioneel.',
     unavailableNote: 'Bestaande waarden blijven bewaard maar worden verborgen.',
     enableForProject: 'Inschakelen voor dit project',
-    inheritFromParent: 'Overnemen van bovenliggend project',
-    inheritFromParentHint:
-      'Gebruik de configuratie van {parent} totdat dit project die overschrijft.',
-    inheritedFromParent: 'Overgenomen van het bovenliggende project',
     saveProject: 'Add-ons opslaan',
     projectSaved: 'Projectadd-ons opgeslagen.',
     unsavedChanges: 'Niet-opgeslagen wijzigingen',
@@ -671,13 +667,16 @@ export const nl: Messages = {
     belowDetails: 'Onder details en eigenschappen',
     aboveDetails: 'Boven details en eigenschappen',
     defaultView: 'Standaardweergave',
-    layout: 'Lay-out',
-    inheritLayout: 'Lay-out overnemen van het bovenliggende project',
     newChildren: 'Nieuwe onderliggende projecten',
     sendToInbox: 'Nieuwe onderliggende projecten naar de Inbox sturen',
     sendToInboxDescription:
       'Als dit uit staat, worden nieuwe projecten direct in hun startstatus aangemaakt.',
     projectSaved: 'Projectinstellingen opgeslagen.',
+    unsavedChanges: 'Niet-opgeslagen wijzigingen',
+    discardUnsavedTitle: 'Niet-opgeslagen wijzigingen verwerpen?',
+    discardUnsavedBody:
+      'Je hebt niet-opgeslagen wijzigingen in dit onderdeel. Als je nu weggaat, gaan ze verloren.',
+    discardUnsavedConfirm: 'Wijzigingen verwerpen',
     workflowTitle: 'Workflow voor onderliggende projecten',
     workflowHint:
       'Deze workflow bepaalt de onderliggende projecten, niet de status van dit project zelf.',
@@ -772,8 +771,7 @@ export const nl: Messages = {
     parentFallback: 'bovenliggend project',
     layoutTitle: 'Lay-out en weergaven',
     layoutHint:
-      'Kies waar projectvelden verschijnen, welke weergaven beschikbaar zijn en welke statussen verborgen zijn.',
-    inheritance: 'Overnemen',
+      'Kies waar projectvelden verschijnen, welke weergaven beschikbaar zijn en welke statussen verborgen zijn. Nieuwe onderliggende projecten nemen de huidige lay-out eenmalig over; latere wijzigingen hier hebben geen invloed op bestaande onderliggende projecten.',
     useAsTemplate: 'Als kindtemplate gebruiken',
     useAsTemplateLabel:
       'Deze lay-out als template voor onderliggende projecten gebruiken',

@@ -10,6 +10,7 @@ import {
 } from './db/bootstrap';
 import { indexProject } from './db/search';
 import { newId } from './db/util';
+import { snapshotInheritanceOnce } from './domain/inheritance-snapshot';
 import { syncAddonRegistry } from './domain/project-addons';
 
 /**
@@ -594,7 +595,21 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
     };
   });
 
-  return run();
+  const summary = run();
+
+  // Seed rows are written directly, so run the same one-time inheritance
+  // snapshot the server uses at startup. This keeps the seeded tree explicit
+  // (`inherit_layout=false`, per-add-on `inheritFromParent=false`) and matches
+  // an upgraded database. A snapshot failure is logged, never fatal: startup
+  // retries it because the marker is written transactionally.
+  try {
+    syncAddonRegistry(db);
+    snapshotInheritanceOnce(db);
+  } catch (error) {
+    console.error('[kapo:snapshot] seed snapshot failed; startup will retry', error);
+  }
+
+  return summary;
 }
 
 export function seedSummaryLine(summary: SeedSummary): string {

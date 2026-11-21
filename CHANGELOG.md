@@ -1,5 +1,35 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- **Layout and add-on settings copy from the parent once at project creation**
+  instead of syncing live. Later parent changes no longer affect existing
+  children. Access/permission inheritance is unchanged and stays live.
+- Project **General** settings no longer duplicate Default view or Inherit
+  layout; **Layout** no longer offers Inherit layout; the project **Add-ons**
+  tab no longer offers Inherit from parent. Enable/disable and field editing
+  remain.
+- Project settings tabs now guard unsaved edits with a translated “Discard
+  unsaved changes?” confirmation and a `beforeunload` warning, and show an
+  “Unsaved changes” indicator.
+
+### Upgrade notes
+
+- No schema migration is needed. On first startup after upgrading (and in
+  `db:migrate` / seed / setup), a one-time snapshot is applied: each existing
+  project gets its pre-upgrade effective layout written to its own
+  `settings.layout_template` with `inherit_layout=false`, and an explicit
+  add-on configuration (`enabled` = previously resolved availability,
+  `inheritFromParent=false`, `settings` = previously resolved settings).
+  Unknown add-on identifiers and config keys are preserved, so nothing visible
+  changes.
+- The snapshot is marked by the `inheritance_snapshot_v1` application setting
+  and runs in a single transaction. If it fails, the marker is not written and
+  startup logs the error and retries on the next boot (startup is not blocked).
+  Back up `./data` before upgrading as usual.
+
 ## 0.3.0 — 2026-11-21
 
 ### Added

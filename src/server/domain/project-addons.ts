@@ -37,11 +37,17 @@ import {
  *
  * This module owns everything generic about add-ons:
  *  - registry → `addons` table mode sync (never overwriting an Admin choice);
- *  - per-project enablement/inheritance resolution;
+ *  - per-project availability/settings resolution from the project's own
+ *    explicit configuration (configuration is copied from the parent once, at
+ *    creation, so it never syncs live);
  *  - generic field-type validation and value writes into
  *    `projects.addon_data[identifier][fieldKey]`;
  *  - audit + FTS maintenance inside the write transaction;
  *  - application/project configuration writes that preserve unknown keys.
+ *
+ * The legacy walk-up resolver is kept private (`resolveLegacyProjectAddons`)
+ * solely for the one-time upgrade snapshot, which must preserve the exact
+ * pre-upgrade effective availability/settings before it writes explicit rows.
  *
  * No function here branches on an add-on identifier: all add-on-specific
  * behaviour comes from `AddonDefinition` and its hooks.
@@ -212,19 +218,83 @@ function resolveFromChain(
   };
 }
 
+/**
+ * Resolves one add-on from a project's *own* explicit configuration. The
+ * parent chain is intentionally not consulted: layout and add-on settings are
+ * copied once at creation and never sync live (product decision, issue
+ * copy-on-create-settings). `inheritFromParent` is retained in storage for
+ * compatibility but no longer changes resolution.
+ */
+function resolveOwnFromConfig(
+  definition: AddonDefinition,
+  mode: AddonMode,
+  config: AddonProjectConfig | undefined,
+): ResolvedAddonConfig {
+  const available =
+    mode === 'required' || mode === 'always'
+      ? true
+      : mode === 'optional'
+        ? config?.enabled === true
+        : false;
+  return {
+    identifier: definition.identifier,
+    mode,
+    available,
+    required: mode === 'required',
+    inherited: false,
+    settings: { ...(config?.settings ?? {}) },
+  };
+}
+
+function ownAddonConfig(
+  rawSettings: string | null | undefined,
+  identifier: string,
+): AddonProjectConfig | undefined {
+  return parseProjectAddonConfigs(rawSettings)[identifier];
+}
+
 export function resolveAddonConfig(
   db: BetterSqliteDatabase,
   projectId: string,
   identifier: string,
 ): ResolvedAddonConfig {
-  const chain = loadProjectChain(db, projectId);
-  if (!chain) throw new DomainError(404, 'not_found', 'Project not found.');
+  const row = db
+    .prepare('SELECT settings FROM projects WHERE id = ?')
+    .get(projectId) as { settings: string } | undefined;
+  if (!row) throw new DomainError(404, 'not_found', 'Project not found.');
   const definition = getAddon(identifier);
   if (!definition) throw new DomainError(404, 'not_found', 'Add-on not found.');
-  return resolveFromChain(chain, definition, getAddonMode(db, identifier));
+  return resolveOwnFromConfig(
+    definition,
+    getAddonMode(db, identifier),
+    ownAddonConfig(row.settings, identifier),
+  );
 }
 
 export function resolveProjectAddons(
+  db: BetterSqliteDatabase,
+  projectId: string,
+): readonly ResolvedAddonConfig[] {
+  const row = db
+    .prepare('SELECT settings FROM projects WHERE id = ?')
+    .get(projectId) as { settings: string } | undefined;
+  if (!row) return [];
+  const own = parseProjectAddonConfigs(row.settings);
+  return listAddons().map((definition) =>
+    resolveOwnFromConfig(
+      definition,
+      getAddonMode(db, definition.identifier),
+      own[definition.identifier],
+    ),
+  );
+}
+
+/**
+ * Legacy walk-up resolution, used only by the one-time inheritance snapshot.
+ * It returns what each project effectively saw before configuration became
+ * explicit, so the snapshot can persist exactly those values.
+ */
+export function resolveLegacyProjectAddons(
   db: BetterSqliteDatabase,
   projectId: string,
 ): readonly ResolvedAddonConfig[] {
@@ -400,8 +470,8 @@ export function getProjectAddonSettings(
   if (!chain) throw new DomainError(404, 'not_found', 'Project not found.');
   return listAddons().map((definition) => {
     const mode = getAddonMode(db, definition.identifier);
-    const resolved = resolveFromChain(chain, definition, mode);
-    const own = parseProjectAddonConfigs(chain[0]?.settings)[definition.identifier];
+    const own = ownAddonConfig(chain[0]?.settings, definition.identifier);
+    const resolved = resolveOwnFromConfig(definition, mode, own);
     return {
       identifier: definition.identifier,
       name: definition.name,
@@ -479,6 +549,11 @@ export function updateProjectAddons(
         });
       }
       patch.inheritFromParent = rawPatch.inheritFromParent;
+    } else {
+      // Configuration is an explicit per-project snapshot; writes never opt a
+      // project back into live inheritance. The field stays stored for
+      // backward compatibility with the pre-upgrade data contract.
+      patch.inheritFromParent = false;
     }
     if (rawPatch.settings !== undefined) {
       if (!isRecord(rawPatch.settings)) {
@@ -515,7 +590,8 @@ export function updateProjectAddons(
       nowIso(),
       projectId,
     );
-    // Enabling/disabling here can change availability for the whole subtree.
+    // Configuration is per project; rebuild this project (and, defensively,
+    // its subtree in case an ancestor move changed what is rendered).
     reindexProjectAddonSearchSubtree(db, projectId);
   })();
 
@@ -861,7 +937,7 @@ export function reindexAllProjectAddonSearch(db: BetterSqliteDatabase): number {
   return rows.length;
 }
 
-/** Rebuilds the project and every descendant (config inheritance flows down). */
+/** Rebuilds the project and every descendant (used after tree-level moves). */
 export function reindexProjectAddonSearchSubtree(
   db: BetterSqliteDatabase,
   projectId: string,

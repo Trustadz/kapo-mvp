@@ -4,6 +4,7 @@ import { hashPassword } from '@/server/auth/password';
 import { createRootProject, insertDefaultSettings } from '@/server/db/bootstrap';
 import { getDb } from '@/server/db/connection';
 import { newId, nowIso } from '@/server/db/util';
+import { snapshotInheritanceOnce } from '@/server/domain/inheritance-snapshot';
 import { syncAddonRegistry } from '@/server/domain/project-addons';
 import { getI18n } from '@/i18n/server';
 import {
@@ -97,6 +98,15 @@ export async function POST(request: Request) {
       const session = createSession(db, userId);
       return { userId, token: session.token, expiresAt: session.expiresAt };
     })();
+
+    // Establish the explicit-settings baseline (and the one-time marker) for a
+    // brand-new installation. Failure is logged and retried at startup; setup
+    // itself has already committed.
+    try {
+      snapshotInheritanceOnce(db);
+    } catch (error) {
+      console.error('[kapo:snapshot] setup snapshot failed; startup will retry', error);
+    }
 
     await setSessionCookie(result.token, result.expiresAt);
     await setAppearanceCookie('system');

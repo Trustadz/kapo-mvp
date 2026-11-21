@@ -12,6 +12,7 @@ import { startBackupScheduler } from './server/backup/schedule';
 const PURGE_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const LOG_PREFIX = '[kapo:purge]';
 const ADDON_LOG_PREFIX = '[kapo:addons]';
+const SNAPSHOT_LOG_PREFIX = '[kapo:snapshot]';
 
 let started = false;
 
@@ -31,6 +32,30 @@ async function syncAddonRegistryAtStartup(): Promise<void> {
   } catch (error) {
     // Add-on plumbing must never take Kapo down.
     console.error(`${ADDON_LOG_PREFIX} startup sync failed`, error);
+  }
+}
+
+/**
+ * One-time upgrade pass: turns live layout/add-on inheritance into explicit
+ * per-project snapshots. Runs after the registry sync because the snapshot must
+ * resolve every registered add-on. Failure leaves the marker unset so the next
+ * boot retries; it never blocks startup.
+ */
+async function snapshotInheritanceAtStartup(): Promise<void> {
+  try {
+    const { getDb } = await import('./server/db/connection');
+    const { snapshotInheritanceOnce } = await import('./server/domain/inheritance-snapshot');
+    const result = snapshotInheritanceOnce(getDb());
+    if (!result.alreadySnapshotted) {
+      console.info(
+        `${SNAPSHOT_LOG_PREFIX} snapshotted layout/add-ons for ${result.projects} project(s)`,
+      );
+    }
+  } catch (error) {
+    console.error(
+      `${SNAPSHOT_LOG_PREFIX} snapshot failed; it will be retried on the next start`,
+      error,
+    );
   }
 }
 
@@ -80,7 +105,11 @@ export async function startPurgeScheduler(): Promise<void> {
  */
 export async function startSchedulers(): Promise<void> {
   await Promise.all([
-    syncAddonRegistryAtStartup(),
+    // The snapshot resolves registered add-ons, so it must follow the sync.
+    (async () => {
+      await syncAddonRegistryAtStartup();
+      await snapshotInheritanceAtStartup();
+    })(),
     startPurgeScheduler().catch((error: unknown) => {
       console.error(`${LOG_PREFIX} scheduler failed to start`, error);
     }),

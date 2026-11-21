@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import {
   Button,
   Card,
@@ -36,7 +36,6 @@ import { PROJECT_FIELD_KEYS } from './types';
 import type { MemberCandidate } from './api';
 import type { ProjectAccessMode, ViewFieldKey, ViewFields } from '@/lib/projects';
 import type { AddonMode, ProjectAddonConfigView } from '@/lib/addons';
-import { ADDON_MODE_OPTIONS } from '@/lib/addons';
 import { DEFAULT_VIEW_FIELDS, VIEW_FIELD_KEYS } from '@/lib/projects';
 import { formatPersonName } from '@/lib/format';
 import { markFieldChanged } from '@/lib/changed-fields';
@@ -98,10 +97,63 @@ export function ProjectSettingsPage({
   const tabLabel = (id: TabId) => t(TAB_MESSAGE_KEYS[id]);
   const activeTab = tabs.includes(tab) ? tab : 'general';
 
+  // Unsaved-changes guard. Each tab route is a separate navigation, so a tab
+  // reports its own dirty state to this parent; only the active tab matters.
+  const [dirtyTabs, setDirtyTabs] = useState<Partial<Record<TabId, boolean>>>({});
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const activeDirty = dirtyTabs[activeTab] === true;
+
+  const reportDirty = useCallback(
+    (dirty: boolean) => {
+      setDirtyTabs((current) =>
+        current[activeTab] === dirty ? current : { ...current, [activeTab]: dirty },
+      );
+    },
+    [activeTab],
+  );
+
+  useEffect(() => {
+    if (!activeDirty) return;
+    const handler = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [activeDirty]);
+
+  const guardedNavigate = (event: ReactMouseEvent<HTMLAnchorElement>, href: string) => {
+    if (!activeDirty) return;
+    // Let modified clicks (new tab/window) and non-primary buttons behave
+    // normally; only an in-page tab switch needs the discard prompt.
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+    event.preventDefault();
+    setPendingHref(href);
+  };
+
+  const discardAndNavigate = () => {
+    const href = pendingHref;
+    setPendingHref(null);
+    if (href) router.push(href);
+  };
+
   return (
     <div className={styles.page}>
       <nav className={styles.breadcrumb} aria-label={t('project.breadcrumb')}>
-        <Link href={`/p/${project.id}`} className={styles.breadcrumbLink}>
+        <Link
+          href={`/p/${project.id}`}
+          className={styles.breadcrumbLink}
+          onClick={(event) => guardedNavigate(event, `/p/${project.id}`)}
+        >
           {project.title}
         </Link>
         <span aria-hidden="true">/</span>
@@ -113,24 +165,44 @@ export function ProjectSettingsPage({
       </header>
 
       <nav className={styles.tabs} aria-label={t('settings.sectionsAria')}>
-        {tabs.map((entry) => (
-          <Link
-            key={entry}
-            href={`/p/${project.id}/settings?tab=${entry}`}
-            className={styles.tab}
-            data-active={entry === activeTab || undefined}
-            aria-current={entry === activeTab ? 'page' : undefined}
-          >
-            {tabLabel(entry)}
-          </Link>
-        ))}
+        {tabs.map((entry) => {
+          const href = `/p/${project.id}/settings?tab=${entry}`;
+          return (
+            <Link
+              key={entry}
+              href={href}
+              className={styles.tab}
+              data-active={entry === activeTab || undefined}
+              aria-current={entry === activeTab ? 'page' : undefined}
+              onClick={(event) => guardedNavigate(event, href)}
+            >
+              {tabLabel(entry)}
+            </Link>
+          );
+        })}
+        {activeDirty ? (
+          <span className={styles.unsavedIndicator} role="status">
+            {t('settings.unsavedChanges')}
+          </span>
+        ) : null}
       </nav>
 
       {activeTab === 'general' ? (
-        <GeneralTab data={data} notify={notify} refresh={refresh} />
+        <GeneralTab
+          data={data}
+          notify={notify}
+          refresh={refresh}
+          onDirtyChange={reportDirty}
+        />
       ) : null}
       {activeTab === 'workflow' ? (
-        <WorkflowTab data={data} workflow={workflow} notify={notify} refresh={refresh} />
+        <WorkflowTab
+          data={data}
+          workflow={workflow}
+          notify={notify}
+          refresh={refresh}
+          onDirtyChange={reportDirty}
+        />
       ) : null}
       {activeTab === 'members' ? (
         <MembersTab
@@ -140,14 +212,45 @@ export function ProjectSettingsPage({
           viewerId={viewerId}
           notify={notify}
           refresh={refresh}
+          onDirtyChange={reportDirty}
         />
       ) : null}
       {activeTab === 'layout' ? (
-        <LayoutTab data={data} workflow={workflow} notify={notify} refresh={refresh} />
+        <LayoutTab
+          data={data}
+          workflow={workflow}
+          notify={notify}
+          refresh={refresh}
+          onDirtyChange={reportDirty}
+        />
       ) : null}
       {activeTab === 'addons' ? (
-        <AddonsTab projectId={project.id} addons={addons} notify={notify} refresh={refresh} />
+        <AddonsTab
+          projectId={project.id}
+          addons={addons}
+          notify={notify}
+          refresh={refresh}
+          onDirtyChange={reportDirty}
+        />
       ) : null}
+
+      <Dialog
+        open={pendingHref !== null}
+        onClose={() => setPendingHref(null)}
+        title={t('settings.discardUnsavedTitle')}
+        footer={
+          <div className={styles.footer}>
+            <Button variant="danger" onClick={discardAndNavigate}>
+              {t('settings.discardUnsavedConfirm')}
+            </Button>
+            <Button variant="quiet" onClick={() => setPendingHref(null)}>
+              {t('common.cancel')}
+            </Button>
+          </div>
+        }
+      >
+        <p className={styles.cardHint}>{t('settings.discardUnsavedBody')}</p>
+      </Dialog>
 
       <Toast
         open={toast !== null}
@@ -164,42 +267,48 @@ export function ProjectSettingsPage({
 /* General                                                                   */
 /* ------------------------------------------------------------------------- */
 
-function GeneralTab({
+export function GeneralTab({
   data,
   notify,
   refresh,
+  onDirtyChange,
 }: {
   data: ProjectPageData;
   notify: (message: string, tone?: 'success' | 'error' | 'info') => void;
   refresh: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const project = data.project;
   const { t } = useI18n();
   const [title, setTitle] = useState(project.title);
-  const [defaultView, setDefaultView] = useState<CollectionView>(data.settings.default_view);
-  const [inheritLayout, setInheritLayout] = useState(data.settings.inherit_layout);
   const [sendToInbox, setSendToInbox] = useState(!data.settings.skip_inbox);
+  const [baseline, setBaseline] = useState(() => ({
+    title: project.title,
+    sendToInbox: !data.settings.skip_inbox,
+  }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   // Issue #56: read back the session markers so the saved field stays tinted.
   const titleChanged = useFieldChanged(project.id, 'title');
-  const defaultViewChanged = useFieldChanged(project.id, 'default_view');
-  const inheritLayoutChanged = useFieldChanged(project.id, 'inherit_layout');
   const skipInboxChanged = useFieldChanged(project.id, 'skip_inbox');
 
   useEffect(() => {
-    setTitle(project.title);
-    setDefaultView(data.settings.default_view);
-    setInheritLayout(data.settings.inherit_layout);
-    setSendToInbox(!data.settings.skip_inbox);
-  }, [project.title, data.settings]);
+    const next = {
+      title: project.title,
+      sendToInbox: !data.settings.skip_inbox,
+    };
+    setTitle(next.title);
+    setSendToInbox(next.sendToInbox);
+    setBaseline(next);
+  }, [project.title, data.settings.skip_inbox]);
+
+  const dirty = title !== baseline.title || sendToInbox !== baseline.sendToInbox;
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
 
   const reset = () => {
-    setTitle(project.title);
-    setDefaultView(data.settings.default_view);
-    setInheritLayout(data.settings.inherit_layout);
-    setSendToInbox(!data.settings.skip_inbox);
+    setTitle(baseline.title);
+    setSendToInbox(baseline.sendToInbox);
     setError(null);
     setFieldErrors({});
   };
@@ -210,11 +319,7 @@ function GeneralTab({
     setFieldErrors({});
     let failed = false;
     const titleWillChange = project.canEdit && title.trim() !== project.title;
-    const settingsChanges = {
-      default_view: defaultView !== data.settings.default_view,
-      inherit_layout: inheritLayout !== data.settings.inherit_layout,
-      skip_inbox: !sendToInbox !== data.settings.skip_inbox,
-    };
+    const skipInboxWillChange = !sendToInbox !== data.settings.skip_inbox;
     let titleSaved = false;
     if (titleWillChange) {
       const titleResult = await updateProjectFields(project.id, { title });
@@ -227,8 +332,6 @@ function GeneralTab({
       }
     }
     const settingsResult = await saveProjectSettings(project.id, {
-      default_view: defaultView,
-      inherit_layout: inheritLayout,
       skip_inbox: !sendToInbox,
     });
     if (!settingsResult.ok) {
@@ -239,12 +342,13 @@ function GeneralTab({
       // Issue #56: mark only the values that actually changed, once the
       // server accepted them. The markers reset on a full page load.
       if (titleSaved) markFieldChanged(project.id, 'title');
-      for (const [field, changed] of Object.entries(settingsChanges)) {
-        if (changed) markFieldChanged(project.id, field);
-      }
+      if (skipInboxWillChange) markFieldChanged(project.id, 'skip_inbox');
     }
     setSaving(false);
     if (!failed) {
+      // Keep the local baseline in step immediately; the refreshed server data
+      // replaces it once the navigation settles.
+      setBaseline({ title, sendToInbox });
       notify(t('settings.projectSaved'));
       refresh();
     }
@@ -273,36 +377,6 @@ function GeneralTab({
         </Field>
         <Field label={t('settings.reporter')} htmlFor="settings-reporter">
           <Input id="settings-reporter" value={project.reporter.username} readOnly disabled />
-        </Field>
-        <Field
-          label={t('settings.defaultView')}
-          htmlFor="settings-default-view"
-          error={fieldErrors.default_view}
-          changed={defaultViewChanged}
-        >
-          <Select
-            id="settings-default-view"
-            value={defaultView}
-            onChange={(event) => setDefaultView(event.target.value as CollectionView)}
-          >
-            {data.settings.enabled_views.map((view) => (
-              <option key={view} value={view}>
-                {t(COLLECTION_VIEW_MESSAGE_KEYS[view])}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field
-          label={t('settings.layout')}
-          htmlFor="settings-inherit-layout"
-          changed={inheritLayoutChanged}
-        >
-          <Checkbox
-            id="settings-inherit-layout"
-            label={t('settings.inheritLayout')}
-            checked={inheritLayout}
-            onChange={(event) => setInheritLayout(event.target.checked)}
-          />
         </Field>
         <Field
           label={t('settings.newChildren')}
@@ -352,19 +426,29 @@ function workflowRows(workflow: WorkflowViewData): WorkflowRow[] {
   }));
 }
 
+/** Stable representation of the editable workflow, ignoring row keys. */
+function workflowSignature(rows: WorkflowRow[]): string {
+  return JSON.stringify(
+    rows.map((row) => [row.id ?? '', row.name, row.isStart, row.isFinish]),
+  );
+}
+
 export function WorkflowTab({
   data,
   workflow,
   notify,
   refresh,
+  onDirtyChange,
 }: {
   data: ProjectPageData;
   workflow: WorkflowViewData;
   notify: (message: string, tone?: 'success' | 'error' | 'info') => void;
   refresh: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const { t, plural } = useI18n();
   const [rows, setRows] = useState<WorkflowRow[]>(() => workflowRows(workflow));
+  const [baseline, setBaseline] = useState(() => workflowSignature(workflowRows(workflow)));
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [showMapping, setShowMapping] = useState(false);
   const [mappingError, setMappingError] = useState<string | null>(null);
@@ -373,12 +457,18 @@ export function WorkflowTab({
   const workflowChanged = useFieldChanged(data.project.id, 'workflow');
 
   useEffect(() => {
-    setRows(workflowRows(workflow));
+    const next = workflowRows(workflow);
+    setRows(next);
+    setBaseline(workflowSignature(next));
     setMapping({});
     setShowMapping(false);
     setMappingError(null);
     setError(null);
   }, [workflow]);
+
+  const dirty =
+    workflowSignature(rows) !== baseline || Object.keys(mapping).length > 0;
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
 
   const updateRow = (key: string, patch: Partial<WorkflowRow>) =>
     setRows((current) => current.map((row) => (row.key === key ? { ...row, ...patch } : row)));
@@ -457,6 +547,12 @@ export function WorkflowTab({
     }
     setShowMapping(false);
     setMappingError(null);
+    // The server trims names; mirror that locally so the tab is clean before
+    // the refreshed data arrives.
+    const savedRows = rows.map((row) => ({ ...row, name: row.name.trim() }));
+    setRows(savedRows);
+    setBaseline(workflowSignature(savedRows));
+    setMapping({});
     markFieldChanged(data.project.id, 'workflow');
     notify(
       result.data.remappedChildren > 0
@@ -517,7 +613,9 @@ export function WorkflowTab({
   };
 
   const reset = () => {
-    setRows(workflowRows(workflow));
+    const next = workflowRows(workflow);
+    setRows(next);
+    setBaseline(workflowSignature(next));
     setMapping({});
     setShowMapping(false);
     setMappingError(null);
@@ -720,6 +818,25 @@ export function WorkflowTab({
 /* Members                                                                   */
 /* ------------------------------------------------------------------------- */
 
+function roleMapFromCandidates(
+  candidates: MemberCandidate[],
+): Record<string, ProjectRole | null> {
+  const next: Record<string, ProjectRole | null> = {};
+  for (const candidate of candidates) next[candidate.id] = candidate.explicitRole;
+  return next;
+}
+
+function sameRoleMap(
+  a: Record<string, ProjectRole | null>,
+  b: Record<string, ProjectRole | null>,
+): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const key of keys) {
+    if ((a[key] ?? null) !== (b[key] ?? null)) return false;
+  }
+  return true;
+}
+
 function MembersTab({
   data,
   members,
@@ -727,6 +844,7 @@ function MembersTab({
   viewerId,
   notify,
   refresh,
+  onDirtyChange,
 }: {
   data: ProjectPageData;
   members: ProjectMemberView[];
@@ -734,18 +852,21 @@ function MembersTab({
   viewerId: string;
   notify: (message: string, tone?: 'success' | 'error' | 'info') => void;
   refresh: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const { t, plural } = useI18n();
   const project = data.project;
   const parentName = project.parent
     ? formatPersonName(project.parent.title)
     : t('settings.parentFallback');
-  const [roles, setRoles] = useState<Record<string, ProjectRole | null>>(() => {
-    const next: Record<string, ProjectRole | null> = {};
-    for (const candidate of candidates) next[candidate.id] = candidate.explicitRole;
-    return next;
-  });
+  const [roles, setRoles] = useState<Record<string, ProjectRole | null>>(() =>
+    roleMapFromCandidates(candidates),
+  );
   const [access, setAccess] = useState<ProjectAccessMode>(data.settings.access);
+  const [baseline, setBaseline] = useState(() => ({
+    roles: roleMapFromCandidates(candidates),
+    access: data.settings.access,
+  }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmMessage, setConfirmMessage] = useState<string | null>(null);
@@ -755,12 +876,18 @@ function MembersTab({
   const accessFieldChanged = useFieldChanged(project.id, 'access');
 
   useEffect(() => {
-    const next: Record<string, ProjectRole | null> = {};
-    for (const candidate of candidates) next[candidate.id] = candidate.explicitRole;
+    const next = roleMapFromCandidates(candidates);
     setRoles(next);
     setAccess(data.settings.access);
+    setBaseline({ roles: next, access: data.settings.access });
     setAddUserId('');
   }, [candidates, data.settings.access]);
+
+  const dirty =
+    addUserId !== '' ||
+    access !== baseline.access ||
+    !sameRoleMap(roles, baseline.roles);
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
 
   const changes = candidates
     .filter((candidate) => (roles[candidate.id] ?? null) !== candidate.explicitRole)
@@ -805,6 +932,8 @@ function MembersTab({
     }
     setConfirmMessage(null);
     if (accessChanged) markFieldChanged(project.id, 'access');
+    setBaseline({ roles, access });
+    setAddUserId('');
     notify(t('settings.permissionsUpdated'));
     refresh();
   };
@@ -823,18 +952,22 @@ function MembersTab({
   };
 
   const reset = () => {
-    const next: Record<string, ProjectRole | null> = {};
-    for (const candidate of candidates) next[candidate.id] = candidate.explicitRole;
+    const next = roleMapFromCandidates(candidates);
     setRoles(next);
     setAccess(data.settings.access);
+    setBaseline({ roles: next, access: data.settings.access });
     setAddUserId('');
     setError(null);
   };
 
   const makePrivate = async () => {
+    const privateRoles: Record<string, ProjectRole | null> = {};
+    for (const candidate of candidates) {
+      privateRoles[candidate.id] = candidate.id === viewerId ? 'admin' : null;
+    }
     const privateChanges = candidates.map((candidate) => ({
       userId: candidate.id,
-      role: (candidate.id === viewerId ? 'admin' : null) as ProjectRole | null,
+      role: privateRoles[candidate.id] ?? null,
     }));
     setSaving(true);
     setError(null);
@@ -849,6 +982,10 @@ function MembersTab({
       setError(result.message);
       return;
     }
+    setRoles(privateRoles);
+    setAccess('custom');
+    setBaseline({ roles: privateRoles, access: 'custom' });
+    setAddUserId('');
     notify(t('settings.nowPrivate'));
     markFieldChanged(project.id, 'access');
     refresh();
@@ -1088,64 +1225,70 @@ const ADDON_MODE_MESSAGE_KEYS: Record<
 
 interface AddonDraft {
   enabled: boolean;
-  inheritFromParent: boolean;
 }
 
 function draftFor(view: ProjectAddonConfigView): AddonDraft {
   return {
     enabled: view.enabled ?? view.available,
-    inheritFromParent: view.inheritFromParent ?? true,
   };
 }
 
-function AddonsTab({
+function addonDrafts(addons: ProjectAddonConfigView[]): Record<string, AddonDraft> {
+  const next: Record<string, AddonDraft> = {};
+  for (const view of addons) next[view.identifier] = draftFor(view);
+  return next;
+}
+
+export function AddonsTab({
   projectId,
   addons,
   notify,
   refresh,
+  onDirtyChange,
 }: {
   projectId: string;
   addons: ProjectAddonConfigView[];
   notify: (message: string, tone?: 'success' | 'error' | 'info') => void;
   refresh: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const { t } = useI18n();
-  const [drafts, setDrafts] = useState<Record<string, AddonDraft>>(() => {
-    const next: Record<string, AddonDraft> = {};
-    for (const view of addons) next[view.identifier] = draftFor(view);
-    return next;
-  });
+  const [drafts, setDrafts] = useState<Record<string, AddonDraft>>(() =>
+    addonDrafts(addons),
+  );
+  const [baseline, setBaseline] = useState<Record<string, AddonDraft>>(() =>
+    addonDrafts(addons),
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const next: Record<string, AddonDraft> = {};
-    for (const view of addons) next[view.identifier] = draftFor(view);
+    const next = addonDrafts(addons);
     setDrafts(next);
+    setBaseline(next);
   }, [addons]);
 
+  // Configuration is an explicit per-project snapshot: only enable/disable
+  // changes are editable here. There is no live-inheritance control.
   const changed = addons.filter((view) => {
     if (view.mode !== 'optional') return false;
     const draft = drafts[view.identifier];
-    if (!draft) return false;
-    const initial = draftFor(view);
-    return (
-      draft.enabled !== initial.enabled || draft.inheritFromParent !== initial.inheritFromParent
-    );
+    const initial = baseline[view.identifier];
+    if (!draft || !initial) return false;
+    return draft.enabled !== initial.enabled;
   });
+  const dirty = changed.length > 0;
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
 
   const save = async () => {
     if (changed.length === 0) return;
     setSaving(true);
     setError(null);
-    const patch: Record<string, { enabled: boolean; inheritFromParent: boolean }> = {};
+    const patch: Record<string, { enabled: boolean }> = {};
     for (const view of changed) {
       const draft = drafts[view.identifier];
       if (!draft) continue;
-      patch[view.identifier] = {
-        enabled: draft.enabled,
-        inheritFromParent: draft.inheritFromParent,
-      };
+      patch[view.identifier] = { enabled: draft.enabled };
     }
     const result = await saveProjectAddons(projectId, patch);
     setSaving(false);
@@ -1153,6 +1296,7 @@ function AddonsTab({
       setError(result.message);
       return;
     }
+    setBaseline(drafts);
     notify(t('addons.projectSaved'));
     refresh();
   };
@@ -1174,9 +1318,6 @@ function AddonsTab({
                 </span>
                 <span className={styles.memberMeta}>
                   {t('addons.modeLabel')}: {t(ADDON_MODE_MESSAGE_KEYS[view.mode])}
-                  {view.inherited && view.enabled === null
-                    ? ` · ${t('addons.inheritedFromParent')}`
-                    : ''}
                 </span>
                 {view.description ? (
                   <span className={styles.memberMeta}>{view.description}</span>
@@ -1201,33 +1342,10 @@ function AddonsTab({
                     onChange={(event) =>
                       setDrafts((current) => ({
                         ...current,
-                        [view.identifier]: {
-                          ...draft,
-                          enabled: event.target.checked,
-                        },
+                        [view.identifier]: { enabled: event.target.checked },
                       }))
                     }
                   />
-                  {view.parentTitle ? (
-                    <Checkbox
-                      id={`addon-inherit-${view.identifier}`}
-                      label={t('addons.inheritFromParent')}
-                      description={t('addons.inheritFromParentHint', {
-                        parent: view.parentTitle,
-                      })}
-                      checked={draft.inheritFromParent}
-                      disabled={saving}
-                      onChange={(event) =>
-                        setDrafts((current) => ({
-                          ...current,
-                          [view.identifier]: {
-                            ...draft,
-                            inheritFromParent: event.target.checked,
-                          },
-                        }))
-                      }
-                    />
-                  ) : null}
                 </div>
               ) : null}
             </li>
@@ -1448,20 +1566,58 @@ function FieldListEditor({
   );
 }
 
-function LayoutTab({
+interface LayoutDraft {
+  childPosition: 'below' | 'above';
+  main: ProjectFieldKey[];
+  sidebar: ProjectFieldKey[];
+  asTemplate: boolean;
+  defaultView: CollectionView;
+  enabledViews: CollectionView[];
+  hiddenStatuses: string[];
+  viewFields: ViewFields;
+}
+
+function layoutDraftFrom(data: ProjectPageData): LayoutDraft {
+  return {
+    childPosition: data.settings.child_position,
+    main: data.layout.main,
+    sidebar: data.layout.sidebar,
+    asTemplate: data.settings.layout_template !== null,
+    defaultView: data.settings.default_view,
+    enabledViews: data.settings.enabled_views,
+    hiddenStatuses: data.settings.hidden_statuses,
+    viewFields: { ...DEFAULT_VIEW_FIELDS, ...data.settings.view_fields },
+  };
+}
+
+function layoutSignature(draft: LayoutDraft): string {
+  return JSON.stringify([
+    draft.childPosition,
+    draft.main,
+    draft.sidebar,
+    draft.asTemplate,
+    draft.defaultView,
+    draft.enabledViews,
+    draft.hiddenStatuses,
+    COLLECTION_VIEWS.map((view) => draft.viewFields[view] ?? []),
+  ]);
+}
+
+export function LayoutTab({
   data,
   workflow,
   notify,
   refresh,
+  onDirtyChange,
 }: {
   data: ProjectPageData;
   workflow: WorkflowViewData;
   notify: (message: string, tone?: 'success' | 'error' | 'info') => void;
   refresh: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const { t } = useI18n();
   const project = data.project;
-  const [inheritLayout, setInheritLayout] = useState(data.settings.inherit_layout);
   const [childPosition, setChildPosition] = useState(data.settings.child_position);
   const [main, setMain] = useState<ProjectFieldKey[]>(data.layout.main);
   const [sidebar, setSidebar] = useState<ProjectFieldKey[]>(data.layout.sidebar);
@@ -1473,21 +1629,36 @@ function LayoutTab({
     ...DEFAULT_VIEW_FIELDS,
     ...data.settings.view_fields,
   }));
+  const [baseline, setBaseline] = useState(() => layoutSignature(layoutDraftFrom(data)));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const childPositionChanged = useFieldChanged(project.id, 'child_position');
 
   useEffect(() => {
-    setInheritLayout(data.settings.inherit_layout);
-    setChildPosition(data.settings.child_position);
-    setMain(data.layout.main);
-    setSidebar(data.layout.sidebar);
-    setAsTemplate(data.settings.layout_template !== null);
-    setDefaultView(data.settings.default_view);
-    setEnabledViews(data.settings.enabled_views);
-    setHiddenStatuses(data.settings.hidden_statuses);
-    setViewFields({ ...DEFAULT_VIEW_FIELDS, ...data.settings.view_fields });
+    const draft = layoutDraftFrom(data);
+    setChildPosition(draft.childPosition);
+    setMain(draft.main);
+    setSidebar(draft.sidebar);
+    setAsTemplate(draft.asTemplate);
+    setDefaultView(draft.defaultView);
+    setEnabledViews(draft.enabledViews);
+    setHiddenStatuses(draft.hiddenStatuses);
+    setViewFields(draft.viewFields);
+    setBaseline(layoutSignature(draft));
   }, [data.settings, data.layout]);
+
+  const currentDraft: LayoutDraft = {
+    childPosition,
+    main,
+    sidebar,
+    asTemplate,
+    defaultView,
+    enabledViews,
+    hiddenStatuses,
+    viewFields,
+  };
+  const dirty = layoutSignature(currentDraft) !== baseline;
+  useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
 
   const toggleView = (view: CollectionView) => {
     if (enabledViews.includes(view)) {
@@ -1512,7 +1683,6 @@ function LayoutTab({
     setError(null);
     setSaving(true);
     const result = await saveProjectSettings(project.id, {
-      inherit_layout: inheritLayout,
       child_position: childPosition,
       default_view: defaultView,
       enabled_views: enabledViews,
@@ -1525,6 +1695,7 @@ function LayoutTab({
       setError(result.message);
       return;
     }
+    setBaseline(layoutSignature(currentDraft));
     notify(t('settings.layoutSaved'));
     refresh();
   };
@@ -1537,14 +1708,6 @@ function LayoutTab({
       </p>
       {error ? <Notice tone="error">{error}</Notice> : null}
       <div className={styles.fields}>
-        <Field label={t('settings.inheritance')} htmlFor="layout-inherit">
-          <Checkbox
-            id="layout-inherit"
-            label={t('settings.inheritLayout')}
-            checked={inheritLayout}
-            onChange={(event) => setInheritLayout(event.target.checked)}
-          />
-        </Field>
         <Field label={t('settings.useAsTemplate')} htmlFor="layout-template">
           <Checkbox
             id="layout-template"
@@ -1665,15 +1828,16 @@ function LayoutTab({
         <Button
           variant="quiet"
           onClick={() => {
-            setInheritLayout(data.settings.inherit_layout);
-            setChildPosition(data.settings.child_position);
-            setMain(data.layout.main);
-            setSidebar(data.layout.sidebar);
-            setAsTemplate(data.settings.layout_template !== null);
-            setDefaultView(data.settings.default_view);
-            setEnabledViews(data.settings.enabled_views);
-            setHiddenStatuses(data.settings.hidden_statuses);
-            setViewFields({ ...DEFAULT_VIEW_FIELDS, ...data.settings.view_fields });
+            const draft = layoutDraftFrom(data);
+            setChildPosition(draft.childPosition);
+            setMain(draft.main);
+            setSidebar(draft.sidebar);
+            setAsTemplate(draft.asTemplate);
+            setDefaultView(draft.defaultView);
+            setEnabledViews(draft.enabledViews);
+            setHiddenStatuses(draft.hiddenStatuses);
+            setViewFields(draft.viewFields);
+            setBaseline(layoutSignature(draft));
             setError(null);
           }}
           disabled={saving}

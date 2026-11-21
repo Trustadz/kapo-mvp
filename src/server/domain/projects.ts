@@ -36,7 +36,9 @@ import {
   getProjectAddonsForPage,
   reindexProjectAddonSearch,
   reindexProjectAddonSearchSubtree,
+  resolveProjectAddons,
 } from './project-addons';
+import type { AddonProjectConfig } from '@/server/addons';
 import {
   DomainError,
   accessibleAncestors,
@@ -275,6 +277,9 @@ export function parseProjectSettings(raw: string | null | undefined): ProjectSet
 
   return {
     access: parsed.access === 'custom' ? 'custom' : 'inherit',
+    // Missing/true marks a pre-copy-on-create row. The one-time inheritance
+    // snapshot reads this legacy flag and then pins every project to false;
+    // layout reads never consult it any more.
     inherit_layout: parsed.inherit_layout !== false,
     child_position: parsed.child_position === 'above' ? 'above' : 'below',
     default_view: defaultView,
@@ -302,28 +307,6 @@ function writeRawSettings(
     JSON.stringify(settings),
     projectId,
   );
-}
-
-function effectiveLayoutTemplate(
-  db: BetterSqliteDatabase,
-  projectId: string,
-  settings: ProjectSettingsData,
-): ProjectLayoutTemplate {
-  if (settings.inherit_layout) {
-    const row = db.prepare('SELECT parent_id, settings FROM projects WHERE id = ?').get(projectId) as
-      | { parent_id: string | null; settings: string }
-      | undefined;
-    if (row?.parent_id) {
-      const parentRow = db.prepare('SELECT settings FROM projects WHERE id = ?').get(row.parent_id) as
-        | { settings: string }
-        | undefined;
-      if (parentRow) {
-        const parentSettings = parseProjectSettings(parentRow.settings);
-        if (parentSettings.layout_template) return parentSettings.layout_template;
-      }
-    }
-  }
-  return settings.layout_template ?? DEFAULT_LAYOUT_TEMPLATE;
 }
 
 export interface UpdateProjectSettingsInput {
@@ -430,6 +413,9 @@ export function updateProjectSettings(
       if (!template) fields.layout_template = 'Choose at least one field for the layout.';
       else next.layout_template = template;
     }
+    // Saving a layout makes it this project's explicit layout (copied down to
+    // new children); it never resumes live inheritance.
+    if (input.inherit_layout === undefined) next.inherit_layout = false;
   }
 
   if (input.view_fields !== undefined) {
@@ -640,7 +626,9 @@ export function getProjectPageData(
     descendants,
     activity,
     settings,
-    layout: effectiveLayoutTemplate(db, projectId, settings),
+    // Layout is copied from the parent once at creation; a project never
+    // resolves its template through the live parent chain.
+    layout: settings.layout_template ?? DEFAULT_LAYOUT_TEMPLATE,
     addons: getProjectAddonsForPage(db, user, projectId),
     showArchived: ctx.user.showArchived,
   };
@@ -680,6 +668,23 @@ export function createProject(
   }
 
   const parentSettings = parseProjectSettings(parent.settings);
+  // Layout and add-on configuration are snapshotted from the parent exactly
+  // once, at creation. Later parent edits never reach this child.
+  const parentLayout = parentSettings.layout_template ?? DEFAULT_LAYOUT_TEMPLATE;
+  const addonSnapshot: Record<string, AddonProjectConfig> = {};
+  for (const resolved of resolveProjectAddons(db, input.parentId)) {
+    addonSnapshot[resolved.identifier] = {
+      enabled: resolved.available,
+      inheritFromParent: false,
+      settings: { ...resolved.settings },
+    };
+  }
+  const childSettings: Record<string, unknown> = {
+    ...DEFAULT_PROJECT_SETTINGS,
+    inherit_layout: false,
+    layout_template: parentLayout,
+  };
+  if (Object.keys(addonSnapshot).length > 0) childSettings.addons = addonSnapshot;
   const createdAt = nowIso();
 
   const transaction = db.transaction((): ProjectCard => {
@@ -708,7 +713,7 @@ export function createProject(
       start.id,
       maxPriority.priority + 1,
       parentSettings.skip_inbox ? 0 : 1,
-      JSON.stringify(DEFAULT_PROJECT_SETTINGS),
+      JSON.stringify(childSettings),
       user.id,
       createdAt,
       createdAt,

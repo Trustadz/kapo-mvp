@@ -47,11 +47,12 @@ tests/integration/ real route handlers: auth/setup, projects, accounts,
                  dashboard/members, project admin surface, new features
                  (workflow same-name replacement, view_fields, Tree bulk
                  move, Trash grouping), add-on plumbing (value writes,
-                 modes/inheritance, registry sync, search, purge hooks),
-                 seed script
+                 explicit configuration, registry sync, search, purge hooks),
+                 the one-time copy-on-create snapshot, seed script
 tests/regressions/ architecture-review fix pass (AR-021…AR-052)
 tests/e2e/       first-install + seeded desktop journeys, including the
-                 focused Assignee add-on enable/save/persist journey
+                 focused Assignee add-on enable/save/persist journey and the
+                 project-settings copy-on-create/unsaved-changes guard
 ```
 
 ## Known expected failures

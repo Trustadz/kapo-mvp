@@ -144,6 +144,7 @@ describe('POST /api/setup', () => {
       'backup_start_time',
       'default_account_role',
       'enabled_views',
+      'inheritance_snapshot_v1',
       'installation_name',
       'trash_purge_enabled',
       'trash_retention_days',

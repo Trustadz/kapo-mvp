@@ -975,7 +975,7 @@ describe('layout template defaults (issue #17)', () => {
     expect(root.layout).toEqual({ main: [], sidebar: ['status', 'reporter'] });
   });
 
-  it('keeps explicit templates and parent inheritance working', () => {
+  it('keeps each project own template and copies the parent template to new children', () => {
     updateProjectSettings(db, actor(fixture.admin), fixture.homeId, {
       inherit_layout: false,
       layout_template: {
@@ -989,19 +989,32 @@ describe('layout template defaults (issue #17)', () => {
       sidebar: ['status', 'reporter'],
     });
 
-    // Kitchen still inherits Home's explicit template.
-    const inherited = getProjectPageData(db, actor(fixture.admin), fixture.kitchenId)!;
-    expect(inherited.layout).toEqual({
+    // Existing children no longer resolve through the parent chain.
+    const existing = getProjectPageData(db, actor(fixture.admin), fixture.kitchenId)!;
+    expect(existing.layout).toEqual({ main: [], sidebar: ['status', 'reporter'] });
+
+    // A child created now copies the parent's current effective template once.
+    const created = createProject(db, actor(fixture.admin), {
+      parentId: fixture.homeId,
+      title: 'Template copy',
+    });
+    const copied = getProjectPageData(db, actor(fixture.admin), created.id)!;
+    expect(copied.layout).toEqual({
       main: ['projectId', 'parent', 'reporter'],
       sidebar: ['status', 'reporter'],
     });
+    expect(copied.settings.inherit_layout).toBe(false);
 
-    // A child can opt out and define its own template.
-    updateProjectSettings(db, actor(fixture.admin), fixture.kitchenId, {
+    // A child can define its own template; later parent edits never reach it.
+    updateProjectSettings(db, actor(fixture.admin), created.id, {
       inherit_layout: false,
       layout_template: { main: ['updated'], sidebar: ['parent'] },
     });
-    const own = getProjectPageData(db, actor(fixture.admin), fixture.kitchenId)!;
+    updateProjectSettings(db, actor(fixture.admin), fixture.homeId, {
+      inherit_layout: false,
+      layout_template: { main: ['reporter'], sidebar: ['status'] },
+    });
+    const own = getProjectPageData(db, actor(fixture.admin), created.id)!;
     expect(own.layout).toEqual({ main: ['updated'], sidebar: ['parent'] });
   });
 });
