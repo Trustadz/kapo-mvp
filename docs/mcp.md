@@ -212,5 +212,8 @@ For client authors:
 - Tools: `whoami`, `search_projects`, `get_project`, `list_inbox`,
   `list_children`, `get_workflow`, `get_activity`, `create_project`,
   `update_project`, `release_inbox`, `set_addon_values`.
+- Projects are addressed by an opaque `projectId` UUID and are returned in
+  display order. Kapo's display numbers (`KAP-…`) and sibling priority are
+  internal and are not exposed to the assistant.
 - Add-on data is read through `get_project` and written through
   `set_addon_values`; there are no per-add-on tools.

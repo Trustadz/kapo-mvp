@@ -14,7 +14,7 @@ import {
 } from '@/server/domain/project-addons';
 import { updateApplicationSettings } from '@/server/domain/settings';
 import { listActivity } from '@/server/domain/audit';
-import { updateProject } from '@/server/domain/projects';
+import { reorderProject, updateProject } from '@/server/domain/projects';
 import '@/server/addons';
 
 /**
@@ -220,6 +220,7 @@ describe('tools', () => {
     expect(payload.appRole).toBe('user');
     expect(payload.canWrite).toBe(true);
     expect(payload.mcp.tokenLabel).toBe('Claude Desktop');
+    expect(payload.mcp).not.toHaveProperty('tokenId');
   });
 
   it('searches only projects the token owner may read', async () => {
@@ -237,13 +238,63 @@ describe('tools', () => {
   it('reads a project with add-on definitions and values', async () => {
     const { result } = await callTool('get_project', { projectId: household.renovate.id });
     const payload = result.structuredContent as {
-      project: { title: string; inbox: boolean; yourRole: string };
+      project: Record<string, unknown> & { title: string; inbox: boolean; yourRole: string };
+      children: Array<Record<string, unknown>>;
       addons: Array<{ identifier: string; mode: string; available: boolean }>;
     };
     expect(payload.project.title).toBe('Renovate basement');
     expect(payload.project.inbox).toBe(true);
     expect(payload.project.yourRole).toBe('admin');
     expect(payload.addons.some((addon) => addon.identifier === 'assignee')).toBe(true);
+
+    // Internal bookkeeping stays out of tool output.
+    expect(payload.project).not.toHaveProperty('key');
+    expect(payload.project).not.toHaveProperty('displayId');
+    expect(payload.project).not.toHaveProperty('priority');
+    for (const child of payload.children) {
+      expect(child).not.toHaveProperty('key');
+      expect(child).not.toHaveProperty('priority');
+    }
+  });
+
+  it('lists Root children without internal display ids or priority', async () => {
+    const { result } = await callTool('list_children', {});
+    const payload = result.structuredContent as {
+      children: Array<Record<string, unknown>>;
+    };
+    expect(payload.children.length).toBeGreaterThan(0);
+    for (const child of payload.children) {
+      expect(typeof child.projectId).toBe('string');
+      expect(child).not.toHaveProperty('key');
+      expect(child).not.toHaveProperty('displayId');
+      expect(child).not.toHaveProperty('priority');
+    }
+  });
+
+  it('does not expose priority numbers in activity', async () => {
+    // A real reorder writes a priority audit row; the tool must hide its values.
+    reorderProject(
+      db,
+      { id: household.maya.id, appRole: 'user', showArchived: false },
+      household.paintHallway.id,
+      { beforeId: household.renovate.id },
+    );
+    const { result } = await callTool('get_activity', {
+      projectId: household.paintHallway.id,
+    });
+    const payload = result.structuredContent as {
+      events: Array<{
+        action: string;
+        field: string | null;
+        oldValue: string | null;
+        newValue: string | null;
+      }>;
+    };
+    const event = payload.events.find((entry) => entry.action === 'project.priority_changed');
+    expect(event).toBeDefined();
+    expect(event?.field).toBeNull();
+    expect(event?.oldValue).toBeNull();
+    expect(event?.newValue).toBeNull();
   });
 
   it('returns tool errors instead of crashes for unreadable projects', async () => {

@@ -113,23 +113,21 @@ function statusSummary(status: { id: string; name: string; position: number; isS
 
 function cardSummary(card: {
   id: string;
-  displayId: string;
   title: string;
   statusId: string | null;
   statusName: string | null;
-  priority: number;
   inbox: boolean;
   archived: boolean;
   trashed: boolean;
   parentId: string | null;
 }) {
   return {
+    // The opaque UUID is the only project handle the assistant gets. Kapo's
+    // user-facing display number and sibling priority stay internal.
     projectId: card.id,
-    key: card.displayId,
     title: card.title,
     statusId: card.statusId,
     statusName: card.statusName,
-    priority: card.priority,
     inbox: card.inbox,
     archived: card.archived,
     trashed: card.trashed,
@@ -166,13 +164,20 @@ function addonSummary(item: ProjectAddonEditorItem) {
 }
 
 function activitySummary(event: ActivityEvent) {
+  // Sibling priority is a calculated internal order, never a user-facing field:
+  // the web history renders "moved earlier/later" without the numbers. The
+  // assistant gets the same treatment (the action still says what happened).
+  const isPriority = event.field === 'priority';
+  // Add-on changes store their raw field keys and values in `detail`; the
+  // human label and display values are already in `field`/oldValue/newValue.
+  const isAddonValue = event.action === 'project.addon_value_changed';
   return {
     id: event.id,
     action: event.action,
-    field: event.field,
-    oldValue: event.oldValue,
-    newValue: event.newValue,
-    detail: event.detail,
+    field: isPriority ? null : event.field,
+    oldValue: isPriority ? null : event.oldValue,
+    newValue: isPriority ? null : event.newValue,
+    detail: isAddonValue ? null : event.detail,
     actor: event.actor ? { username: event.actor.username } : null,
     via: event.via,
     createdAt: event.createdAt,
@@ -208,7 +213,6 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = [
       canWrite: context.user.appRole !== 'viewer',
       mcp: {
         tokenLabel: context.accessUser.via?.agent ?? null,
-        tokenId: context.accessUser.via?.tokenId ?? null,
       },
     }),
   },
@@ -265,13 +269,11 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = [
       return {
         project: {
           projectId: page.project.id,
-          key: page.project.displayId,
           title: page.project.title,
           statusId: page.project.statusId,
           statusName: page.project.statusName,
           parent: page.project.parent,
           breadcrumb: page.breadcrumb,
-          priority: page.project.priority,
           inbox: page.project.inbox,
           archived: page.project.archived,
           trashed: page.project.trashed,
@@ -339,7 +341,6 @@ export const MCP_TOOLS: readonly McpToolDefinition[] = [
         parent: {
           projectId: page.project.id,
           title: page.project.title,
-          key: page.project.displayId,
         },
         children: page.children.map(cardSummary),
         statusesForChildren: page.statuses.map(statusSummary),

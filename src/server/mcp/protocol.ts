@@ -52,8 +52,10 @@ export interface McpToolCallResult {
 const INSTRUCTIONS =
   'Kapo is a self-hosted household project board. You act as the person who created this MCP token; ' +
   'their permissions apply and every change is recorded in project history as that person, marked with ' +
-  'the token label. Prefer reading before writing: call get_project to discover status ids and add-on ' +
-  'fields. Never guess a status id. Trashed projects are read-only.';
+  'the token label. Refer to projects by title in your answers: ids are opaque handles for tool calls, ' +
+  'not something to show the user, and Kapo has no user-facing project numbers or priority values. ' +
+  'Prefer reading before writing: call get_project to discover status ids and add-on fields. Never guess ' +
+  'a status id. Trashed projects are read-only.';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
