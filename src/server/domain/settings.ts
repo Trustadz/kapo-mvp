@@ -10,6 +10,7 @@ import {
   DEFAULT_BACKUP_ENABLED,
   DEFAULT_BACKUP_RETENTION,
   DEFAULT_BACKUP_START_TIME,
+  DEFAULT_MCP_ENABLED,
   DEFAULT_TRASH_PURGE_ENABLED,
   MAX_BACKUP_RETENTION,
   MAX_TRASH_RETENTION_DAYS,
@@ -55,6 +56,7 @@ export interface ApplicationSettings {
   enabledViews: CollectionView[];
   trashPurgeEnabled: boolean;
   trashRetentionDays: number;
+  mcpEnabled: boolean;
   installationName: string;
   backupEnabled: boolean;
   /** Local wall-clock start time, `HH:MM` (24-hour). */
@@ -143,6 +145,7 @@ export function getApplicationSettings(
       DEFAULT_TRASH_PURGE_ENABLED,
     ),
     trashRetentionDays: parseTrashRetention(readSetting(db, 'trash_retention_days')),
+    mcpEnabled: parseBooleanSetting(readSetting(db, 'mcp_enabled'), DEFAULT_MCP_ENABLED),
     installationName: getInstallationName(db),
     backupEnabled: parseBooleanSetting(
       readSetting(db, 'backup_enabled'),
@@ -168,6 +171,7 @@ export interface UpdateApplicationSettingsInput {
   backupEnabled?: unknown;
   backupStartTime?: unknown;
   backupRetention?: unknown;
+  mcpEnabled?: unknown;
 }
 
 function normaliseViews(raw: unknown): CollectionView[] {
@@ -240,6 +244,15 @@ export function updateApplicationSettings(
     }
     values.set('trash_retention_days', String(days));
     nextTrashRetention = days;
+  }
+
+  if (input.mcpEnabled !== undefined) {
+    if (typeof input.mcpEnabled !== 'boolean') {
+      throw new SettingsError(422, 'validation_failed', 'Check the highlighted fields.', {
+        mcpEnabled: 'Choose whether MCP access is enabled.',
+      });
+    }
+    values.set('mcp_enabled', input.mcpEnabled ? '1' : '0');
   }
 
   if (input.installationName !== undefined) {

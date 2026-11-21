@@ -149,7 +149,7 @@ export function releaseInboxProject(
     db.prepare('UPDATE projects SET inbox = 0, updated_at = ? WHERE id = ?').run(timestamp, projectId);
     recordAuditEvent(db, {
       projectId,
-      actorId: actor.id,
+      actor: actor,
       action: AUDIT_ACTIONS.projectInboxReleased,
       field: 'inbox',
       oldValue: 'In Inbox',
@@ -394,7 +394,7 @@ export function changeInboxParent(
 
     recordAuditEvent(db, {
       projectId,
-      actorId: actor.id,
+      actor: actor,
       action: AUDIT_ACTIONS.projectMoved,
       field: AUDIT_FIELDS.parent,
       oldValue: oldParentTitle,
@@ -404,7 +404,7 @@ export function changeInboxParent(
     if (oldStatusId !== start.id) {
       recordAuditEvent(db, {
         projectId,
-        actorId: actor.id,
+        actor: actor,
         action: AUDIT_ACTIONS.projectStatusChanged,
         field: AUDIT_FIELDS.status,
         oldValue: oldStatusName,

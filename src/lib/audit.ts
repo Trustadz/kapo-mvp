@@ -33,3 +33,19 @@ export const AUDIT_FIELDS = {
 } as const;
 
 export type AuditField = (typeof AUDIT_FIELDS)[keyof typeof AUDIT_FIELDS];
+
+/**
+ * Provenance of a write that did not come from the user's own browser session.
+ *
+ * `agent` is a snapshot of the MCP token's user-chosen label (for example
+ * "Claude Desktop"). It is never taken from the request body: the server reads
+ * it from the token row, so an MCP client cannot forge or relabel itself.
+ * `NULL` provenance means an ordinary web/API write.
+ */
+export type AuditChannel = 'mcp';
+
+export interface AuditVia {
+  channel: AuditChannel;
+  agent: string;
+  tokenId: string | null;
+}

@@ -468,6 +468,20 @@ editor; add-on search indexing; audit/activity integration; and isolated
 `src/server/domain/project-addons.ts` for the core plumbing. Add-ons never
 bypass core invariants (permissions, workflow remapping, trash read-only).
 
+### AI access (MCP)
+
+Kapo ships an opt-in **MCP server** so a user's own local AI client (for
+example llama.cpp through Open WebUI, or Claude Desktop) can read and write the
+board **as that user**. It is core, not an add-on: inbound only, per-user
+personal tokens, no outbound calls. Every MCP write is attributed to the human
+owner and marked in project history with an **AI** badge and `(via <token name>)`.
+
+MCP is **off by default**. An Admin enables it under **Settings → AI access**;
+users then create and revoke personal tokens under **Profile → AI access**.
+The endpoint is `POST /api/mcp` (Streamable HTTP, stateless, bearer token).
+See [docs/mcp.md](docs/mcp.md) for user setup, client examples, what the
+assistant can and cannot do, and troubleshooting.
+
 ## Building on the foundation
 
 For feature builders working in this repository:
@@ -483,14 +497,14 @@ For feature builders working in this repository:
 - API responses: `jsonOk()` / `jsonError()` / `readJsonBody()` from
   `src/server/http.ts`; client calls via `postJson` / `patchJson` from
   `src/lib/api-client.ts`.
-- Audit vocabulary: `AUDIT_ACTIONS` / `AUDIT_FIELDS` from `src/lib/audit.ts`.
+- Audit vocabulary: `AUDIT_ACTIONS` / `AUDIT_FIELDS` / `AuditVia` from `src/lib/audit.ts`.
 - Shared types: `src/lib/types.ts` (`AppRole`, `Appearance`, `AuthUser`,
   `DashboardPreference`, `COLLECTION_VIEWS`, …). The default dashboard widget
   list is `[{ id: 'inbox', visible: true }, { id: 'recent', visible: true }]`.
 - Routes owned elsewhere (do not duplicate): `/` Home, `/inbox`, `/p/**`,
   `/search`, `/trash`, `/profile`, `/settings`, `/users`, and `/api/me`,
   `/api/dashboard`, `/api/settings`, `/api/users`, `/api/projects`,
-  `/api/inbox`, `/api/search`.
+  `/api/inbox`, `/api/search`, `/api/mcp`, `/api/me/mcp-tokens`.
 - The shell already depends on these contracts: `POST /api/projects`
   `{ parentId, title }` for capture and `PATCH /api/me` `{ appearance }` for the
   appearance menu. Both currently fail gracefully with an inline error/toast

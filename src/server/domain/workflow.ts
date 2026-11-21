@@ -352,7 +352,6 @@ export function replaceWorkflow(
     );
   }
 
-  const actorId = actor.id;
   const transaction = db.transaction((): ReplaceWorkflowResult => {
     // Two-phase position rewrite: UNIQUE(parent_id, position) is immediate.
     db.prepare('UPDATE statuses SET position = position + 100000 WHERE parent_id = ?').run(parentId);
@@ -417,7 +416,7 @@ export function replaceWorkflow(
         updateChild.run(target, timestamp, child.id);
         recordChildStatusAudit(
           db,
-          actorId,
+          actor,
           child.id,
           status.name,
           targetName,
@@ -479,9 +478,19 @@ export function replaceWorkflow(
         : 'Updated child workflow';
     db.prepare(
       `INSERT INTO audit_events
-         (id, project_id, actor_id, action, field, old_value, new_value, target_id, detail, created_at)
-       VALUES (?, ?, ?, 'workflow.updated', NULL, NULL, NULL, NULL, ?, ?)`,
-    ).run(newId(), parentId, actorId, detail, timestamp);
+         (id, project_id, actor_id, action, field, old_value, new_value, target_id, detail, created_at,
+          via_channel, via_agent, via_token_id)
+       VALUES (?, ?, ?, 'workflow.updated', NULL, NULL, NULL, NULL, ?, ?, ?, ?, ?)`,
+    ).run(
+      newId(),
+      parentId,
+      actor.id,
+      detail,
+      timestamp,
+      actor.via?.channel ?? null,
+      actor.via?.agent ?? null,
+      actor.via?.tokenId ?? null,
+    );
 
     return {
       workflow: getWorkflowData(db, parentId),
@@ -495,7 +504,7 @@ export function replaceWorkflow(
 
 function recordChildStatusAudit(
   db: BetterSqliteDatabase,
-  actorId: string,
+  actor: AccessUser,
   projectId: string,
   oldValue: string,
   newValue: string,
@@ -504,9 +513,21 @@ function recordChildStatusAudit(
 ): void {
   db.prepare(
     `INSERT INTO audit_events
-       (id, project_id, actor_id, action, field, old_value, new_value, target_id, detail, created_at)
-     VALUES (?, ?, ?, 'project.status_changed', 'status', ?, ?, NULL, ?, ?)`,
-  ).run(newId(), projectId, actorId, oldValue, newValue, detail, timestamp);
+       (id, project_id, actor_id, action, field, old_value, new_value, target_id, detail, created_at,
+        via_channel, via_agent, via_token_id)
+     VALUES (?, ?, ?, 'project.status_changed', 'status', ?, ?, NULL, ?, ?, ?, ?, ?)`,
+  ).run(
+    newId(),
+    projectId,
+    actor.id,
+    oldValue,
+    newValue,
+    detail,
+    timestamp,
+    actor.via?.channel ?? null,
+    actor.via?.agent ?? null,
+    actor.via?.tokenId ?? null,
+  );
 }
 
 /** Maps a status id to its human name for audit/display purposes. */

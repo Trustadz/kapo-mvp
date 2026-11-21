@@ -107,6 +107,34 @@
   text-decoration: underline;
 }
 
+.recentAvatar {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+}
+
+.aiBadge {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  padding: 0 4px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-surface);
+  background: var(--color-accent);
+  color: var(--color-surface);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 13px;
+  letter-spacing: 0.02em;
+}
+
+.recentVia {
+  color: var(--color-muted);
+  font-size: var(--font-size-small);
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+
 .recentText {
   display: flex;
   flex-direction: column;

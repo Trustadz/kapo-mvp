@@ -33,6 +33,7 @@ interface SettingsValues {
   enabledViews: CollectionView[];
   trashPurgeEnabled: boolean;
   trashRetentionDays: number;
+  mcpEnabled: boolean;
   backupEnabled: boolean;
   backupStartTime: string;
   backupRetention: number;
@@ -44,6 +45,7 @@ function valuesFromSettings(settings: ApplicationSettings): SettingsValues {
     enabledViews: settings.enabledViews,
     trashPurgeEnabled: settings.trashPurgeEnabled,
     trashRetentionDays: settings.trashRetentionDays,
+    mcpEnabled: settings.mcpEnabled,
     backupEnabled: settings.backupEnabled,
     backupStartTime: settings.backupStartTime,
     backupRetention: settings.backupRetention,
@@ -104,6 +106,7 @@ export function ApplicationSettingsForm({
     values.enabledViews.some((view, index) => view !== saved.enabledViews[index]) ||
     values.trashPurgeEnabled !== saved.trashPurgeEnabled ||
     values.trashRetentionDays !== saved.trashRetentionDays ||
+    values.mcpEnabled !== saved.mcpEnabled ||
     values.backupEnabled !== saved.backupEnabled ||
     values.backupStartTime !== saved.backupStartTime ||
     values.backupRetention !== saved.backupRetention ||
@@ -168,6 +171,7 @@ export function ApplicationSettingsForm({
           enabledViews: values.enabledViews,
           trashPurgeEnabled: values.trashPurgeEnabled,
           trashRetentionDays: values.trashRetentionDays,
+          mcpEnabled: values.mcpEnabled,
           backupEnabled: values.backupEnabled,
           backupStartTime: values.backupStartTime,
           backupRetention: values.backupRetention,
@@ -357,6 +361,25 @@ export function ApplicationSettingsForm({
               ))}
             </fieldset>
           ) : null}
+
+          <fieldset className={styles.backupFieldset}>
+            <legend className={styles.viewsLegend}>{t('settings.mcp')}</legend>
+            <p className={styles.note}>{t('settings.mcpNote')}</p>
+            <Checkbox
+              id="settings-mcp-enabled"
+              name="mcpEnabled"
+              label={t('settings.mcpEnabled')}
+              description={t('settings.mcpEnabledDescription')}
+              checked={values.mcpEnabled}
+              onChange={(event) => {
+                clearFieldError('mcpEnabled');
+                setValues((current) => ({
+                  ...current,
+                  mcpEnabled: event.target.checked,
+                }));
+              }}
+            />
+          </fieldset>
 
           <fieldset className={styles.backupFieldset}>
             <legend className={styles.viewsLegend}>{t('settings.backups')}</legend>

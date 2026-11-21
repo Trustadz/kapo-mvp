@@ -42,6 +42,7 @@ export const PUT = apiRoute(
     if ('trashPurgeEnabled' in data) input.trashPurgeEnabled = data.trashPurgeEnabled;
     if ('trashRetentionDays' in data) input.trashRetentionDays = data.trashRetentionDays;
     if ('installationName' in data) input.installationName = data.installationName;
+    if ('mcpEnabled' in data) input.mcpEnabled = data.mcpEnabled;
     if ('backupEnabled' in data) input.backupEnabled = data.backupEnabled;
     if ('backupStartTime' in data) input.backupStartTime = data.backupStartTime;
     if ('backupRetention' in data) input.backupRetention = data.backupRetention;

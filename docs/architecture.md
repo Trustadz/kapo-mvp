@@ -131,6 +131,26 @@ auth 401; project authorization uses **404 for projects the caller may not read*
 existence); 403 is used for a known project where the caller lacks the capability. Domain mutations
 never return `null` on failure; they throw and route handlers map the error.
 
+### 2.3 MCP adapter (opt-in AI access)
+
+`POST /api/mcp` is an inbound Model Context Protocol server for a user's own AI
+client. It is core, not an add-on: add-ons may not add routes, network I/O or
+their own credentials ([add-ons.md](add-ons.md) §1). The adapter is split so the
+protocol is testable without Next.js:
+
+| Module | Responsibility |
+|---|---|
+| `src/app/api/mcp/route.ts` | HTTP transport: global enable check, bearer auth, JSON parse, status codes |
+| `src/server/mcp/protocol.ts` | JSON-RPC 2.0 (`initialize`, `ping`, `tools/list`, `tools/call`), error mapping, batch/notification rules |
+| `src/server/mcp/tools.ts` | Generic domain verbs; no per-add-on tool and no permission logic of its own |
+| `src/server/auth/mcp-token.ts` | Personal token hashing, resolution, revocation (`mcp_tokens`) |
+
+It is stateless (no session id, no SSE stream) and calls the same domain commands
+as route handlers. Provenance is carried on `AccessUser.via`, which
+`recordAuditEvent` snapshots into `audit_events.via_*`; it is never an
+authorization input. The Admin toggle lives in application settings
+(`mcp_enabled`, default off). See [mcp.md](mcp.md).
+
 ## 3. Data model rationale
 
 `src/server/db/migrations/001_init.sql` implements build-spec §5. The choices that need explaining:
