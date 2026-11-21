@@ -58,8 +58,9 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: 'cover',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#F5F3EC' },
-    { media: '(prefers-color-scheme: dark)', color: '#181C19' },
+    // Match the top bar and bottom navigation (surface), not the page canvas.
+    { media: '(prefers-color-scheme: light)', color: '#FFFFFF' },
+    { media: '(prefers-color-scheme: dark)', color: '#242A25' },
   ],
 };
 

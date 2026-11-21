@@ -16,6 +16,9 @@ body {
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  /* Rubber-band/overscroll at the top and bottom should match the app bars
+     (surface), not the cream page canvas. The body still paints the canvas. */
+  background: var(--color-surface);
 }
 
 body {

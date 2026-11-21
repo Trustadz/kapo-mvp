@@ -91,3 +91,52 @@ test.describe('mobile Inbox tree', () => {
     await expect(tree.getByRole('checkbox', { name: 'Select Renovate basement' })).toBeVisible();
   });
 });
+
+test.describe('mobile browser chrome', () => {
+  test('top/bottom edges use the bar surface colours instead of the canvas', async ({ page }) => {
+    await login(page, 'admin');
+    await page.goto('/inbox');
+
+    const edges = await page.evaluate(() => {
+      const nav = document.querySelector<HTMLElement>('nav[aria-label="Mobile navigation"]');
+      const metas = Array.from(
+        document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]'),
+      ).map((meta) => ({
+        media: meta.getAttribute('media'),
+        content: meta.getAttribute('content')?.toLowerCase(),
+      }));
+      return {
+        html: getComputedStyle(document.documentElement).backgroundColor,
+        body: getComputedStyle(document.body).backgroundColor,
+        nav: nav ? getComputedStyle(nav).backgroundColor : null,
+        metas,
+      };
+    });
+
+    expect(edges.html).toBe('rgb(255, 255, 255)');
+    expect(edges.body).toBe('rgb(245, 243, 236)');
+    expect(edges.nav).toBe('rgb(255, 255, 255)');
+    expect(edges.metas).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ media: '(prefers-color-scheme: light)', content: '#ffffff' }),
+        expect.objectContaining({ media: '(prefers-color-scheme: dark)', content: '#242a25' }),
+      ]),
+    );
+
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.reload();
+    const dark = await page.evaluate(() => {
+      const nav = document.querySelector<HTMLElement>('nav[aria-label="Mobile navigation"]');
+      return {
+        html: getComputedStyle(document.documentElement).backgroundColor,
+        body: getComputedStyle(document.body).backgroundColor,
+        nav: nav ? getComputedStyle(nav).backgroundColor : null,
+      };
+    });
+    expect(dark).toEqual({
+      html: 'rgb(36, 42, 37)',
+      body: 'rgb(24, 28, 25)',
+      nav: 'rgb(36, 42, 37)',
+    });
+  });
+});
