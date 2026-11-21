@@ -50,7 +50,7 @@ bright enough to read as a component boundary.
 | Soft on canvas | `#9AABA0` | `#F5F3EC` | 2.17:1 | — | Decorative exception |
 | Link/accent on surface | `#28614A` | `#FFFFFF` | 7.24:1 | 4.5 | Pass |
 | Link/accent on canvas | `#28614A` | `#F5F3EC` | 6.52:1 | 4.5 | Pass |
-| Accent on brand-light (changed-field accent, inset marker) | `#28614A` | `#E8F2EC` | 6.33:1 | 3 | Pass |
+| Accent on brand-light (focus/drag indicator) | `#28614A` | `#E8F2EC` | 6.33:1 | 3 | Pass |
 | White on primary action | `#FFFFFF` | `#28614A` | 7.24:1 | 4.5 | Pass |
 | White on danger action | `#FFFFFF` | `#A33A2F` | 6.56:1 | 4.5 | Pass |
 | Primary fill on surface | `#28614A` | `#FFFFFF` | 7.24:1 | 3 | Pass |
@@ -87,7 +87,7 @@ bright enough to read as a component boundary.
 | Soft on surface | `#88978B` | `#242A25` | 4.78:1 | — | Decorative (passes anyway) |
 | Link/accent on surface | `#9BD6B3` | `#242A25` | 8.84:1 | 4.5 | Pass |
 | Link/accent on canvas | `#9BD6B3` | `#181C19` | 10.39:1 | 4.5 | Pass |
-| Accent on brand-light (changed-field accent, inset marker) | `#9BD6B3` | `#2B4234` | 6.56:1 | 3 | Pass |
+| Accent on brand-light (focus/drag indicator) | `#9BD6B3` | `#2B4234` | 6.56:1 | 3 | Pass |
 | White on primary action | `#FFFFFF` | `#3D8067` | 4.69:1 | 4.5 | Pass |
 | Primary fill on surface | `#3D8067` | `#242A25` | 3.13:1 | 3 | Pass |
 | Primary fill on canvas | `#3D8067` | `#181C19` | 3.68:1 | 3 | Pass |
