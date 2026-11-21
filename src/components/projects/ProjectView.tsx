@@ -27,7 +27,6 @@ import {
   TrashDialog,
 } from './ProjectDialogs';
 import {
-  saveProjectSettings,
   setShowArchived,
   toggleProjectFavorite,
   updateProjectFields,
@@ -139,7 +138,6 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
   const [dialog, setDialog] = useState<DialogState>(null);
   const { toast, notify, dismiss } = useToastMessage();
   const [showArchivedSaving, setShowArchivedSaving] = useState(false);
-  const [childPositionSaving, setChildPositionSaving] = useState(false);
   const [favoriteSaving, setFavoriteSaving] = useState(false);
   // Default off, matching the server-rendered markup (the saved preference is
   // read after hydration). The project id is stored alongside the value so
@@ -214,24 +212,6 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
     notify(next ? t('project.inboxShown') : t('project.inboxHidden'));
   };
 
-  const toggleChildPosition = async () => {
-    const next = childPositionAbove ? 'below' : 'above';
-    setChildPositionSaving(true);
-    const result = await saveProjectSettings(project.id, { child_position: next });
-    setChildPositionSaving(false);
-    if (!result.ok) {
-      notify(result.message, 'error');
-      return;
-    }
-    markFieldChanged(project.id, 'child_position');
-    notify(
-      next === 'above'
-        ? t('project.viewMovedAbove')
-        : t('project.viewMovedBelow'),
-    );
-    refresh();
-  };
-
   const menuItems: MenuItem[] = [];
   menuItems.push({
     id: 'show-archived',
@@ -248,17 +228,6 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
     selected: showInbox,
     onSelect: toggleShowInbox,
   });
-  if (canAdmin) {
-    menuItems.push({
-      id: 'toggle-child-position',
-      label: childPositionAbove
-        ? t('project.moveViewBelow')
-        : t('project.moveViewAbove'),
-      icon: childPositionAbove ? 'arrow_downward' : 'arrow_upward',
-      disabled: project.trashed || childPositionSaving,
-      onSelect: () => void toggleChildPosition(),
-    });
-  }
   if (project.parent) {
     // Always useful to non-admins, who otherwise only see the per-user toggles.
     menuItems.push({

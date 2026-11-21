@@ -399,12 +399,19 @@ test.describe('labels, landmarks and announcements', () => {
     page,
   }) => {
     await login(page);
-    await page.goto(`/p/${await projectId(page, 'Home improvement')}/settings?tab=general`);
+    const id = await projectId(page, 'Home improvement');
+    await page.goto(`/p/${id}/settings?tab=general`);
     await expect(page.getByRole('heading', { level: 1, name: 'General' })).toBeVisible();
     await expect(page.getByRole('navigation', { name: 'Project settings sections' })).toBeVisible();
     await expect(page.locator('#settings-title')).toHaveAttribute('required', '');
+
+    await page.goto(`/p/${id}/settings?tab=layout`);
+    await expect(page.getByRole('heading', { level: 1, name: 'Layout' })).toBeVisible();
     await expect(page.getByRole('group', { name: 'Project view appears' })).toBeVisible();
     await expect(page.getByRole('radio', { name: 'Below details and properties' })).toBeChecked();
+    const viewRadios = page.getByRole('radio', { name: /details and properties/ });
+    await expect(viewRadios.nth(0)).toHaveAccessibleName('Above details and properties');
+    await expect(viewRadios.nth(1)).toHaveAccessibleName('Below details and properties');
     await expectPageAudit(page);
 
     // Field errors are associated and announced (invalid username is a local
