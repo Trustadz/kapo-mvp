@@ -130,11 +130,6 @@
   align-items: start;
 }
 
-.detailsCard,
-.propertiesCard {
-  min-height: 148px;
-}
-
 .cardTitle {
   font-size: 16px;
   font-weight: 600;

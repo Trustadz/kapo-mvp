@@ -90,13 +90,14 @@ async function addLayoutFields(page: Page, projectId: string): Promise<void> {
 }
 
 async function editAssignee(page: Page, card: ReturnType<Page['locator']>): Promise<void> {
-  await card.getByRole('button', { name: 'Edit Assigned to' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Assignee' });
-  await expect(dialog).toBeVisible();
-  await dialog.getByLabel('Assigned to').selectOption({ label: 'maya' });
-  await dialog.getByRole('button', { name: 'Save Assignee' }).click();
+  await card.getByRole('button', { name: 'Assign Assigned to' }).click();
+  const listbox = page.getByRole('listbox', { name: 'People' });
+  await expect(listbox).toBeVisible();
+  await page.getByRole('combobox', { name: 'Search people' }).fill('may');
+  await expect(listbox.locator('[title="maya"]')).toHaveCount(1);
+  await listbox.getByRole('option', { name: 'maya' }).click();
   await expect(page.getByRole('status')).toContainText('Add-on saved.');
-  await expect(dialog).toBeHidden();
+  await expect(listbox).toBeHidden();
 }
 
 
@@ -124,7 +125,7 @@ test.afterAll(async ({ browser }) => {
 });
 
 test.describe('Assignee add-on as a real layout field', () => {
-  test('places add-on fields in Details, Properties and a view; edits via dialog', async ({
+  test('places add-on fields in Details, Properties and a view; edits inline', async ({
     page,
   }) => {
     await login(page, 'admin');
@@ -142,8 +143,8 @@ test.describe('Assignee add-on as a real layout field', () => {
     const properties = page.locator('aside[aria-labelledby="properties-heading"]');
     await expect(details.getByText('Assigned to', { exact: true })).toBeVisible();
     await expect(properties.getByText('Assigned to', { exact: true })).toBeVisible();
-    await expect(details.getByRole('button', { name: 'Edit Assigned to' })).toBeVisible();
-    await expect(properties.getByRole('button', { name: 'Edit Assigned to' })).toBeVisible();
+    await expect(details.getByRole('button', { name: 'Assign Assigned to' })).toBeVisible();
+    await expect(properties.getByRole('button', { name: 'Assign Assigned to' })).toBeVisible();
 
     // Details and Properties share the same add-on value: edit once here.
     await editAssignee(page, details);
@@ -195,8 +196,8 @@ test.describe('Assignee add-on as a real layout field', () => {
     const properties = page.locator('aside[aria-labelledby="properties-heading"]');
     await expect(details.getByText('maya', { exact: true })).toBeVisible();
     await expect(properties.getByText('maya', { exact: true })).toBeVisible();
-    await expect(details.getByRole('button', { name: 'Edit Assigned to' })).toHaveCount(0);
-    await expect(properties.getByRole('button', { name: 'Edit Assigned to' })).toHaveCount(0);
+    await expect(details.getByRole('button', { name: 'Assign Assigned to' })).toHaveCount(0);
+    await expect(properties.getByRole('button', { name: 'Assign Assigned to' })).toHaveCount(0);
   });
 
   test('layout field selectors hide unavailable add-on fields', async ({ page }) => {

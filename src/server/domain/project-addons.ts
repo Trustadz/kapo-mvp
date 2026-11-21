@@ -530,9 +530,13 @@ export function updateProjectAddons(
 
 function userOptions(db: BetterSqliteDatabase): ProjectAddonUserOption[] {
   const rows = db
-    .prepare('SELECT id, username FROM users ORDER BY username COLLATE NOCASE ASC')
-    .all() as Array<{ id: string; username: string }>;
-  return rows.map((row) => ({ value: row.id, label: row.username }));
+    .prepare('SELECT id, username, avatar FROM users ORDER BY username COLLATE NOCASE ASC')
+    .all() as Array<{ id: string; username: string; avatar: string | null }>;
+  return rows.map((row) => ({
+    value: row.id,
+    label: row.username,
+    avatar: row.avatar,
+  }));
 }
 
 export function getProjectAddonsForPage(

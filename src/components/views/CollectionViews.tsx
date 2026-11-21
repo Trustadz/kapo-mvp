@@ -889,12 +889,14 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
                             project={project}
                             fields={ctx.settings.view_fields.kanban}
                           />
-                          <div className={styles.cardMeta}>
-                            <ArchivedBadge project={project} />
-                            {project.inbox ? (
-                              <Badge tone="warning">{t('common.inboxBadge')}</Badge>
-                            ) : null}
-                          </div>
+                          {project.archived || project.inbox ? (
+                            <div className={styles.cardMeta}>
+                              <ArchivedBadge project={project} />
+                              {project.inbox ? (
+                                <Badge tone="warning">{t('common.inboxBadge')}</Badge>
+                              ) : null}
+                            </div>
+                          ) : null}
                         </article>
                       </Fragment>
                     ))}

@@ -58,6 +58,7 @@ export interface ProjectAddonConfigView {
 export interface ProjectAddonUserOption {
   value: string;
   label: string;
+  avatar: string | null;
 }
 
 export interface ProjectAddonEditorItem {

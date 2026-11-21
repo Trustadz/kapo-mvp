@@ -20,6 +20,7 @@ import { markFieldChanged } from '@/lib/changed-fields';
 import { useFieldChanged } from '@/lib/use-field-changed';
 import { ActivityPanel } from './ActivityPanel';
 import { AddonFieldDialog, formatAddonFieldValue } from './AddonFieldDialog';
+import { AddonUserPicker } from './AddonUserPicker';
 import { ChildProjects } from './ChildProjects';
 import {
   readShowInboxPreference,
@@ -112,6 +113,41 @@ function AddonEditButton({
     >
       {t('common.edit')}
     </Button>
+  );
+}
+
+function AddonFieldDisplay({
+  resolved,
+  projectId,
+  canEdit,
+  notify,
+  onSaved,
+  onEdit,
+}: {
+  resolved: ResolvedAddonField;
+  projectId: string;
+  canEdit: boolean;
+  notify: (message: string, tone?: 'success' | 'error' | 'info') => void;
+  onSaved: () => void;
+  onEdit: (identifier: string) => void;
+}) {
+  if (resolved.field.type === 'user') {
+    return (
+      <AddonUserPicker
+        projectId={projectId}
+        item={resolved.item}
+        field={resolved.field}
+        canEdit={canEdit}
+        notify={notify}
+        onSaved={onSaved}
+      />
+    );
+  }
+  return (
+    <>
+      <AddonValueText resolved={resolved} />
+      {canEdit ? <AddonEditButton resolved={resolved} onEdit={onEdit} /> : null}
+    </>
   );
 }
 
@@ -358,13 +394,14 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
         <div className={styles.propertyRow} key={field}>
           <span className={styles.propertyLabel}>{resolved.field.label}</span>
           <span className={styles.propertyValue}>
-            <AddonValueText resolved={resolved} />
-            {data.addons.canEdit ? (
-              <AddonEditButton
-                resolved={resolved}
-                onEdit={(identifier) => setDialog({ kind: 'addon', identifier })}
-              />
-            ) : null}
+            <AddonFieldDisplay
+              resolved={resolved}
+              projectId={project.id}
+              canEdit={data.addons.canEdit}
+              notify={notify}
+              onSaved={refresh}
+              onEdit={(identifier) => setDialog({ kind: 'addon', identifier })}
+            />
           </span>
         </div>
       );
@@ -562,13 +599,14 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
                   <div className={styles.detailRow} key={field}>
                     <span className={styles.detailLabel}>{resolved.field.label}</span>
                     <span className={styles.detailValueGroup}>
-                      <AddonValueText resolved={resolved} />
-                      {data.addons.canEdit ? (
-                        <AddonEditButton
-                          resolved={resolved}
-                          onEdit={(identifier) => setDialog({ kind: 'addon', identifier })}
-                        />
-                      ) : null}
+                      <AddonFieldDisplay
+                        resolved={resolved}
+                        projectId={project.id}
+                        canEdit={data.addons.canEdit}
+                        notify={notify}
+                        onSaved={refresh}
+                        onEdit={(identifier) => setDialog({ kind: 'addon', identifier })}
+                      />
                     </span>
                   </div>
                 );
