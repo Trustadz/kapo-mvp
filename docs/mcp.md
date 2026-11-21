@@ -1,134 +1,84 @@
-# AI access with MCP
+# Connect an AI assistant
 
-**Audience:** a user or administrator connecting a local AI assistant to Kapo.
-**Status:** core capability, **off by default**. Ships the MCP server, personal
-MCP tokens, the AI marker in project history and the Admin toggle.
-**Companion documents:** [architecture.md](architecture.md), [add-ons.md](add-ons.md)
-§1 (why this is core, not an add-on).
+Kapo can let your own AI assistant read and update the board for you. You ask in
+plain language; the assistant looks things up and makes the changes through
+Kapo's tools, **as you**.
 
----
+Some examples:
 
-## 1. What it is
+- "What's in my inbox?"
+- "Create 'Fix the shed' under Household."
+- "Move Renovate basement to Done."
+- "Assign Find contractor to Maya."
+- "What changed on the kitchen last week?"
 
-Kapo exposes a **Model Context Protocol (MCP) server** so a user's own AI client
-— a local llama.cpp model surfaced through Open WebUI, Claude Desktop, or any
-other MCP-capable client — can read and write the board **as that user**.
+The assistant uses your permissions. It can only see and change what you can see
+and change, and every change it makes is recorded in project history as you —
+with a small marker showing it came through your AI assistant.
 
-- **Core, not an add-on.** Add-ons are typed data slices with no network I/O,
-  no routes and no second process ([add-ons.md](add-ons.md) §1). MCP needs a
-  transport, credentials and audit provenance, so it lives in the core.
-- **Inbound only.** Kapo never calls an AI provider. Your model stays where you
-  run it; the client calls Kapo.
-- **Per-user.** Every user creates their own token. There is no shared or
-  installation-wide AI account, and a token cannot see more than its owner.
-- **Attributed.** Every write made through MCP is recorded in project history as
-  the human owner, plus a marker naming the token/agent.
+## What you need
 
-```
-local LLM client (Open WebUI, Claude Desktop, …)
-        │  HTTPS + Authorization: Bearer kapo_mcp_…
-        ▼
-POST /api/mcp  ──►  core MCP adapter  ──►  domain commands  ──►  SQLite
-                         │                        │
-                         └─ via: {channel:'mcp', agent:'Claude Desktop'}
-                                                  └─► audit_events → Activity UI
-```
+- Kapo reachable from the machine running your AI client (URL and port).
+- An AI client that supports **MCP over Streamable HTTP** — a recent Open WebUI,
+  Claude Desktop, or any other MCP-capable client. A local llama.cpp server can
+  be the model behind Open WebUI, but llama.cpp itself is not the MCP client.
+- An Admin to turn the feature on once (below).
 
-## 2. Enable it
+Kapo only listens; it never calls your model or the internet. Your client comes
+to Kapo.
 
-MCP is disabled on every installation, including existing ones.
+## Step 1 — Turn it on (Admin)
 
 1. Sign in as an Application Admin.
 2. Open **Settings → AI access (MCP)**.
 3. Tick **Allow MCP access** and save.
 
-Turning it off again blocks every token immediately (the endpoint answers
-`403 mcp_disabled` before it even reads a token). Existing tokens and history
-are kept; no data is deleted.
+It is off by default. Turning it off again blocks every token immediately;
+nothing is deleted.
 
-## 3. Create a personal token
+## Step 2 — Create your token
 
 1. Open **Profile → AI access (MCP)**.
-2. Enter a name — this is what history will show, for example `Claude Desktop`
-   or `llama.cpp on the studio PC`.
-3. **Create token** and copy the value. It is shown **once**; the database keeps
-   only a SHA-256 hash, so it cannot be recovered later.
+2. Give the token a name you will recognise — this is what history will show,
+   for example `Open WebUI` or `Claude Desktop`.
+3. Click **Create token**.
+4. Copy the value (`kapo_mcp_…`) and paste it into your AI client now. **It is
+   shown only once**; Kapo stores only a hash and cannot show it again.
 
-Revoke a token from the same section. Revocation is immediate; a revoked token
-returns `401`. A user may hold up to 10 active tokens. Tokens keep working
-through the API even when created by an Application Viewer — but a Viewer's
-token can only read, because the domain rejects every write for that role.
+You can create up to 10 active tokens and revoke any of them at any time. If you
+lose a token, revoke it and make a new one.
 
-The token label is the only thing history names. It is taken from the token row
-by the server, never from the MCP request, so a client cannot relabel itself.
+## Step 3 — Connect your AI client
 
-## 4. Connect a client
+Use this connection information:
 
-Endpoint:
+| Setting | Value |
+| --- | --- |
+| URL | `http://<kapo-host>:<port>/api/mcp` (use `https://` if Kapo is behind TLS) |
+| Header | `Authorization: Bearer kapo_mcp_…` |
+| Transport | MCP over Streamable HTTP (POST, stateless) |
 
-```
-https://kapo.example.com/api/mcp
-```
-
-Transport: **Streamable HTTP, POST only, stateless**. Send JSON-RPC 2.0 with
-`Accept: application/json`. There is no SSE stream (`GET` returns `405`), no
-session id to preserve, and no OAuth flow — use a bearer token.
-
-```http
-POST /api/mcp HTTP/1.1
-Authorization: Bearer kapo_mcp_…
-Content-Type: application/json
-```
-
-### Curl smoke test
-
-```bash
-export KAPO_MCP_TOKEN='kapo_mcp_…'
-export KAPO_URL='http://127.0.0.1:3080'
-
-curl -s "$KAPO_URL/api/mcp" \
-  -H "Authorization: Bearer $KAPO_MCP_TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{}}}'
-
-curl -s "$KAPO_URL/api/mcp" \
-  -H "Authorization: Bearer $KAPO_MCP_TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
-
-curl -s "$KAPO_URL/api/mcp" \
-  -H "Authorization: Bearer $KAPO_MCP_TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"whoami","arguments":{}}}'
-```
-
-A notification such as `notifications/initialized` returns `202` with an empty
-body. Errors follow JSON-RPC codes (`-32600`, `-32601`, `-32602`), while tool
-failures come back as a normal result with `"isError": true` and a readable
-message, so the model can explain or retry.
+There is no OAuth login and no session to keep. The token is the credential.
 
 ### Open WebUI
 
-Open WebUI must be new enough to speak **MCP Streamable HTTP**. In its admin
-settings, add an external MCP/tool server:
+Open WebUI must support MCP servers over Streamable HTTP. In its admin settings,
+open the MCP/tool-server section (the menu name changes between versions) and
+add:
 
-- URL: `http://<kapo-host>:3080/api/mcp`
-- Header: `Authorization: Bearer kapo_mcp_…`
+- **URL:** `http://<kapo-host>:<port>/api/mcp`
+- **Header:** `Authorization: Bearer kapo_mcp_…`
 
-Then attach the Kapo tool server to the model you use. Open WebUI calls Kapo
-server-side, so no CORS configuration is involved. The label you gave the token
-(for example `Open WebUI`) is what appears in Kapo history.
+Then enable the server for the model you use.
 
-### llama.cpp
+If Open WebUI runs in Docker, `localhost` inside the container is the container
+itself, not your Kapo machine. Use the Kapo host's LAN address, `--network host`,
+or `host.docker.internal` (Docker Desktop).
 
-`llama-server` is the model backend, not an MCP client: it does not call Kapo
-itself. Point an MCP-capable client (Open WebUI is the usual pairing) at the
-endpoint above and let that client drive the tool calls. The model just chooses
-tools; Kapo only sees the client's requests.
+### Claude Desktop
 
-### Claude Desktop / other clients
-
-Clients that support remote HTTP servers can use:
+Add Kapo to the MCP servers in Claude Desktop's configuration file and restart
+the app:
 
 ```json
 {
@@ -142,109 +92,125 @@ Clients that support remote HTTP servers can use:
 }
 ```
 
-Older builds that only support stdio can bridge to the HTTP endpoint with
-`mcp-remote`:
+The file is usually at `~/Library/Application Support/Claude/claude_desktop_config.json`
+on macOS and `%APPDATA%\Claude\claude_desktop_config.json` on Windows.
+
+If your build only supports stdio servers, bridge to the HTTP endpoint:
 
 ```bash
 npx mcp-remote https://kapo.example.com/api/mcp \
   --header "Authorization: Bearer kapo_mcp_…"
 ```
 
-## 5. Tools
+### Any other client
 
-All tools run as the token owner. Permission checks are the same domain checks
-the web app uses; this layer does not add or widen any.
+Point it at the same URL and header. Before configuring the client, you can
+confirm the server works from that machine:
 
-| Tool | Access | Purpose |
-|---|---|---|
-| `whoami` | read | Confirm the account and the token label history will show. |
-| `search_projects` | read | Full-text search over titles and searchable add-on text. |
-| `get_project` | read | Project, parent/breadcrumb, workflow, children, add-on fields/values, recent history. |
-| `list_inbox` | read | The permission-filtered Inbox with parent context. |
-| `list_children` | read | Direct children of a project; omit `projectId` for Root. |
-| `get_workflow` | read | Status ids for this project and for its children. Read this before changing status. |
-| `get_activity` | read | Paginated history, including who acted and whether it came via MCP. |
-| `create_project` | write | Create a child under a writable parent; enters the Inbox like quick capture. |
-| `update_project` | write | Rename, change status, archive/unarchive. |
-| `release_inbox` | write | Release from the Inbox without changing the start status. |
-| `set_addon_values` | write | Write add-on values through the generic validation/audit/search path. |
+```bash
+export TOKEN='kapo_mcp_…'
+export KAPO='http://192.168.1.50:3081'
 
-Notes:
+curl -s "$KAPO/api/mcp" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{}}}'
 
-- **No per-add-on tools.** Add-ons appear through `get_project` (resolved
-  mode/availability, field definitions, current values, picker options) and are
-  written through `set_addon_values`, exactly like the generic web editor.
-- `create_project` takes only `parentId` and `title`; the start status comes
-  from the parent's workflow, matching the capture flow.
-- Status changes run the same Inbox-exit gate as the web app, so a Required
-  add-on can block them. The tool returns the validation issues verbatim.
-- Trashed projects are read-only; archived visibility follows the owner's
-  "show archived" preference.
-- Writes are synchronous and hold SQLite's single writer. Keep tool use
-  interactive; do not script bulk imports through MCP.
-
-## 6. How the AI marker works
-
-Every audit event stores the human actor, so "who did it" is never ambiguous.
-MCP writes additionally set three snapshot columns:
-
-```
-audit_events.actor_id     = the token owner       (always the human)
-audit_events.via_channel  = 'mcp'                (NULL for web/API writes)
-audit_events.via_agent    = the token label      ("Claude Desktop")
-audit_events.via_token_id = the token id         (forensic link, no FK)
+curl -s "$KAPO/api/mcp" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
 ```
 
-Project history renders the normal sentence followed by a quiet
-`(via Claude Desktop)` and a small **AI** badge on the avatar. The badge has the
-accessible title "Changed by an AI agent through MCP". Existing web writes are
-unchanged and show no marker.
+If those work but your AI client does not, the problem is in the client's MCP
+configuration or its container networking, not in Kapo.
 
-Because the audit log is append-only, the label is a **snapshot**: renaming or
-revoking the token later does not rewrite history. Deleting a token row does not
-touch its events.
+## What the assistant can do
 
-The same provenance is available over MCP: `get_activity` returns `via` on each
-event, and `whoami` returns the current token label.
+| It can | Examples |
+| --- | --- |
+| Find projects | Search by words; list the Inbox, Root and a project's children |
+| Read a project | Title, status, parent, priority, workflow, add-on fields, recent history |
+| Create a task | Add a child under a project; it enters the Inbox like quick capture |
+| Rename / change status / archive | Move a task out of the Inbox, mark it done, archive it |
+| Release from the Inbox | Clear the Inbox flag without changing the start status |
+| Set add-on values | For example assign a project to a household member |
+| Read history | Who changed what, and whether it came through the AI |
 
-## 7. Security model
+It follows the same rules as the web app: required add-ons still block leaving
+the Inbox, trashed projects are read-only, and a Viewer's token can only read.
 
-- **The token is a password.** Treat `kapo_mcp_…` like a session: keep it out of
-  git, screenshots and shared chats. Revoke and re-create if it leaks.
-- **No elevation.** A token inherits exactly the owner's application role and
-  project roles, including Viewer read-only and privacy rules. A token can never
-  grant itself access to a private project.
-- **No token in URLs.** Only the `Authorization` header is read.
-- **Server-stamped provenance.** Clients cannot choose `via_agent`; it comes
-  from the token row.
-- **Opt-in and global off-switch.** With the toggle off, both the endpoint and
-  token creation are refused.
-- **Local-only dependency.** Kapo makes no outbound connection. If you use a
-  hosted model through Open WebUI, that is your choice and outside Kapo.
-- The endpoint is HTTP; put it behind TLS in production like the rest of the app.
+### What it cannot do
 
-## 8. Limits in this version
+- Delete to Trash, restore, or empty the trash.
+- Move a project to a different parent, or reorder siblings.
+- Manage members, roles, project settings, workflows or application settings.
+- Run bulk imports. Keep use interactive; every write goes through the same
+  single-file database as the web app.
 
-- No OAuth / dynamic client registration (personal bearer tokens only).
-- No SSE `GET` stream, no server-initiated messages, no session resumption.
-- No `resources/*` or `prompts/*` capabilities.
-- No move, reorder, trash/restore or member-management tools yet.
-- No per-add-on tools (deliberate; see [add-ons.md](add-ons.md) §1).
-- No rate limit beyond token validation and the domain's own checks.
+## History: what the AI did
 
-## 9. Manual verification
+Every change records the person, not the AI:
 
-1. **Off by default** — fresh install: `curl` with any token returns `403`
-   `mcp_disabled`; Profile shows the disabled notice.
-2. **Enable** — Settings → AI access → save; Profile now offers token creation.
-3. **Token shown once** — create one; the value starts with `kapo_mcp_`; reload
-   the profile and it is gone from the page.
-4. **Handshake** — `initialize` returns `serverInfo.name = "kapo"`;
-   `tools/list` lists 11 tools; `notifications/initialized` returns `202`.
-5. **Provenance** — `update_project` a title over MCP; open the project and see
-   the **AI** badge and `(via <label>)`; `get_activity` shows the same `via`.
-6. **Permissions** — create a Viewer's token and try `create_project`; expect
-   `isError: true` with an access message, and no new project.
-7. **Revocation** — revoke in Profile; the same token now returns `401`.
-8. **Global off** — disable MCP in Settings; `curl` returns `403` and the
-   profile section shows the disabled notice again.
+- The change appears in **project history** and the dashboard's **Recent
+  changes** as you would any other edit.
+- AI-originated changes also show a small **AI** badge on the avatar and a
+  quiet `(via Open WebUI)` after the sentence.
+- The label is the token name you chose. A client cannot rename itself.
+- If you use `get_activity` through the assistant, each event includes the same
+  `via` information.
+
+An edit you make in the browser yourself has no AI badge.
+
+## Turn it off or revoke a token
+
+- **Revoke one token:** Profile → AI access (MCP) → **Revoke**. Any client using
+  it stops working immediately.
+- **Turn the whole feature off:** Settings → AI access (MCP) → untick and save.
+  Every token is refused immediately. Tokens and history are kept, so turning
+  it back on makes existing tokens work again.
+- Revoking a token does not change history. The events keep their original
+  label, because history is append-only.
+
+## Security
+
+- **Treat a token like a password.** Keep it out of screenshots, chat messages
+  and git.
+- **A token is exactly your access.** It cannot see private projects you cannot
+  see, and a Viewer's token cannot write.
+- **The label is set by the server.** It comes from the token you created, not
+  from the AI's request, so the AI cannot pretend to be another person or agent.
+- **Use HTTPS** whenever Kapo is not on a trusted local network. A bearer token
+  and a password sent over plain HTTP can be read by anything on the path.
+- **Revoke if it leaks**, then create a new one.
+
+## Troubleshooting
+
+| Symptom | What to check |
+| --- | --- |
+| `403` with `mcp_disabled` | An Admin must enable **Settings → AI access (MCP)**. |
+| `401` | The token is wrong, mistyped, or revoked. Create a new one. |
+| Connection refused / timeout | Wrong host or port, firewall, or the client runs in a container where `localhost` means the container. Test with the `curl` commands above from the same machine as the client. |
+| `404` | The path must be exactly `/api/mcp`. |
+| Client connects but shows no tools | The client probably does not support MCP over Streamable HTTP. Update it or use a bridge such as `mcp-remote`. |
+| `curl` works, client does not | Client MCP configuration, Docker networking, or a TLS certificate the client does not trust. |
+| No AI badge in history | The change came from the web session, not through the token. Check `whoami` over MCP to confirm which token is connected. |
+| Copy button does nothing | Copying works on plain HTTP too. If your browser still refuses, click the token once to select it and copy manually. |
+
+## Technical reference
+
+For client authors:
+
+- JSON-RPC 2.0 over `POST /api/mcp`. Responses are `application/json`; `GET` is
+  not supported and returns `405`.
+- Methods: `initialize`, `ping`, `tools/list`, `tools/call`; notifications such
+  as `notifications/initialized` return `202` with no body.
+- Tool failures are returned as a normal result with `"isError": true` and a
+  readable message, so the model can explain or retry. Unknown tools and bad
+  arguments use JSON-RPC `-32602`.
+- No sessions, no SSE stream, no server-initiated messages, no OAuth.
+- Tools: `whoami`, `search_projects`, `get_project`, `list_inbox`,
+  `list_children`, `get_workflow`, `get_activity`, `create_project`,
+  `update_project`, `release_inbox`, `set_addon_values`.
+- Add-on data is read through `get_project` and written through
+  `set_addon_values`; there are no per-add-on tools.

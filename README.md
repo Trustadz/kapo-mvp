@@ -479,8 +479,8 @@ owner and marked in project history with an **AI** badge and `(via <token name>)
 MCP is **off by default**. An Admin enables it under **Settings → AI access**;
 users then create and revoke personal tokens under **Profile → AI access**.
 The endpoint is `POST /api/mcp` (Streamable HTTP, stateless, bearer token).
-See [docs/mcp.md](docs/mcp.md) for setup, client examples, the tool list and the
-security model.
+See [docs/mcp.md](docs/mcp.md) for user setup, client examples, what the
+assistant can and cannot do, and troubleshooting.
 
 ## Building on the foundation
 
