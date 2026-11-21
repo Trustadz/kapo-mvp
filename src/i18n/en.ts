@@ -580,6 +580,7 @@ export const en = {
       'It is shown only once. Paste it into your AI client’s MCP configuration as a Bearer token.',
     mcpCopy: 'Copy',
     mcpCopied: 'Copied',
+    mcpCopyFailed: 'Couldn’t copy automatically. Select the token above and copy it manually.',
     mcpDone: 'Done',
     mcpExisting: 'Your tokens',
     mcpNone: 'You have no MCP tokens yet.',

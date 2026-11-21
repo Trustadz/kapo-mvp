@@ -10,6 +10,8 @@ import { expect, test, type Page } from '@playwright/test';
 
 const PASSWORD = 'kapo1234';
 
+test.use({ permissions: ['clipboard-read', 'clipboard-write'] });
+
 async function login(page: Page, username = 'admin'): Promise<void> {
   await page.goto('/login');
   await page.getByLabel('Username').fill(username);
@@ -53,6 +55,14 @@ test.describe('MCP access', () => {
     await expect(tokenCode).toBeVisible();
     const token = (await tokenCode.innerText()).trim();
     expect(token.startsWith('kapo_mcp_')).toBe(true);
+
+    // Copy works from the page (secure origin here; the insecure-origin
+    // fallback is unit-tested in tests/unit/clipboard.test.ts).
+    await page.getByRole('button', { name: 'Copy', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Copied', exact: true })).toBeVisible();
+    await expect
+      .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+      .toBe(token);
 
     const rpc = (body: unknown) =>
       page.request.post('/api/mcp', {

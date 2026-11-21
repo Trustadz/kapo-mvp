@@ -32,6 +32,14 @@
   font-family: var(--font-family-mono, monospace);
   font-size: var(--font-size-small);
   overflow-wrap: anywhere;
+  /* One click selects the whole token for manual copying. */
+  user-select: all;
+}
+
+.copyError {
+  margin-top: var(--space-2);
+  color: var(--color-danger);
+  font-size: var(--font-size-small);
 }
 
 .dismiss {

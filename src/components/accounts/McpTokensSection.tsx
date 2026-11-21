@@ -8,6 +8,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Input } from '@/components/ui/Input';
 import { Notice } from '@/components/ui/Notice';
 import { postJson, requestJson } from '@/lib/api-client';
+import { copyText } from '@/lib/clipboard';
 import { useI18n } from '@/i18n/client';
 import type { McpTokenSummary } from '@/lib/mcp';
 import styles from './McpTokensSection.module.css';
@@ -34,6 +35,7 @@ export function McpTokensSection({ enabled, initialTokens }: McpTokensSectionPro
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState<{ token: string; label: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [labelError, setLabelError] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -66,6 +68,7 @@ export function McpTokensSection({ enabled, initialTokens }: McpTokensSectionPro
       setTokens((current) => [result.data.summary, ...current]);
       setCreated({ token: result.data.token, label: result.data.summary.label });
       setCopied(false);
+      setCopyError(false);
       setLabel('');
     } finally {
       setCreating(false);
@@ -74,12 +77,9 @@ export function McpTokensSection({ enabled, initialTokens }: McpTokensSectionPro
 
   const handleCopy = async () => {
     if (!created) return;
-    try {
-      await navigator.clipboard.writeText(created.token);
-      setCopied(true);
-    } catch {
-      setCopied(false);
-    }
+    const ok = await copyText(created.token);
+    setCopied(ok);
+    setCopyError(!ok);
   };
 
   const handleRevoke = async (id: string) => {
@@ -125,6 +125,11 @@ export function McpTokensSection({ enabled, initialTokens }: McpTokensSectionPro
                   {copied ? t('profile.mcpCopied') : t('profile.mcpCopy')}
                 </Button>
               </div>
+              {copyError ? (
+                <p className={styles.copyError} role="alert">
+                  {t('profile.mcpCopyFailed')}
+                </p>
+              ) : null}
               <Button
                 variant="ghost"
                 size="sm"

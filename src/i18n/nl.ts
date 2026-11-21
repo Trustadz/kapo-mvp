@@ -596,6 +596,7 @@ export const nl: Messages = {
       'Het wordt maar één keer getoond. Plak het in de MCP-configuratie van je AI-client als Bearer-token.',
     mcpCopy: 'Kopiëren',
     mcpCopied: 'Gekopieerd',
+    mcpCopyFailed: 'Kopiëren is niet automatisch gelukt. Selecteer het token hierboven en kopieer het handmatig.',
     mcpDone: 'Klaar',
     mcpExisting: 'Jouw tokens',
     mcpNone: 'Je hebt nog geen MCP-tokens.',
