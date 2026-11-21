@@ -111,3 +111,11 @@
     max-width: none;
   }
 }
+
+/* Embedded in the Application settings Users tab: the settings card already
+   provides the surface and padding. */
+.embeddedCard {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}

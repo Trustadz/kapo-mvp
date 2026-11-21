@@ -1,6 +1,7 @@
 'use client';
 
 import { useReducer, useState, type FormEvent } from 'react';
+import { UsersManager } from '@/components/accounts/UsersManager';
 import {
   Button,
   Card,
@@ -23,6 +24,7 @@ import { COLLECTION_VIEW_MESSAGE_KEYS, SHORT_ROLE_MESSAGE_KEYS } from '@/i18n/do
 import { useI18n } from '@/i18n/client';
 import type { BackupStatus } from '@/server/backup';
 import type { ApplicationSettings } from '@/server/domain/settings';
+import type { AccountUser } from '@/server/domain/users';
 import { AddonSettingsFields } from './AddonSettingsFields';
 import {
   addonsSaveBody,
@@ -45,6 +47,8 @@ export interface ApplicationSettingsFormProps {
   settings: ApplicationSettings;
   backupStatus: BackupStatus;
   addons: AddonApplicationConfig[];
+  users: AccountUser[];
+  defaultRole: AppRole;
 }
 
 const ID_PREFIX = 'application-settings';
@@ -53,7 +57,15 @@ const TAB_MESSAGE_KEYS = {
   general: 'settings.tabs.general',
   backups: 'settings.tabs.backups',
   addons: 'settings.tabs.addons',
+  users: 'settings.tabs.users',
 } as const satisfies Record<ApplicationSettingsTab, string>;
+
+const TAB_ICONS: Record<ApplicationSettingsTab, string> = {
+  general: 'tune',
+  backups: 'backup',
+  addons: 'extension',
+  users: 'group',
+};
 
 const ADDON_MODE_MESSAGE_KEYS: Record<
   AddonMode,
@@ -110,6 +122,8 @@ export function ApplicationSettingsForm({
   settings,
   backupStatus,
   addons,
+  users,
+  defaultRole,
 }: ApplicationSettingsFormProps) {
   const { t } = useI18n();
   const [state, dispatch] = useReducer(
@@ -257,6 +271,7 @@ export function ApplicationSettingsForm({
           items={tabs.map((tab) => ({
             id: tab,
             label: t(TAB_MESSAGE_KEYS[tab]),
+            icon: TAB_ICONS[tab],
             dirty: tabIsDirty(state, tab, addons),
           }))}
           value={state.activeTab}
@@ -342,6 +357,21 @@ export function ApplicationSettingsForm({
             />
           </div>
         ) : null}
+
+        <div
+          role="tabpanel"
+          id={tabPanelId(ID_PREFIX, 'users')}
+          aria-labelledby={tabId(ID_PREFIX, 'users')}
+          hidden={state.activeTab !== 'users'}
+          tabIndex={state.activeTab === 'users' ? 0 : -1}
+          className={styles.panel}
+        >
+          {/* UsersManager needs the app-router context; mount it only when
+              this panel is active, but keep the tabpanel element present. */}
+          {state.activeTab === 'users' ? (
+            <UsersManager users={users} defaultRole={defaultRole} embedded />
+          ) : null}
+        </div>
       </Card>
 
       <Toast

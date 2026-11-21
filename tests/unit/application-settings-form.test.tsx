@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { AddonApplicationConfig } from '@/lib/addons';
 import type { BackupStatus } from '@/server/backup';
 import type { ApplicationSettings } from '@/server/domain/settings';
+import type { AccountUser } from '@/server/domain/users';
 import { ApplicationSettingsForm } from '@/components/settings/ApplicationSettingsForm';
 
 /**
@@ -24,6 +25,17 @@ const settings: ApplicationSettings = {
   backupStartTime: '03:00',
   backupRetention: 7,
 };
+
+const users: AccountUser[] = [
+  {
+    id: 'user-admin',
+    username: 'admin',
+    email: 'admin@example.com',
+    avatar: null,
+    appRole: 'admin',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  },
+];
 
 const backupStatus: BackupStatus = {
   enabled: true,
@@ -86,6 +98,8 @@ function render(
       settings={formSettings}
       backupStatus={backupStatus}
       addons={formAddons}
+      users={users}
+      defaultRole="user"
     />,
   );
 }
@@ -103,14 +117,14 @@ describe('application settings tabs', () => {
     const html = render();
     expect(html).toContain('role="tablist"');
     expect(html).toContain('aria-label="Application settings sections"');
-    expect(html.match(/role="tab"/g)).toHaveLength(3);
+    expect(html.match(/role="tab"/g)).toHaveLength(4);
 
     const generalTab = openingTag(html, 'id', 'application-settings-tab-general');
     expect(generalTab).toContain('aria-selected="true"');
     expect(generalTab).toContain('aria-controls="application-settings-panel-general"');
     expect(generalTab).toContain('tabindex="0"');
 
-    for (const id of ['backups', 'addons']) {
+    for (const id of ['backups', 'addons', 'users']) {
       const tab = openingTag(html, 'id', `application-settings-tab-${id}`);
       expect(tab).toContain('aria-selected="false"');
       expect(tab).toContain('tabindex="-1"');
@@ -121,7 +135,7 @@ describe('application settings tabs', () => {
     expect(generalPanel).toContain('aria-labelledby="application-settings-tab-general"');
     expect(generalPanel).toContain('role="tabpanel"');
 
-    for (const id of ['backups', 'addons']) {
+    for (const id of ['backups', 'addons', 'users']) {
       const panel = openingTag(html, 'id', `application-settings-panel-${id}`);
       expect(panel).toContain('hidden');
       expect(panel).toContain(`aria-labelledby="application-settings-tab-${id}"`);
@@ -140,7 +154,7 @@ describe('application settings tabs', () => {
 
   it('hides the Add-ons tab and panel when the registry is empty', () => {
     const html = render([]);
-    expect(html.match(/role="tab"/g)).toHaveLength(2);
+    expect(html.match(/role="tab"/g)).toHaveLength(3);
     expect(html).not.toContain('application-settings-tab-addons');
     expect(html).not.toContain('application-settings-panel-addons');
     expect(html).not.toContain('Add-on settings');

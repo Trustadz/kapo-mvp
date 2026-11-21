@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, type KeyboardEvent } from 'react';
+import { Icon } from './Icon';
 import { cn } from '@/lib/cn';
 import styles from './Tabs.module.css';
 
@@ -16,6 +17,8 @@ import styles from './Tabs.module.css';
 export interface TabItem<T extends string = string> {
   id: T;
   label: string;
+  /** Optional Material Symbols icon name (decorative). */
+  icon?: string;
   /** Optional unsaved-changes marker (decorative; the panel states it in words). */
   dirty?: boolean;
 }
@@ -105,6 +108,7 @@ export function Tabs<T extends string = string>({
             onClick={() => onChange(item.id)}
             onKeyDown={handleKeyDown}
           >
+            {item.icon ? <Icon name={item.icon} size={18} /> : null}
             <span>{item.label}</span>
             {item.dirty ? (
               <span className={styles.dirty} aria-hidden="true" data-tab-dirty="" />

@@ -674,6 +674,7 @@ export const nl: Messages = {
       workflow: 'Workflow',
       members: 'Leden',
       layout: 'Lay-out',
+      users: 'Gebruikers',
     },
     projectSettings: 'Projectinstellingen',
     sectionsAria: 'Projectinstellingen',

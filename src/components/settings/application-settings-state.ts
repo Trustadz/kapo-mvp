@@ -22,7 +22,7 @@ import type { ApplicationSettings } from '@/server/domain/settings';
  *  - saving one tab only replaces that section's saved + draft values.
  */
 
-export type ApplicationSettingsTab = 'general' | 'backups' | 'addons';
+export type ApplicationSettingsTab = 'general' | 'backups' | 'addons' | 'users';
 
 export interface GeneralDraft {
   defaultAccountRole: ApplicationSettings['defaultAccountRole'];
@@ -87,7 +87,12 @@ export function addonDraftsFromConfigs(
 export function applicationSettingsTabs(
   addons: readonly AddonApplicationConfig[],
 ): ApplicationSettingsTab[] {
-  return addons.length > 0 ? ['general', 'backups', 'addons'] : ['general', 'backups'];
+  return [
+    'general',
+    'backups',
+    ...(addons.length > 0 ? (['addons'] as const) : []),
+    'users',
+  ];
 }
 
 export function initialApplicationSettingsState(
@@ -195,6 +200,7 @@ export function applicationSettingsReducer(
     }
 
     case 'resetTab': {
+      if (action.tab === 'users') return state;
       if (action.tab === 'general') {
         return {
           ...state,
@@ -285,6 +291,7 @@ export function tabIsDirty(
 ): boolean {
   if (tab === 'general') return isGeneralDirty(state.general, state.savedGeneral);
   if (tab === 'backups') return isBackupDirty(state.backup, state.savedBackup);
+  if (tab === 'users') return false;
   return dirtyAddonIdentifiers(state.addons, state.savedAddons, addons).length > 0;
 }
 

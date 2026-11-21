@@ -21,6 +21,11 @@
   cursor: pointer;
 }
 
+.tab :global(.material-symbols-outlined) {
+  flex: none;
+  color: currentColor;
+}
+
 .tab:hover {
   background: var(--color-surface-alt);
   color: var(--color-text);

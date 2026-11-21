@@ -32,11 +32,13 @@ test('tabs expose tab semantics and Arrow/Home/End navigation', async ({ page })
   const generalTab = page.getByRole('tab', { name: 'General' });
   const backupsTab = page.getByRole('tab', { name: 'Backups' });
   const addonsTab = page.getByRole('tab', { name: 'Add-ons' });
+  const usersTab = page.getByRole('tab', { name: 'Users' });
 
   await expect(generalTab).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByRole('tabpanel', { name: 'General' })).toBeVisible();
   await expect(page.getByRole('tabpanel', { name: 'Backups' })).toHaveCount(0);
   await expect(page.getByRole('tabpanel', { name: 'Add-ons' })).toHaveCount(0);
+  await expect(page.getByRole('tabpanel', { name: 'Users' })).toHaveCount(0);
 
   await generalTab.focus();
   await page.keyboard.press('ArrowRight');
@@ -45,14 +47,16 @@ test('tabs expose tab semantics and Arrow/Home/End navigation', async ({ page })
   await expect(page.getByRole('tabpanel', { name: 'Backups' })).toBeVisible();
 
   await page.keyboard.press('End');
-  await expect(addonsTab).toBeFocused();
-  await expect(addonsTab).toHaveAttribute('aria-selected', 'true');
-  await expect(page.getByRole('tabpanel', { name: 'Add-ons' })).toBeVisible();
+  await expect(usersTab).toBeFocused();
+  await expect(usersTab).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByRole('tabpanel', { name: 'Users' })).toBeVisible();
 
   await page.keyboard.press('Home');
   await expect(generalTab).toBeFocused();
   await expect(generalTab).toHaveAttribute('aria-selected', 'true');
 
+  await page.keyboard.press('ArrowLeft');
+  await expect(usersTab).toBeFocused();
   await page.keyboard.press('ArrowLeft');
   await expect(addonsTab).toBeFocused();
 
@@ -70,7 +74,12 @@ test('tabs expose tab semantics and Arrow/Home/End navigation', async ({ page })
 
   // Roving tabindex: only the active tab is in the document tab order.
   await expect(generalTab).toHaveAttribute('tabindex', '-1');
+  await expect(backupsTab).toHaveAttribute('tabindex', '-1');
+  await expect(usersTab).toHaveAttribute('tabindex', '-1');
   await expect(addonsTab).toHaveAttribute('tabindex', '0');
+
+  // Each tab carries a decorative icon.
+  await expect(tablist.locator('.material-symbols-outlined')).toHaveCount(4);
 });
 
 test('switching tabs keeps drafts and each tab saves only its own fields', async ({ page }) => {
@@ -186,4 +195,24 @@ test('add-on cards use a mode dropdown and a quiet empty-settings area', async (
     page.getByRole('button', { name: 'Save add-ons' }).click(),
   ]);
   await expect(page.getByRole('status')).toContainText('Application settings saved.');
+});
+
+test('Users tab manages accounts and is no longer in the account menu', async ({ page }) => {
+  await login(page);
+  await page.goto('/settings');
+
+  await page.getByRole('tab', { name: 'Users' }).click();
+  const panel = page.getByRole('tabpanel', { name: 'Users' });
+  await expect(panel).toBeVisible();
+  await expect(panel.getByRole('heading', { level: 2, name: 'Users' })).toBeVisible();
+  await expect(panel.getByRole('list', { name: 'Accounts' })).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'Add user' })).toBeVisible();
+  // The full /users page's Cancel link is hidden when embedded in settings.
+  await expect(panel.getByRole('link', { name: 'Cancel' })).toHaveCount(0);
+
+  await page.getByRole('button', { name: /admin/i }).first().click();
+  const menu = page.getByRole('menu', { name: 'Account menu' });
+  await expect(menu).toBeVisible();
+  await expect(menu.getByRole('menuitem', { name: 'Settings' })).toBeVisible();
+  await expect(menu.getByRole('menuitem', { name: 'Users' })).toHaveCount(0);
 });

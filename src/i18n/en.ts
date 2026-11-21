@@ -653,6 +653,7 @@ export const en = {
       workflow: 'Workflow',
       members: 'Members',
       layout: 'Layout',
+      users: 'Users',
     },
     projectSettings: 'Project settings',
     sectionsAria: 'Project settings sections',

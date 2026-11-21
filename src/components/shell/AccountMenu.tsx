@@ -27,7 +27,7 @@ export interface AccountMenuProps {
 
 /**
  * Account block/menu: Profile, Appearance (Light/Dark/System), Admin-only
- * Settings and Users, then Sign out. Used by the desktop sidebar and the mobile
+ * Settings, then Sign out. Used by the desktop sidebar and the mobile
  * header avatar.
  */
 export function AccountMenu({
@@ -111,7 +111,6 @@ export function AccountMenu({
     items.push(
       { id: 'admin-separator', separator: true },
       { id: 'settings', label: t('common.settings'), icon: 'settings', href: '/settings' },
-      { id: 'users', label: t('common.users'), icon: 'group', href: '/users' },
     );
   }
 
