@@ -35,12 +35,14 @@ import type {
 import { PROJECT_FIELD_KEYS } from './types';
 import type { MemberCandidate } from './api';
 import type { ProjectAccessMode, ViewFieldKey, ViewFields } from '@/lib/projects';
+import type { AddonMode, ProjectAddonConfigView } from '@/lib/addons';
+import { ADDON_MODE_OPTIONS } from '@/lib/addons';
 import { DEFAULT_VIEW_FIELDS, VIEW_FIELD_KEYS } from '@/lib/projects';
 import { formatPersonName } from '@/lib/format';
 import { markFieldChanged } from '@/lib/changed-fields';
 import { useFieldChanged } from '@/lib/use-field-changed';
 import { useToastMessage } from '@/components/ui/use-live-announcer';
-import { saveMembers, saveProjectSettings, saveWorkflow, updateProjectFields } from './api';
+import { saveMembers, saveProjectAddons, saveProjectSettings, saveWorkflow, updateProjectFields } from './api';
 import styles from './ProjectSettings.module.css';
 
 const ROLE_RANK: Record<ProjectRole, number> = { viewer: 1, user: 2, admin: 3 };
@@ -49,22 +51,31 @@ function rank(role: ProjectRole | null | undefined): number {
   return role ? ROLE_RANK[role] : 0;
 }
 
-type TabId = 'general' | 'workflow' | 'members' | 'layout';
+type TabId = 'general' | 'workflow' | 'members' | 'layout' | 'addons';
 
-const TAB_MESSAGE_KEYS: Record<TabId, 'settings.tabs.general' | 'settings.tabs.workflow' | 'settings.tabs.members' | 'settings.tabs.layout'> = {
+const TAB_MESSAGE_KEYS: Record<
+  TabId,
+  | 'settings.tabs.general'
+  | 'settings.tabs.workflow'
+  | 'settings.tabs.members'
+  | 'settings.tabs.layout'
+  | 'addons.tab'
+> = {
   general: 'settings.tabs.general',
   workflow: 'settings.tabs.workflow',
   members: 'settings.tabs.members',
   layout: 'settings.tabs.layout',
+  addons: 'addons.tab',
 };
 
-const TABS: TabId[] = ['general', 'workflow', 'members', 'layout'];
+const BASE_TABS: TabId[] = ['general', 'workflow', 'members', 'layout'];
 
 interface SettingsPageProps {
   data: ProjectPageData;
   workflow: WorkflowViewData;
   members: ProjectMemberView[];
   candidates: MemberCandidate[];
+  addons: ProjectAddonConfigView[];
   viewerId: string;
   tab: TabId;
 }
@@ -74,6 +85,7 @@ export function ProjectSettingsPage({
   workflow,
   members,
   candidates,
+  addons,
   viewerId,
   tab,
 }: SettingsPageProps) {
@@ -82,8 +94,9 @@ export function ProjectSettingsPage({
   const { toast, notify, dismiss } = useToastMessage();
   const refresh = () => router.refresh();
   const project = data.project;
+  const tabs: TabId[] = addons.length > 0 ? [...BASE_TABS, 'addons'] : BASE_TABS;
   const tabLabel = (id: TabId) => t(TAB_MESSAGE_KEYS[id]);
-  const activeTab = TABS.includes(tab) ? tab : 'general';
+  const activeTab = tabs.includes(tab) ? tab : 'general';
 
   return (
     <div className={styles.page}>
@@ -100,26 +113,26 @@ export function ProjectSettingsPage({
       </header>
 
       <nav className={styles.tabs} aria-label={t('settings.sectionsAria')}>
-        {TABS.map((entry) => (
+        {tabs.map((entry) => (
           <Link
             key={entry}
             href={`/p/${project.id}/settings?tab=${entry}`}
             className={styles.tab}
-            data-active={entry === tab || undefined}
-            aria-current={entry === tab ? 'page' : undefined}
+            data-active={entry === activeTab || undefined}
+            aria-current={entry === activeTab ? 'page' : undefined}
           >
             {tabLabel(entry)}
           </Link>
         ))}
       </nav>
 
-      {tab === 'general' ? (
+      {activeTab === 'general' ? (
         <GeneralTab data={data} notify={notify} refresh={refresh} />
       ) : null}
-      {tab === 'workflow' ? (
+      {activeTab === 'workflow' ? (
         <WorkflowTab data={data} workflow={workflow} notify={notify} refresh={refresh} />
       ) : null}
-      {tab === 'members' ? (
+      {activeTab === 'members' ? (
         <MembersTab
           data={data}
           members={members}
@@ -129,8 +142,11 @@ export function ProjectSettingsPage({
           refresh={refresh}
         />
       ) : null}
-      {tab === 'layout' ? (
+      {activeTab === 'layout' ? (
         <LayoutTab data={data} workflow={workflow} notify={notify} refresh={refresh} />
+      ) : null}
+      {activeTab === 'addons' ? (
+        <AddonsTab projectId={project.id} addons={addons} notify={notify} refresh={refresh} />
       ) : null}
 
       <Toast
@@ -1052,6 +1068,184 @@ function MembersTab({
           {t('settings.makePrivateBody')}
         </p>
       </Dialog>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------------- */
+/* Add-ons                                                                   */
+/* ------------------------------------------------------------------------- */
+
+const ADDON_MODE_MESSAGE_KEYS: Record<
+  AddonMode,
+  'addons.modeRequired' | 'addons.modeAlways' | 'addons.modeOptional' | 'addons.modeUnavailable'
+> = {
+  required: 'addons.modeRequired',
+  always: 'addons.modeAlways',
+  optional: 'addons.modeOptional',
+  unavailable: 'addons.modeUnavailable',
+};
+
+interface AddonDraft {
+  enabled: boolean;
+  inheritFromParent: boolean;
+}
+
+function draftFor(view: ProjectAddonConfigView): AddonDraft {
+  return {
+    enabled: view.enabled ?? view.available,
+    inheritFromParent: view.inheritFromParent ?? true,
+  };
+}
+
+function AddonsTab({
+  projectId,
+  addons,
+  notify,
+  refresh,
+}: {
+  projectId: string;
+  addons: ProjectAddonConfigView[];
+  notify: (message: string, tone?: 'success' | 'error' | 'info') => void;
+  refresh: () => void;
+}) {
+  const { t } = useI18n();
+  const [drafts, setDrafts] = useState<Record<string, AddonDraft>>(() => {
+    const next: Record<string, AddonDraft> = {};
+    for (const view of addons) next[view.identifier] = draftFor(view);
+    return next;
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const next: Record<string, AddonDraft> = {};
+    for (const view of addons) next[view.identifier] = draftFor(view);
+    setDrafts(next);
+  }, [addons]);
+
+  const changed = addons.filter((view) => {
+    if (view.mode !== 'optional') return false;
+    const draft = drafts[view.identifier];
+    if (!draft) return false;
+    const initial = draftFor(view);
+    return (
+      draft.enabled !== initial.enabled || draft.inheritFromParent !== initial.inheritFromParent
+    );
+  });
+
+  const save = async () => {
+    if (changed.length === 0) return;
+    setSaving(true);
+    setError(null);
+    const patch: Record<string, { enabled: boolean; inheritFromParent: boolean }> = {};
+    for (const view of changed) {
+      const draft = drafts[view.identifier];
+      if (!draft) continue;
+      patch[view.identifier] = {
+        enabled: draft.enabled,
+        inheritFromParent: draft.inheritFromParent,
+      };
+    }
+    const result = await saveProjectAddons(projectId, patch);
+    setSaving(false);
+    if (!result.ok) {
+      setError(result.message);
+      return;
+    }
+    notify(t('addons.projectSaved'));
+    refresh();
+  };
+
+  return (
+    <Card className={styles.card}>
+      <h2 className={styles.cardTitle}>{t('addons.heading')}</h2>
+      <p className={styles.cardHint}>{t('addons.projectHint')}</p>
+      {error ? <Notice tone="error">{error}</Notice> : null}
+      <ul className={styles.memberList} aria-label={t('addons.heading')}>
+        {addons.map((view) => {
+          const draft = drafts[view.identifier];
+          const editable = view.mode === 'optional';
+          return (
+            <li key={view.identifier} className={styles.addonRow}>
+              <div className={styles.addonIdentity}>
+                <span className={styles.memberName}>
+                  {view.name} <span className={styles.addonVersion}>v{view.version}</span>
+                </span>
+                <span className={styles.memberMeta}>
+                  {t('addons.modeLabel')}: {t(ADDON_MODE_MESSAGE_KEYS[view.mode])}
+                  {view.inherited && view.enabled === null
+                    ? ` · ${t('addons.inheritedFromParent')}`
+                    : ''}
+                </span>
+                {view.description ? (
+                  <span className={styles.memberMeta}>{view.description}</span>
+                ) : null}
+                {view.mode === 'unavailable' ? (
+                  <span className={styles.memberMeta}>{t('addons.unavailableNote')}</span>
+                ) : null}
+                {view.mode === 'required' ? (
+                  <span className={styles.memberMeta}>{t('addons.requiredNote')}</span>
+                ) : null}
+                {view.mode === 'always' ? (
+                  <span className={styles.memberMeta}>{t('addons.alwaysNote')}</span>
+                ) : null}
+              </div>
+              {editable && draft ? (
+                <div className={styles.addonControls}>
+                  <Checkbox
+                    id={`addon-enabled-${view.identifier}`}
+                    label={t('addons.enableForProject')}
+                    checked={draft.enabled}
+                    disabled={saving}
+                    onChange={(event) =>
+                      setDrafts((current) => ({
+                        ...current,
+                        [view.identifier]: {
+                          ...draft,
+                          enabled: event.target.checked,
+                        },
+                      }))
+                    }
+                  />
+                  {view.parentTitle ? (
+                    <Checkbox
+                      id={`addon-inherit-${view.identifier}`}
+                      label={t('addons.inheritFromParent')}
+                      description={t('addons.inheritFromParentHint', {
+                        parent: view.parentTitle,
+                      })}
+                      checked={draft.inheritFromParent}
+                      disabled={saving}
+                      onChange={(event) =>
+                        setDrafts((current) => ({
+                          ...current,
+                          [view.identifier]: {
+                            ...draft,
+                            inheritFromParent: event.target.checked,
+                          },
+                        }))
+                      }
+                    />
+                  ) : null}
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+      <div className={styles.footer}>
+        <Button
+          onClick={() => void save()}
+          loading={saving}
+          disabled={saving || changed.length === 0}
+        >
+          {t('addons.saveProject')}
+        </Button>
+        <span className={styles.cardHint}>
+          {changed.length === 0 ? t('addons.noChanges') : t('addons.unsavedChanges')}
+        </span>
+      </div>
     </Card>
   );
 }

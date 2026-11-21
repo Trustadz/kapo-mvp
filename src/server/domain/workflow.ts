@@ -1,9 +1,9 @@
 import type { Database as BetterSqliteDatabase } from 'better-sqlite3';
 import type { Status } from '@/lib/types';
 import { DEFAULT_CHILD_WORKFLOW, insertWorkflow, type WorkflowStatusRow } from '@/server/db/bootstrap';
-import { indexProject } from '@/server/db/search';
 import { parseJsonObject } from '@/server/db/util';
 import { assertInboxExitAllowed } from './addon-hooks';
+import { reindexProjectAddonSearch } from './project-addons';
 import { newId, nowIso } from '@/server/db/util';
 import {
   DomainError,
@@ -425,7 +425,7 @@ export function replaceWorkflow(
           timestamp,
         );
         const row = reindex.get(child.id) as { id: string; title: string } | undefined;
-        if (row) indexProject(db, { projectId: row.id, title: row.title, body: '' });
+        if (row) reindexProjectAddonSearch(db, row.id);
         remappedChildren += 1;
       }
     }

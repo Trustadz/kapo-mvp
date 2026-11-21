@@ -1,9 +1,9 @@
 import type { Database as BetterSqliteDatabase } from 'better-sqlite3';
 import type { InboxItem, InboxTreeNode, ProjectCard } from '@/lib/projects';
-import { indexProject } from '@/server/db/search';
 import { nowIso } from '@/server/db/util';
 import { AUDIT_ACTIONS, AUDIT_FIELDS } from '@/lib/audit';
 import { assertInboxExitAllowed } from './addon-hooks';
+import { reindexProjectAddonSearchSubtree } from './project-addons';
 import { recordAuditEvent } from './audit';
 import {
   assertMoveKeepsAdmin,
@@ -414,7 +414,7 @@ export function changeInboxParent(
         createdAt: timestamp,
       });
     }
-    indexProject(db, { projectId, title: row.title, body: '' });
+    reindexProjectAddonSearchSubtree(db, projectId);
     db.prepare('UPDATE projects SET updated_at = ? WHERE id = ?').run(timestamp, destinationId);
   })();
 

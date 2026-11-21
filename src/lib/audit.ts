@@ -18,6 +18,7 @@ export const AUDIT_ACTIONS = {
   projectInboxReleased: 'project.inbox_released',
   childCreated: 'project.child_created',
   childTrashed: 'project.child_trashed',
+  addonValueChanged: 'project.addon_value_changed',
   workflowUpdated: 'workflow.updated',
 } as const;
 

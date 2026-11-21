@@ -17,7 +17,9 @@
  *     always win over add-on behaviour.
  */
 
-export type AddonMode = 'required' | 'always' | 'optional' | 'unavailable';
+export const ADDON_MODES = ['required', 'always', 'optional', 'unavailable'] as const;
+
+export type AddonMode = (typeof ADDON_MODES)[number];
 export type AddonFieldType = 'boolean' | 'number' | 'text' | 'longtext' | 'date' | 'select' | 'user';
 export type AddonFieldValue = string | number | boolean | null;
 
@@ -76,6 +78,35 @@ export interface AddonHooks {
     values: Record<string, AddonFieldValue>;
     mode: AddonMode;
   }): AddonValidationIssue[];
+  /**
+   * Runs inside the trash-purge transaction, before the project rows are
+   * deleted. Add-on tables must reference `projects(id) ON DELETE CASCADE`;
+   * this hook exists for any extra namespaced cleanup (docs/add-ons.md §3.3).
+   * A throwing hook is logged and isolated: it never blocks the purge.
+   */
+  onProjectPurge?(ctx: {
+    projectIds: readonly string[];
+    exec(sql: string): void;
+  }): void;
+}
+
+export interface AddonProjectConfig {
+  enabled?: boolean;
+  inheritFromParent?: boolean;
+  settings?: Record<string, AddonFieldValue>;
+}
+
+/** The per-project availability resolution documented in docs/add-ons.md §2.2. */
+export interface ResolvedAddonConfig {
+  readonly identifier: string;
+  readonly mode: AddonMode;
+  /** Effectively enabled for this project. */
+  readonly available: boolean;
+  /** Gates this project's Inbox exit (global `required` mode only in v1). */
+  readonly required: boolean;
+  /** True when the effective configuration came from an ancestor. */
+  readonly inherited: boolean;
+  readonly settings: Readonly<Record<string, AddonFieldValue>>;
 }
 
 export interface AddonDefinition {
@@ -83,6 +114,8 @@ export interface AddonDefinition {
   name: string;
   description?: string;
   version: string;
+  /** Product default stored by the registry→`addons` table sync (default `optional`). */
+  defaultMode?: AddonMode;
   fields: AddonFieldDefinition[];
   searchFields?: string[]; // field keys exposed to FTS
   compactRenderer?: string; // UI key resolved later; registry ships none

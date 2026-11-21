@@ -239,7 +239,7 @@ previous/new values. Dashboard default: Inbox + Recent changes (Completed last w
 | designer | `docs/design-review-app.md`, `docs/screenshots/**` |
 | product-owner | `docs/product-review.md` |
 
-## 12. Add-on contracts (contracted now, no UI or endpoints in MVP)
+## 12. Add-on contracts (first add-on plumbing shipped in issue #7)
 
 `src/server/addons/types.ts` defines `AddonMode` (`required|always|optional|unavailable`),
 `AddonFieldType` (`boolean|number|text|longtext|date|select|user`), `AddonFieldDefinition`
@@ -249,12 +249,14 @@ previous/new values. Dashboard default: Inbox + Recent changes (Completed last w
 `AddonWidgetContext { viewerId, visibleProjectIds, query(sql, params) }` — a read-only helper,
 never a write handle.
 
-`registry.ts` validates identifier shape, duplicates (add-on and field keys), and that `select`
-fields have `options` or `optionsSource`, while `user` fields have neither. The registry ships
-empty; no add-on is registered in this iteration.
+`registry.ts` validates identifier shape, duplicates (add-on and field keys), `select`
+`options`/`optionsSource`, that `user` fields have neither, and that `searchFields` reference
+`text`/`longtext` fields. The manifest registers the **Assignee** reference add-on; a malformed
+definition is logged and skipped rather than crashing startup.
 
-Storage contract (documented, not enforced by code yet):
-`projects.addon_data[identifier][fieldKey]` holds values and survives disabling/unavailability;
-`projects.settings.addons[identifier] = { enabled, inheritFromParent, settings }` holds
-enablement. Future endpoints are contracted as
-`PATCH /api/projects/:id/addons/:identifier` and are **not** built in the MVP.
+Storage is live: `projects.addon_data[identifier][fieldKey]` holds values and survives
+disabling/unavailability; `projects.settings.addons[identifier] = { enabled,
+inheritFromParent, settings }` holds enablement. Issue #7 implements the generic
+`PATCH /api/projects/:id/addons/:identifier` value write, `/settings` add-on modes and the
+project Add-ons tab, registry→`addons` table sync, search maintenance and `onProjectPurge`
+hooks. Per-add-on renderer/widget consumers remain FORWARD in `docs/add-ons.md`.

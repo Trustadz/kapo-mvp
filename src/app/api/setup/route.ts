@@ -4,6 +4,7 @@ import { hashPassword } from '@/server/auth/password';
 import { createRootProject, insertDefaultSettings } from '@/server/db/bootstrap';
 import { getDb } from '@/server/db/connection';
 import { newId, nowIso } from '@/server/db/util';
+import { syncAddonRegistry } from '@/server/domain/project-addons';
 import { getI18n } from '@/i18n/server';
 import {
   isSameOrigin,
@@ -89,6 +90,9 @@ export async function POST(request: Request) {
 
       createRootProject(db, userId, createdAt);
       insertDefaultSettings(db);
+      // Registry → addons rows are normally synced by instrumentation at
+      // startup; repeat inside first-run setup so tests/CLI bootstraps match.
+      syncAddonRegistry(db);
 
       const session = createSession(db, userId);
       return { userId, token: session.token, expiresAt: session.expiresAt };

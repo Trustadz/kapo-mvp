@@ -10,6 +10,7 @@ import {
 } from './db/bootstrap';
 import { indexProject } from './db/search';
 import { newId } from './db/util';
+import { syncAddonRegistry } from './domain/project-addons';
 
 /**
  * Mock household data — build-spec §10, exactly.
@@ -127,6 +128,10 @@ export async function seedDatabase(db: BetterSqliteDatabase): Promise<SeedSummar
   const run = db.transaction((): SeedSummary => {
     clearDatabase(db);
     insertDefaultSettings(db);
+    // Re-create the registry→addons rows this seed just cleared. Modes keep
+    // their product defaults (Assignee is `optional`, so it stays off until an
+    // Admin or a project enables it).
+    syncAddonRegistry(db);
 
     const userIds = new Map<SeedUser['key'], string>();
     const insertUser = db.prepare(

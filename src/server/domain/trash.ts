@@ -1,7 +1,7 @@
 import type { Database as BetterSqliteDatabase } from 'better-sqlite3';
 import type { Status } from '@/lib/types';
 import { getApplicationSettings } from './settings';
-import { indexProject, removeProjectFromSearch } from '@/server/db/search';
+import { removeProjectFromSearch } from '@/server/db/search';
 import { addDaysIso, newId, nowIso } from '@/server/db/util';
 import type {
   ProjectCard,
@@ -13,6 +13,7 @@ import type {
 } from '@/lib/projects';
 import { AUDIT_ACTIONS } from '@/lib/audit';
 import { getProjectCard, getProjectRow } from './projects';
+import { reindexProjectAddonSearch } from './project-addons';
 import { recordAuditEvent } from './audit';
 import {
   DomainError,
@@ -387,7 +388,7 @@ export function restoreProject(
       const statusId = targetStatus ? targetStatus.id : candidate.status_id;
       update.run(statusId, timestamp, candidate.id);
       const titleRow = selectTitle.get(candidate.id) as { title: string } | undefined;
-      if (titleRow) indexProject(db, { projectId: candidate.id, title: titleRow.title, body: '' });
+      if (titleRow) reindexProjectAddonSearch(db, candidate.id);
       recordAuditEvent(db, {
         projectId: candidate.id,
         actorId: actor.id,

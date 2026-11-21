@@ -11,8 +11,28 @@ import { startBackupScheduler } from './server/backup/schedule';
 
 const PURGE_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const LOG_PREFIX = '[kapo:purge]';
+const ADDON_LOG_PREFIX = '[kapo:addons]';
 
 let started = false;
+
+/**
+ * Registry → `addons` table sync + add-on search rebuild. Runs once at startup
+ * after migrations: new code registrations get a row, Admin modes are never
+ * overwritten, and hidden add-on text cannot remain in FTS after a mode change.
+ */
+async function syncAddonRegistryAtStartup(): Promise<void> {
+  try {
+    const { getDb } = await import('./server/db/connection');
+    const { syncAddonRegistryAndSearch } = await import('./server/domain/project-addons');
+    const identifiers = syncAddonRegistryAndSearch(getDb());
+    if (identifiers.length > 0) {
+      console.info(`${ADDON_LOG_PREFIX} registered ${identifiers.join(', ')}`);
+    }
+  } catch (error) {
+    // Add-on plumbing must never take Kapo down.
+    console.error(`${ADDON_LOG_PREFIX} startup sync failed`, error);
+  }
+}
 
 async function runPurge(): Promise<void> {
   try {
@@ -60,6 +80,7 @@ export async function startPurgeScheduler(): Promise<void> {
  */
 export async function startSchedulers(): Promise<void> {
   await Promise.all([
+    syncAddonRegistryAtStartup(),
     startPurgeScheduler().catch((error: unknown) => {
       console.error(`${LOG_PREFIX} scheduler failed to start`, error);
     }),

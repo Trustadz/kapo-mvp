@@ -46,9 +46,12 @@ tests/domain/    build-spec §6 rules: permissions + access modes (inherit/
 tests/integration/ real route handlers: auth/setup, projects, accounts,
                  dashboard/members, project admin surface, new features
                  (workflow same-name replacement, view_fields, Tree bulk
-                 move, Trash grouping), seed script
+                 move, Trash grouping), add-on plumbing (value writes,
+                 modes/inheritance, registry sync, search, purge hooks),
+                 seed script
 tests/regressions/ architecture-review fix pass (AR-021…AR-052)
-tests/e2e/       first-install + seeded desktop journeys
+tests/e2e/       first-install + seeded desktop journeys, including the
+                 focused Assignee add-on enable/save/persist journey
 ```
 
 ## Known expected failures

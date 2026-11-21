@@ -392,7 +392,7 @@ src/server/
   db/                    connection, migration runner, migrations/*.sql, queries
   auth/                  password hashing, sessions, cookies, current-user guards
   backup/                rolling backup snapshot/pruning + daily scheduler
-  addons/                extension contracts + empty registry
+  addons/                extension contracts, registry + Assignee reference add-on
   seed.ts                demo data (build-spec §10)
 src/styles/              tokens.css, base.css, layout.css
 scripts/                 seed/reset/migrate/purge command-line entry points
@@ -457,10 +457,16 @@ tests/                   Vitest and Playwright suites (owned by the tester)
 
 ### Add-ons
 
-`src/server/addons` ships the typed extension contracts and an **empty**
-registry (no add-ons in this iteration). See the header comment in
-`types.ts` for the `addon_data` / `settings.addons` storage contract. Add-ons
-never bypass core invariants (permissions, workflow remapping, trash read-only).
+`src/server/addons` ships the typed extension contracts, the registration
+manifest and the **Assignee** reference add-on. The first add-on plumbing
+(issue #7) includes: startup registry → `addons` table mode sync; application
+mode settings (`/settings`); per-project enablement/inheritance
+(`/p/[id]/settings?tab=addons`); the generic value endpoint
+`PATCH /api/projects/:id/addons/:identifier`; a definition-driven project-page
+editor; add-on search indexing; audit/activity integration; and isolated
+`onProjectPurge` hooks. See `docs/add-ons.md` for the contract and
+`src/server/domain/project-addons.ts` for the core plumbing. Add-ons never
+bypass core invariants (permissions, workflow remapping, trash read-only).
 
 ## Building on the foundation
 

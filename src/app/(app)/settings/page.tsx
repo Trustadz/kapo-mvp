@@ -3,6 +3,7 @@ import { ApplicationSettingsForm } from '@/components/settings/ApplicationSettin
 import { requireAdmin } from '@/server/auth/current-user';
 import { getBackupStatus } from '@/server/backup';
 import { getDb } from '@/server/db/connection';
+import { listAddonApplicationConfigs } from '@/server/domain/project-addons';
 import { getApplicationSettings } from '@/server/domain/settings';
 import { getI18n } from '@/i18n/server';
 
@@ -17,6 +18,7 @@ export default async function ApplicationSettingsPage() {
   await requireAdmin();
   const db = getDb();
   const settings = getApplicationSettings(db);
+  const addons = listAddonApplicationConfigs(db);
   const backupStatus = getBackupStatus(db);
   const { t } = await getI18n();
 
@@ -28,7 +30,7 @@ export default async function ApplicationSettingsPage() {
           <p className="page-subtitle">{t('settings.subtitle')}</p>
         </div>
       </div>
-      <ApplicationSettingsForm settings={settings} backupStatus={backupStatus} />
+      <ApplicationSettingsForm settings={settings} backupStatus={backupStatus} addons={addons} />
     </div>
   );
 }
