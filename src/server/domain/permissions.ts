@@ -1,6 +1,7 @@
 import type { Database as BetterSqliteDatabase } from 'better-sqlite3';
 import type { AppRole, ProjectRole } from '@/lib/types';
 import type { ProjectAccessMode } from '@/lib/projects';
+import type { AuditVia } from '@/lib/audit';
 import { parseJsonObject } from '@/server/db/util';
 
 /**
@@ -58,6 +59,11 @@ export interface AccessUser {
   id: string;
   appRole: AppRole;
   showArchived: boolean;
+  /**
+   * Audit provenance only, never an authorization input. Commands pass it
+   * through to `recordAuditEvent`; `undefined` means an ordinary web/API write.
+   */
+  via?: AuditVia;
 }
 
 export interface PermissionProject {

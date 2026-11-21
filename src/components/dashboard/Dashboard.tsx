@@ -469,9 +469,25 @@ function RecentWidgetBody({ data }: { data: DashboardRecentWidget }) {
           {data.items.map((event) => (
             <li key={event.id}>
               <Link href={event.href} className={styles.recentRow}>
-                <Avatar name={event.actorName} size={32} decorative />
+                <span className={styles.recentAvatar}>
+                  <Avatar name={event.actorName} size={32} decorative />
+                  {event.via ? (
+                    <span className={styles.aiBadge} title={t('activity.viaBadgeLabel')}>
+                      <span aria-hidden="true">{t('activity.viaBadge')}</span>
+                      <span className="visually-hidden">{t('activity.viaBadgeLabel')}</span>
+                    </span>
+                  ) : null}
+                </span>
                 <span className={styles.recentText}>
-                  <span className={styles.recentSummary}>{recentSummary(event, t)}</span>
+                  <span className={styles.recentSummary}>
+                    {recentSummary(event, t)}
+                    {event.via ? (
+                      <span className={styles.recentVia}>
+                        {' '}
+                        {t('activity.viaAgent', { agent: event.via.agent })}
+                      </span>
+                    ) : null}
+                  </span>
                   <span className={styles.recentTime}>{formatDayTime(event.createdAt)}</span>
                 </span>
               </Link>

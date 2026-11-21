@@ -31,7 +31,13 @@ cannot run in that environment; `npx playwright test --list` still works.
   `DATABASE_PATH` set to a temp file.
 - Playwright uses `data/test-e2e.db`, `.next-tests/` and port 3301;
   `tests/e2e/start-server.mjs` rebuilds only when needed and resets the test
-  database on every run.
+  database on every run. `KAPO_E2E_PORT` and `KAPO_E2E_DATABASE` override the
+  port and database file (and `tests/e2e/first-install.spec.ts` seeds the same
+  file), so parallel worktrees do not collide:
+
+  ```bash
+  KAPO_E2E_PORT=3311 KAPO_E2E_DATABASE=./data/test-e2e-2.db npm run test:e2e
+  ```
 - `data/kapo.db`, `data/projects.db` and `data/settings.db` are never opened.
 
 ## Layout
@@ -51,7 +57,8 @@ tests/integration/ real route handlers: auth/setup, projects, accounts,
                  seed script
 tests/regressions/ architecture-review fix pass (AR-021…AR-052)
 tests/e2e/       first-install + seeded desktop journeys, including the
-                 focused Assignee add-on enable/save/persist journey
+                 focused Assignee add-on enable/save/persist journey and the
+                 MCP enable → token → AI-provenance → revoke journey
 ```
 
 ## Known expected failures

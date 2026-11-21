@@ -145,6 +145,7 @@ describe('POST /api/setup', () => {
       'default_account_role',
       'enabled_views',
       'installation_name',
+      'mcp_enabled',
       'trash_purge_enabled',
       'trash_retention_days',
     ]);
