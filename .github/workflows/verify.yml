@@ -1,8 +1,9 @@
 name: Verify
 
 on:
+  # Every PR base is covered, so sub-PRs into an integration branch such as
+  # addon/foo are verified too, not just PRs aimed at main.
   pull_request:
-    branches: [main]
   push:
     branches: [main]
   workflow_call:
