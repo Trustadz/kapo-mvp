@@ -291,7 +291,8 @@ test.describe('keyboard navigation and focus order', () => {
     page,
   }) => {
     await login(page);
-    await page.goto(`/p/${await projectId(page, 'Home improvement')}/settings?tab=general`);
+    const id = await projectId(page, 'Home improvement');
+    await page.goto(`/p/${id}/settings?tab=general`);
     await expect(page.getByRole('heading', { level: 1, name: 'General' })).toBeVisible();
 
     const titleInput = page.locator('#settings-title');
@@ -299,6 +300,8 @@ test.describe('keyboard navigation and focus order', () => {
     await expect(titleInput).toBeFocused();
     await expectRingVisibleAndUnclipped(titleInput);
 
+    await page.goto(`/p/${id}/settings?tab=layout`);
+    await expect(page.getByRole('heading', { level: 1, name: 'Layout' })).toBeVisible();
     const above = page.getByLabel('Above details and properties');
     await above.focus();
     await page.keyboard.press('Space');

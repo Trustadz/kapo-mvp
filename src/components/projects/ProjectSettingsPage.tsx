@@ -160,7 +160,6 @@ function GeneralTab({
   const project = data.project;
   const { t } = useI18n();
   const [title, setTitle] = useState(project.title);
-  const [childPosition, setChildPosition] = useState(data.settings.child_position);
   const [defaultView, setDefaultView] = useState<CollectionView>(data.settings.default_view);
   const [inheritLayout, setInheritLayout] = useState(data.settings.inherit_layout);
   const [sendToInbox, setSendToInbox] = useState(!data.settings.skip_inbox);
@@ -169,14 +168,12 @@ function GeneralTab({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   // Issue #56: read back the session markers so the saved field stays tinted.
   const titleChanged = useFieldChanged(project.id, 'title');
-  const childPositionChanged = useFieldChanged(project.id, 'child_position');
   const defaultViewChanged = useFieldChanged(project.id, 'default_view');
   const inheritLayoutChanged = useFieldChanged(project.id, 'inherit_layout');
   const skipInboxChanged = useFieldChanged(project.id, 'skip_inbox');
 
   useEffect(() => {
     setTitle(project.title);
-    setChildPosition(data.settings.child_position);
     setDefaultView(data.settings.default_view);
     setInheritLayout(data.settings.inherit_layout);
     setSendToInbox(!data.settings.skip_inbox);
@@ -184,7 +181,6 @@ function GeneralTab({
 
   const reset = () => {
     setTitle(project.title);
-    setChildPosition(data.settings.child_position);
     setDefaultView(data.settings.default_view);
     setInheritLayout(data.settings.inherit_layout);
     setSendToInbox(!data.settings.skip_inbox);
@@ -199,7 +195,6 @@ function GeneralTab({
     let failed = false;
     const titleWillChange = project.canEdit && title.trim() !== project.title;
     const settingsChanges = {
-      child_position: childPosition !== data.settings.child_position,
       default_view: defaultView !== data.settings.default_view,
       inherit_layout: inheritLayout !== data.settings.inherit_layout,
       skip_inbox: !sendToInbox !== data.settings.skip_inbox,
@@ -216,7 +211,6 @@ function GeneralTab({
       }
     }
     const settingsResult = await saveProjectSettings(project.id, {
-      child_position: childPosition,
       default_view: defaultView,
       inherit_layout: inheritLayout,
       skip_inbox: !sendToInbox,
@@ -264,26 +258,6 @@ function GeneralTab({
         <Field label={t('settings.reporter')} htmlFor="settings-reporter">
           <Input id="settings-reporter" value={project.reporter.username} readOnly disabled />
         </Field>
-        <FieldGroup
-          legend={t('settings.childProjectsAppear')}
-          changed={childPositionChanged}
-          controlClassName={styles.radios}
-        >
-            <Radio
-              name="child-position"
-              value="below"
-              label={t('settings.belowDetails')}
-              checked={childPosition === 'below'}
-              onChange={() => setChildPosition('below')}
-            />
-          <Radio
-            name="child-position"
-            value="above"
-            label={t('settings.aboveDetails')}
-            checked={childPosition === 'above'}
-            onChange={() => setChildPosition('above')}
-          />
-        </FieldGroup>
         <Field
           label={t('settings.defaultView')}
           htmlFor="settings-default-view"
@@ -1294,6 +1268,7 @@ function LayoutTab({
   const { t } = useI18n();
   const project = data.project;
   const [inheritLayout, setInheritLayout] = useState(data.settings.inherit_layout);
+  const [childPosition, setChildPosition] = useState(data.settings.child_position);
   const [main, setMain] = useState<ProjectFieldKey[]>(data.layout.main);
   const [sidebar, setSidebar] = useState<ProjectFieldKey[]>(data.layout.sidebar);
   const [asTemplate, setAsTemplate] = useState(data.settings.layout_template !== null);
@@ -1306,9 +1281,11 @@ function LayoutTab({
   }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const childPositionChanged = useFieldChanged(project.id, 'child_position');
 
   useEffect(() => {
     setInheritLayout(data.settings.inherit_layout);
+    setChildPosition(data.settings.child_position);
     setMain(data.layout.main);
     setSidebar(data.layout.sidebar);
     setAsTemplate(data.settings.layout_template !== null);
@@ -1342,6 +1319,7 @@ function LayoutTab({
     setSaving(true);
     const result = await saveProjectSettings(project.id, {
       inherit_layout: inheritLayout,
+      child_position: childPosition,
       default_view: defaultView,
       enabled_views: enabledViews,
       hidden_statuses: hiddenStatuses,
@@ -1382,6 +1360,27 @@ function LayoutTab({
           />
         </Field>
       </div>
+
+      <FieldGroup
+        legend={t('settings.childProjectsAppear')}
+        changed={childPositionChanged}
+        controlClassName={styles.radios}
+      >
+        <Radio
+          name="child-position"
+          value="above"
+          label={t('settings.aboveDetails')}
+          checked={childPosition === 'above'}
+          onChange={() => setChildPosition('above')}
+        />
+        <Radio
+          name="child-position"
+          value="below"
+          label={t('settings.belowDetails')}
+          checked={childPosition === 'below'}
+          onChange={() => setChildPosition('below')}
+        />
+      </FieldGroup>
 
       <div className={styles.layoutColumns}>
         <FieldListEditor
@@ -1473,6 +1472,7 @@ function LayoutTab({
           variant="quiet"
           onClick={() => {
             setInheritLayout(data.settings.inherit_layout);
+            setChildPosition(data.settings.child_position);
             setMain(data.layout.main);
             setSidebar(data.layout.sidebar);
             setAsTemplate(data.settings.layout_template !== null);
