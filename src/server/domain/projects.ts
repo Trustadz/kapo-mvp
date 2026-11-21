@@ -14,8 +14,9 @@ import { newId, nowIso, parseJsonObject } from '@/server/db/util';
 import {
   DEFAULT_LAYOUT_TEMPLATE,
   DEFAULT_VIEW_FIELDS,
-  PROJECT_FIELD_KEYS,
-  VIEW_FIELD_KEYS,
+  filterAvailableAddonRefs,
+  isStoredProjectFieldKey,
+  isStoredViewFieldKey,
   type ActivityPageData,
   type ActorRef,
   type MoveDestination,
@@ -30,9 +31,11 @@ import {
   type ViewFieldKey,
   type ViewFields,
 } from '@/lib/projects';
+import { availableAddonFieldRefs, isAddonFieldRef } from '@/lib/addons';
 import { listActivity, recordAuditEvent } from './audit';
 import { assertInboxExitAllowed } from './addon-hooks';
 import {
+  getProjectAddonCardFields,
   getProjectAddonsForPage,
   reindexProjectAddonSearch,
   reindexProjectAddonSearchSubtree,
@@ -218,10 +221,11 @@ function parseViewFields(value: unknown): ViewFields {
     for (const entry of raw) {
       if (
         typeof entry === 'string' &&
-        (VIEW_FIELD_KEYS as readonly string[]).includes(entry) &&
-        !fields.includes(entry as ViewFieldKey)
+        !RETIRED_VIEW_FIELD_KEYS.has(entry) &&
+        isStoredViewFieldKey(entry) &&
+        !fields.includes(entry)
       ) {
-        fields.push(entry as ViewFieldKey);
+        fields.push(entry);
       }
     }
     views[view] = fields;
@@ -236,12 +240,8 @@ function parseLayoutTemplate(value: unknown): ProjectLayoutTemplate | null {
     if (!Array.isArray(raw)) return [];
     const keys: ProjectFieldKey[] = [];
     for (const entry of raw) {
-      if (
-        typeof entry === 'string' &&
-        (PROJECT_FIELD_KEYS as readonly string[]).includes(entry) &&
-        !keys.includes(entry as ProjectFieldKey)
-      ) {
-        keys.push(entry as ProjectFieldKey);
+      if (isStoredProjectFieldKey(entry) && !keys.includes(entry)) {
+        keys.push(entry);
       }
     }
     return keys;
@@ -454,11 +454,12 @@ export function updateProjectSettings(
         for (const entry of raw) {
           // Retired keys are dropped silently so legacy payloads keep working.
           if (typeof entry === 'string' && RETIRED_VIEW_FIELD_KEYS.has(entry)) continue;
-          if (typeof entry !== 'string' || !(VIEW_FIELD_KEYS as readonly string[]).includes(entry)) {
-            fields.view_fields = 'Only the supported core properties can be shown in views.';
+          if (!isStoredViewFieldKey(entry)) {
+            fields.view_fields =
+              'Only supported core properties or add-on fields can be shown in views.';
             break;
           }
-          if (!list.includes(entry as ViewFieldKey)) list.push(entry as ViewFieldKey);
+          if (!list.includes(entry)) list.push(entry);
         }
         if (fields.view_fields) break;
         nextViewFields[view] = list;
@@ -561,7 +562,44 @@ export function getProjectPageData(
       ? `/p/${ctx.rootId}`
       : '/';
 
-  const settings = parseProjectSettings(row.settings);
+  // Add-on availability drives which stored layout/view refs are displayed.
+  // Stale refs to disabled or unregistered add-ons stay in the JSON settings but
+  // are ignored here, so re-enabling the add-on restores the field placement.
+  const addons = getProjectAddonsForPage(db, user, projectId);
+  const availableAddonRefs = availableAddonFieldRefs(addons.items);
+  const pageSettings = parseProjectSettings(row.settings);
+  if (pageSettings.layout_template) {
+    pageSettings.layout_template = {
+      main: filterAvailableAddonRefs(pageSettings.layout_template.main, availableAddonRefs),
+      sidebar: filterAvailableAddonRefs(pageSettings.layout_template.sidebar, availableAddonRefs),
+    };
+  }
+  pageSettings.view_fields = {
+    kanban: filterAvailableAddonRefs(pageSettings.view_fields.kanban, availableAddonRefs),
+    card: filterAvailableAddonRefs(pageSettings.view_fields.card, availableAddonRefs),
+    tree: filterAvailableAddonRefs(pageSettings.view_fields.tree, availableAddonRefs),
+    list: filterAvailableAddonRefs(pageSettings.view_fields.list, availableAddonRefs),
+  };
+  const settings = pageSettings;
+  const effectiveLayout = effectiveLayoutTemplate(db, projectId, settings);
+  const layout: ProjectLayoutTemplate = {
+    main: filterAvailableAddonRefs(effectiveLayout.main, availableAddonRefs),
+    sidebar: filterAvailableAddonRefs(effectiveLayout.sidebar, availableAddonRefs),
+  };
+
+  // Only project add-on fields referenced by a view property need to reach the
+  // child cards; this keeps the payload (and user/select resolution) scoped.
+  const viewAddonRefs = new Set<string>();
+  for (const view of COLLECTION_VIEWS) {
+    for (const key of settings.view_fields[view]) {
+      if (isAddonFieldRef(key)) viewAddonRefs.add(key);
+    }
+  }
+  const withAddonFields = (card: ProjectCard): ProjectCard => {
+    const addonFields = getProjectAddonCardFields(db, card.id, viewAddonRefs);
+    return addonFields.length > 0 ? { ...card, addonFields } : card;
+  };
+
   // Read-only page path (AR-032/AR-052): never seeds a workflow here.
   const statuses = listWorkflow(db, projectId);
   const parentStatuses = row.parent_id ? listWorkflow(db, row.parent_id) : [];
@@ -571,7 +609,8 @@ export function getProjectPageData(
     .all(projectId) as ProjectRow[];
   const children = childRows
     .filter((childRow) => isActiveProject(ctx, childRow.id))
-    .map(mapProjectCard);
+    .map(mapProjectCard)
+    .map(withAddonFields);
 
   const descendants: ProjectWithParent[] = [];
   const collectDescendants = (parentId: string) => {
@@ -581,7 +620,7 @@ export function getProjectPageData(
     for (const childRow of rows) {
       if (!isActiveProject(ctx, childRow.id)) continue;
       descendants.push({
-        ...mapProjectCard(childRow),
+        ...withAddonFields(mapProjectCard(childRow)),
         parentId: childRow.parent_id,
         canAdmin: canAdminProject(ctx, childRow.id),
       });
@@ -640,8 +679,8 @@ export function getProjectPageData(
     descendants,
     activity,
     settings,
-    layout: effectiveLayoutTemplate(db, projectId, settings),
-    addons: getProjectAddonsForPage(db, user, projectId),
+    layout,
+    addons,
     showArchived: ctx.user.showArchived,
   };
 }

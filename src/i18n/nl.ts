@@ -389,6 +389,7 @@ export const nl: Messages = {
     noChanges: 'Geen wijzigingen',
     save: '{name} opslaan',
     saved: 'Add-on opgeslagen.',
+    editField: '{field} bewerken',
     unassigned: 'Niet toegewezen',
     notSet: 'Niet ingesteld',
     yes: 'Ja',
@@ -781,7 +782,7 @@ export const nl: Messages = {
     propertiesSidebar: 'Eigenschappen-zijbalk',
     viewProperties: 'Weergave-eigenschappen',
     viewPropertiesHint:
-      'Compacte eigenschappen op kaarten en rijen per weergave. In deze iteratie zijn alleen kernvelden instelbaar; veldposities voor add-ons volgen later met het add-onregister.',
+      'Compacte eigenschappen op kaarten en rijen per weergave. Kernvelden en beschikbare add-onvelden kunnen hier worden geplaatst.',
     addProperty: 'Eigenschap toevoegen…',
     addField: 'Veld toevoegen…',
     addPropertyTo: 'Eigenschap toevoegen aan {context}',

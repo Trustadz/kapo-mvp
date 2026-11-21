@@ -17,6 +17,11 @@ import type { MenuItem } from '@/components/ui';
 import type { Status } from '@/lib/types';
 import type { ProjectCard, ProjectWithParent } from '@/components/projects/types';
 import type { ViewFieldKey } from '@/lib/projects';
+import {
+  isAddonFieldRef,
+  parseAddonFieldRef,
+  type ProjectCardAddonField,
+} from '@/lib/addons';
 import { VIEW_FIELD_MESSAGE_KEYS } from '@/i18n/domain-labels';
 import { useI18n, type I18nContextValue } from '@/i18n/client';
 import { formatPersonName } from '@/lib/format';
@@ -279,15 +284,43 @@ function StatusControl({
   );
 }
 
+function addonCompactValue(
+  field: ProjectCardAddonField,
+  t: I18nContextValue['t'],
+  formatDate: I18nContextValue['formatDate'],
+  formatNumber: I18nContextValue['formatNumber'],
+): string | null {
+  if (field.value === null || field.value === undefined || field.value === '') return null;
+  if (field.type === 'boolean') return field.value === true ? t('addons.yes') : t('addons.no');
+  if (field.type === 'date' && typeof field.value === 'string') return formatDate(field.value);
+  if (field.type === 'number' && typeof field.value === 'number') return formatNumber(field.value);
+  // User and select labels are resolved on the server; text/number/date keep
+  // their raw value in `displayValue`.
+  return field.displayValue ?? String(field.value);
+}
+
 function viewMetaParts(
   project: ProjectCard,
   fields: readonly ViewFieldKey[] | undefined,
   t: I18nContextValue['t'],
   formatDate: I18nContextValue['formatDate'],
+  formatNumber: I18nContextValue['formatNumber'],
 ): string[] {
   if (!fields || fields.length === 0) return [];
   const parts: string[] = [];
   for (const field of fields) {
+    if (isAddonFieldRef(field)) {
+      const parsed = parseAddonFieldRef(field);
+      if (!parsed) continue;
+      const addonField = project.addonFields?.find(
+        (candidate) =>
+          candidate.identifier === parsed.identifier && candidate.fieldKey === parsed.fieldKey,
+      );
+      if (!addonField) continue;
+      const value = addonCompactValue(addonField, t, formatDate, formatNumber);
+      if (value) parts.push(`${addonField.label}: ${value}`);
+      continue;
+    }
     let value: string | null = null;
     switch (field) {
       case 'status':
@@ -321,8 +354,8 @@ function ViewMeta({
   project: ProjectCard;
   fields: readonly ViewFieldKey[] | undefined;
 }) {
-  const { t, formatDate } = useI18n();
-  const parts = viewMetaParts(project, fields, t, formatDate);
+  const { t, formatDate, formatNumber } = useI18n();
+  const parts = viewMetaParts(project, fields, t, formatDate, formatNumber);
   if (parts.length === 0) return null;
   return (
     <span className={styles.viewMeta}>

@@ -405,7 +405,7 @@ describe('generic value writes', () => {
       | { action: string; field: string; old_value: string | null; new_value: string | null; detail: string }
       | undefined;
     expect(event).toBeDefined();
-    expect(event?.field).toBe('Assignee');
+    expect(event?.field).toBe('Assigned to');
     expect(event?.old_value).toBeNull();
     expect(event?.new_value).toBe('maya');
     expect(JSON.parse(event!.detail)).toEqual({

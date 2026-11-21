@@ -36,7 +36,7 @@ export const assigneeAddon: AddonDefinition = {
   fields: [
     {
       key: 'assignee',
-      label: 'Assignee',
+      label: 'Assigned to',
       type: 'user',
       required: false,
       description: 'One person responsible for this project.',

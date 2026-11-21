@@ -1,5 +1,10 @@
 import type { AppRole, CollectionView, ProjectRole, Status } from './types';
-import type { ProjectAddonEditorData } from './addons';
+import {
+  isAddonFieldRef,
+  type AddonFieldRef,
+  type ProjectAddonEditorData,
+  type ProjectCardAddonField,
+} from './addons';
 
 /**
  * Serializable view models shared by the project server pages and the client
@@ -34,6 +39,12 @@ export interface ProjectCard {
   parent: ProjectLink | null;
   createdAt: string;
   updatedAt: string;
+  /**
+   * Compact add-on field values available to this project. Populated on the
+   * project page's child/descendant cards only; other card endpoints leave it
+   * undefined. Unavailable add-ons are never projected.
+   */
+  addonFields?: ProjectCardAddonField[];
 }
 
 export interface ProjectWithParent extends ProjectCard {
@@ -42,7 +53,15 @@ export interface ProjectWithParent extends ProjectCard {
   canAdmin?: boolean;
 }
 
-/** Core fields that can be placed in the main area or the properties sidebar. */
+/* ------------------------------------------------------------------------- */
+/* Layout field references                                                    */
+/* ------------------------------------------------------------------------- */
+
+/**
+ * Core fields that can be placed in the main area or the properties sidebar.
+ * Add-on fields are placed alongside them through the opaque
+ * `addon:<identifier>:<fieldKey>` reference (see `src/lib/addons.ts`).
+ */
 export const PROJECT_FIELD_KEYS = [
   'projectId',
   'parent',
@@ -52,9 +71,10 @@ export const PROJECT_FIELD_KEYS = [
   'updated',
 ] as const;
 
-export type ProjectFieldKey = (typeof PROJECT_FIELD_KEYS)[number];
+export type CoreProjectFieldKey = (typeof PROJECT_FIELD_KEYS)[number];
+export type ProjectFieldKey = CoreProjectFieldKey | AddonFieldRef;
 
-export const PROJECT_FIELD_LABELS: Record<ProjectFieldKey, string> = {
+export const PROJECT_FIELD_LABELS: Record<CoreProjectFieldKey, string> = {
   projectId: 'Project ID',
   parent: 'Parent',
   reporter: 'Reporter',
@@ -64,21 +84,57 @@ export const PROJECT_FIELD_LABELS: Record<ProjectFieldKey, string> = {
 };
 
 /**
- * Configurable per-view property slots (product.md §5/§11, PO P2).
- *
- * Only core fields are allowed in the MVP; add-on field slots are deferred with
- * the add-on registry (docs/add-ons.md) and will extend this list later.
+ * Configurable per-view property slots (product.md §5/§11, PO P2). Core and
+ * add-on fields share the same slot list; add-on fields use the opaque ref.
  */
 export const VIEW_FIELD_KEYS = ['status', 'parent', 'reporter', 'created', 'id'] as const;
-export type ViewFieldKey = (typeof VIEW_FIELD_KEYS)[number];
 
-export const VIEW_FIELD_LABELS: Record<ViewFieldKey, string> = {
+export type CoreViewFieldKey = (typeof VIEW_FIELD_KEYS)[number];
+export type ViewFieldKey = CoreViewFieldKey | AddonFieldRef;
+
+export const VIEW_FIELD_LABELS: Record<CoreViewFieldKey, string> = {
   status: 'Status',
   parent: 'Parent',
   reporter: 'Reporter',
   created: 'Created',
   id: 'Project ID',
 };
+
+function isCoreProjectFieldKey(value: string): value is CoreProjectFieldKey {
+  return (PROJECT_FIELD_KEYS as readonly string[]).includes(value);
+}
+
+function isCoreViewFieldKey(value: string): value is CoreViewFieldKey {
+  return (VIEW_FIELD_KEYS as readonly string[]).includes(value);
+}
+
+/**
+ * A stored main-area/sidebar slot is valid when it is a core key or a
+ * syntactically valid add-on reference. Availability is checked separately:
+ * stale refs to disabled/unregistered add-ons remain stored but are ignored by
+ * presentation code.
+ */
+export function isStoredProjectFieldKey(value: unknown): value is ProjectFieldKey {
+  return (
+    typeof value === 'string' && (isCoreProjectFieldKey(value) || isAddonFieldRef(value))
+  );
+}
+
+/** Same contract as `isStoredProjectFieldKey` for per-view property slots. */
+export function isStoredViewFieldKey(value: unknown): value is ViewFieldKey {
+  return typeof value === 'string' && (isCoreViewFieldKey(value) || isAddonFieldRef(value));
+}
+
+/**
+ * Drops add-on refs whose add-on field is not effectively available for the
+ * project being rendered. Core keys always survive.
+ */
+export function filterAvailableAddonRefs<T extends string>(
+  keys: readonly T[],
+  availableAddonRefs: ReadonlySet<string>,
+): T[] {
+  return keys.filter((key) => !isAddonFieldRef(key) || availableAddonRefs.has(key));
+}
 
 export type ViewFields = Record<CollectionView, ViewFieldKey[]>;
 

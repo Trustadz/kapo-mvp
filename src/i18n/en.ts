@@ -381,6 +381,7 @@ export const en = {
     noChanges: 'No changes',
     save: 'Save {name}',
     saved: 'Add-on saved.',
+    editField: 'Edit {field}',
     unassigned: 'Unassigned',
     notSet: 'Not set',
     yes: 'Yes',
@@ -752,7 +753,7 @@ export const en = {
     propertiesSidebar: 'Properties sidebar',
     viewProperties: 'View properties',
     viewPropertiesHint:
-      'Compact properties shown on cards and rows for each collection view. Only core fields are configurable in this iteration; add-on field slots are deferred with the add-on registry.',
+      'Compact properties shown on cards and rows for each collection view. Core and available add-on fields can be placed here.',
     addProperty: 'Add a property…',
     addField: 'Add a field…',
     addPropertyTo: 'Add a property to {context}',

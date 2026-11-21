@@ -592,8 +592,9 @@ Rules:
 
 - **Sidebar** renders one property row at rest (label, compact value, edit affordance); editing may
   open a popover/dialog owned by the component. Root renders sidebar contributions too.
-- **Main** renders in the main content region above Activity; it must not repeat core field slots,
-  take over layout, or hide title/status/reporter.
+- **Main** is the project **Details** card: an add-on field renders there when the project layout
+  places its `addon:<identifier>:<fieldKey>` reference in `main`. There is no standalone add-on card;
+  it must not take over layout or hide title/status/reporter.
 - Placement in a **layout template** is core-controlled (visible fields and order, `main | sidebar |
   hidden`). The add-on contributes the field and renderer; the project decides whether/where it
   appears. No freeform builder (product.md §3) and no arbitrary property-count limit.
@@ -612,15 +613,17 @@ not a per-view map:
 compactRenderer?: string; // UI key, e.g. 'assignee.compact'
 ```
 
-There is **no add-on renderer registry and no consumer of this key in the core UI yet**. The four
-collection views render core project data; they do not look up add-on fields, compact renderers or
-per-view property slots. Adding an add-on renderer is therefore FORWARD core plumbing, not a
-per-view special case.
+There is **no add-on renderer registry and no consumer of this key in the core UI yet**. Add-on
+field values selected in a view's property list now render through the core field-type default
+below; `compactRenderer` remains a forward contract. The four collection views look up the selected
+`addon:<identifier>:<fieldKey>` refs on each project card, but never call into add-on code. Adding a
+custom renderer is therefore FORWARD core plumbing, not a per-view special case.
 
 The implemented add-on field types (checked by `registry.ts` shape rules) are
 `boolean | number | text | longtext | date | select | user`; `select` must have static `options` or
-`optionsSource: 'users'`, and `user` must have neither. There is no generic add-on field control, so
-the "compact default" column in §4 is a specification for the future renderer bridge, not current UI.
+`optionsSource: 'users'`, and `user` must have neither. The generic field control and compact
+renderer both switch on `type`, not on an add-on identifier; the "compact default" column in §4
+describes that shipped field-type fallback.
 
 When the core UI bridge is built (FORWARD), one renderer key is resolved per add-on and receives:
 
@@ -863,10 +866,12 @@ inaccessible projects from search/dashboard.
 
 Assignee is specified in product.md §7 and shipped by issue #7 as the reference exercise for the
 contract: zero or one assignee per project, optional by default, application- and project-level
-availability, a required Inbox-exit gate, generic project-page editing, and an **Assigned to me**
-dashboard widget definition. Building it added **no** `identifier === 'assignee'` branch to core;
-the definition lives only in `src/server/addons/assignee/` and registers through the manifest. The
-dashboard-widget consumer and `compactRenderer` bridge remain FORWARD (§7/§9).
+availability, a required Inbox-exit gate, real **Details/Properties/view-property layout field
+slots** with a small edit dialog, and an **Assigned to me** dashboard widget definition. Building it
+added **no** `identifier === 'assignee'` branch to core; the definition lives only in
+`src/server/addons/assignee/` and registers through the manifest. Field-type-default compact values
+ship in all four collection views; the per-add-on `compactRenderer` bridge and dashboard-widget
+consumer remain FORWARD (§7/§9).
 
 It exercises every current type: the `user` field (zero-or-one), `hooks.validate` and
 `hooks.beforeLeaveInbox` (both wired at Inbox exit), the generic project-page editor and settings
@@ -887,7 +892,7 @@ export const assigneeAddon: AddonDefinition = {
   fields: [
     {
       key: 'assignee',
-      label: 'Assignee',
+      label: 'Assigned to',
       type: 'user',
       required: false,
       description: 'One person responsible for this project.',
