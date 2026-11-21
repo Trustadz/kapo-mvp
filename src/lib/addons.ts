@@ -1,5 +1,6 @@
 import type {
   AddonFieldDefinition,
+  AddonFieldOption,
   AddonFieldType,
   AddonFieldValue,
   AddonMode,
@@ -7,6 +8,7 @@ import type {
 
 export type {
   AddonFieldDefinition,
+  AddonFieldOption,
   AddonFieldType,
   AddonFieldValue,
   AddonMode,
@@ -31,7 +33,10 @@ export interface AddonApplicationConfig {
   description?: string;
   version: string;
   mode: AddonMode;
+  /** Global add-on settings stored in the `addons.settings` column. */
   settings: Record<string, AddonFieldValue>;
+  /** Declared global settings controls (empty when the add-on exposes none). */
+  settingsFields: AddonFieldDefinition[];
 }
 
 export interface ProjectAddonConfigView {

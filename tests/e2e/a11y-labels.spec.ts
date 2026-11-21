@@ -443,10 +443,33 @@ test.describe('labels, landmarks and announcements', () => {
     await login(page);
     await page.goto('/settings');
     await expect(page.getByRole('heading', { level: 1, name: 'Application settings' })).toBeVisible();
-    await expect(page.getByRole('form', { name: 'Application settings' })).toBeVisible();
+    const tablist = page.getByRole('tablist', { name: 'Application settings sections' });
+    await expect(tablist).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'General' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await expect(page.getByRole('tabpanel', { name: 'General' })).toBeVisible();
+    await expect(page.getByRole('form', { name: 'General application settings' })).toBeVisible();
     await expect(page.getByRole('group', { name: 'Views available to projects' })).toBeVisible();
-    await expect(page.getByRole('group', { name: 'Backups' })).toBeVisible();
     await expect(page.getByLabel('Default account role')).toBeVisible();
+    await expectPageAudit(page);
+
+    await page.getByRole('tab', { name: 'Backups' }).click();
+    await expect(page.getByRole('tabpanel', { name: 'Backups' })).toBeVisible();
+    await expect(page.getByRole('form', { name: 'Backup settings' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'Backups' })).toBeVisible();
+    await expect(page.getByLabel('Start time')).toBeVisible();
+    await expectPageAudit(page);
+
+    await page.getByRole('tab', { name: 'Add-ons' }).click();
+    await expect(page.getByRole('tabpanel', { name: 'Add-ons' })).toBeVisible();
+    await expect(page.getByRole('form', { name: 'Add-on settings' })).toBeVisible();
+    const addonCard = page.getByRole('region', { name: /Assignee/i });
+    await expect(addonCard).toBeVisible();
+    await expect(addonCard.getByRole('combobox', { name: 'Availability' })).toBeVisible();
+    await expect(addonCard.getByText('No additional settings for this add-on.')).toBeVisible();
+    await expect(addonCard.getByRole('radio')).toHaveCount(0);
     await expectPageAudit(page);
 
     await page.goto('/profile');

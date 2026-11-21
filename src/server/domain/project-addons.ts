@@ -6,6 +6,11 @@ import type {
   ProjectAddonEditorItem,
   ProjectAddonUserOption,
 } from '@/lib/addons';
+import {
+  addonSettingsFieldList,
+  isEditableApplicationSetting,
+  validateAddonApplicationSettings,
+} from '@/lib/addon-settings';
 import { AUDIT_ACTIONS } from '@/lib/audit';
 import {
   ADDON_MODES,
@@ -286,6 +291,9 @@ export function listAddonApplicationConfigs(db: BetterSqliteDatabase): AddonAppl
       version: definition.version,
       mode: row?.mode ?? definition.defaultMode ?? 'optional',
       settings: row ? parseScalarSettings(parseJsonObject(row.settings)) : {},
+      // Sanitised so a malformed add-on definition can never break page
+      // serialisation or the client renderer (functions, bad options, …).
+      settingsFields: addonSettingsFieldList(definition.settingsFields),
     };
   });
 }
@@ -340,10 +348,61 @@ export function updateApplicationAddons(
     const existing = db
       .prepare('SELECT settings FROM addons WHERE identifier = ?')
       .get(identifier) as { settings: string } | undefined;
-    const mergedSettings = {
-      ...(existing ? parseScalarSettings(parseJsonObject(existing.settings)) : {}),
-      ...(rawPatch.settings === undefined ? {} : parseScalarSettings(rawPatch.settings)),
-    };
+    const storedSettings = existing
+      ? parseScalarSettings(parseJsonObject(existing.settings))
+      : {};
+    let mergedSettings: Record<string, AddonFieldValue> = storedSettings;
+
+    if (rawPatch.settings !== undefined) {
+      const rawSettings = rawPatch.settings as Record<string, unknown>;
+      const declaredFields = addonSettingsFieldList(definition.settingsFields);
+      const declared = new Set(declaredFields.map((field) => field.key));
+      const editable = new Set(
+        declaredFields
+          .filter((field) => isEditableApplicationSetting(field))
+          .map((field) => field.key),
+      );
+      const validationInput: Record<string, unknown> = { ...storedSettings };
+      const incomingScalars: Record<string, AddonFieldValue> = {};
+
+      for (const [key, value] of Object.entries(rawSettings)) {
+        if (declared.has(key)) {
+          // Feed the raw value to the validator (so arrays/objects are
+          // rejected) but only merge editable fields: unsupported
+          // declarations are read-only here and keep their stored value.
+          validationInput[key] = value;
+          if (editable.has(key) && isScalar(value)) incomingScalars[key] = value;
+          continue;
+        }
+        // Unknown keys are preserved for compatibility. Non-scalar values stay
+        // outside the contract and are ignored, as before.
+        if (isScalar(value)) {
+          validationInput[key] = value;
+          incomingScalars[key] = value;
+        }
+      }
+
+      const result = validateAddonApplicationSettings(
+        definition.settingsFields,
+        validationInput,
+        { providedKeys: new Set(Object.keys(rawSettings)) },
+      );
+      if (result.issues.length > 0) {
+        const fields: Record<string, string> = {};
+        for (const issue of result.issues) {
+          fields[
+            `addons.${identifier}.settings${issue.field ? `.${issue.field}` : ''}`
+          ] = issue.message;
+        }
+        throw new DomainError(422, 'validation_failed', 'Check the add-on settings.', fields);
+      }
+      mergedSettings = {
+        ...storedSettings,
+        ...incomingScalars,
+        ...result.values,
+      };
+    }
+
     updates.push({ definition, mode, settings: JSON.stringify(mergedSettings) });
   }
 
