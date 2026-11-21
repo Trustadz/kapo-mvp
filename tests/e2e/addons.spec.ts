@@ -94,8 +94,8 @@ async function editAssignee(page: Page, card: ReturnType<Page['locator']>): Prom
   const listbox = page.getByRole('listbox', { name: 'People' });
   await expect(listbox).toBeVisible();
   await page.getByRole('combobox', { name: 'Search people' }).fill('may');
-  await expect(listbox.locator('[title="maya"]')).toHaveCount(1);
-  await listbox.getByRole('option', { name: 'maya' }).click();
+  await expect(listbox.locator('[title="Maya"]')).toHaveCount(1);
+  await listbox.getByRole('option', { name: 'Maya' }).click();
   await expect(page.getByRole('status')).toContainText('Add-on saved.');
   await expect(listbox).toBeHidden();
 }
@@ -148,12 +148,12 @@ test.describe('Assignee add-on as a real layout field', () => {
 
     // Details and Properties share the same add-on value: edit once here.
     await editAssignee(page, details);
-    await expect(details.getByText('maya', { exact: true })).toBeVisible();
-    await expect(properties.getByText('maya', { exact: true })).toBeVisible();
+    await expect(details.getByText('Maya', { exact: true })).toBeVisible();
+    await expect(properties.getByText('Maya', { exact: true })).toBeVisible();
 
     // Persisted after a full reload.
     await page.reload();
-    await expect(details.getByText('maya', { exact: true })).toBeVisible();
+    await expect(details.getByText('Maya', { exact: true })).toBeVisible();
 
     const pageResponse = await page.request.get(`/api/projects/${homeId}`);
     const pagePayload = (await pageResponse.json()) as {
@@ -169,22 +169,23 @@ test.describe('Assignee add-on as a real layout field', () => {
 
     await page.goto(`/p/${homeId}`);
     const childCard = page.getByRole('article').filter({ hasText: 'Paint hallway' });
-    await expect(childCard.getByText('Assigned to: maya')).toBeVisible();
+    await expect(childCard.getByText('Assigned to: Maya')).toBeVisible();
+    await expect(childCard.locator('[title="Maya"]')).toBeVisible();
 
     // Making the add-on globally unavailable hides every slot safely; the
     // stored layout refs and value survive and return when it is available.
     await setAddonMode(page, 'Unavailable');
     await page.goto(`/p/${homeId}`);
     await expect(page.getByText('Assigned to', { exact: true })).toHaveCount(0);
-    await expect(page.getByText('Assigned to: maya')).toHaveCount(0);
+    await expect(page.getByText('Assigned to: Maya')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Edit Assigned to' })).toHaveCount(0);
     await expect(page.getByRole('heading', { level: 2, name: 'Add-ons' })).toHaveCount(0);
 
     await setAddonMode(page, 'Available');
     await page.goto(`/p/${homeId}`);
-    await expect(details.getByText('maya', { exact: true })).toBeVisible();
+    await expect(details.getByText('Maya', { exact: true })).toBeVisible();
     await expect(
-      page.getByRole('article').filter({ hasText: 'Paint hallway' }).getByText('Assigned to: maya'),
+      page.getByRole('article').filter({ hasText: 'Paint hallway' }).getByText('Assigned to: Maya'),
     ).toBeVisible();
   });
 
@@ -194,8 +195,8 @@ test.describe('Assignee add-on as a real layout field', () => {
     await page.goto(`/p/${homeId}`);
     const details = page.locator('section[aria-labelledby="details-heading"]');
     const properties = page.locator('aside[aria-labelledby="properties-heading"]');
-    await expect(details.getByText('maya', { exact: true })).toBeVisible();
-    await expect(properties.getByText('maya', { exact: true })).toBeVisible();
+    await expect(details.getByText('Maya', { exact: true })).toBeVisible();
+    await expect(properties.getByText('Maya', { exact: true })).toBeVisible();
     await expect(details.getByRole('button', { name: 'Assign Assigned to' })).toHaveCount(0);
     await expect(properties.getByRole('button', { name: 'Assign Assigned to' })).toHaveCount(0);
   });

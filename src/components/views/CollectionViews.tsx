@@ -12,7 +12,7 @@ import {
   type ReactElement,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { Badge, Button, Checkbox, Icon, Menu, Select } from '@/components/ui';
+import { Avatar, Badge, Button, Checkbox, Icon, Menu, Select } from '@/components/ui';
 import type { MenuItem } from '@/components/ui';
 import type { Status } from '@/lib/types';
 import type { ProjectCard, ProjectWithParent } from '@/components/projects/types';
@@ -301,15 +301,21 @@ function addonCompactValue(
   return field.displayValue ?? String(field.value);
 }
 
+interface ViewMetaPart {
+  text: string;
+  avatar?: string | null;
+  name?: string;
+}
+
 function viewMetaParts(
   project: ProjectCard,
   fields: readonly ViewFieldKey[] | undefined,
   t: I18nContextValue['t'],
   formatDate: I18nContextValue['formatDate'],
   formatNumber: I18nContextValue['formatNumber'],
-): string[] {
+): ViewMetaPart[] {
   if (!fields || fields.length === 0) return [];
-  const parts: string[] = [];
+  const parts: ViewMetaPart[] = [];
   for (const field of fields) {
     if (isAddonFieldRef(field)) {
       const parsed = parseAddonFieldRef(field);
@@ -320,7 +326,19 @@ function viewMetaParts(
       );
       if (!addonField) continue;
       const value = addonCompactValue(addonField, t, formatDate, formatNumber);
-      if (value) parts.push(`${addonField.label}: ${value}`);
+      if (!value) continue;
+      const userBacked = addonField.avatar !== undefined;
+      const hasValue =
+        addonField.value !== null && addonField.value !== undefined && addonField.value !== '';
+      parts.push({
+        text: `${addonField.label}: ${value}`,
+        ...(userBacked && hasValue
+          ? {
+              avatar: addonField.avatar ?? null,
+              name: addonField.displayValue ?? value,
+            }
+          : {}),
+      });
       continue;
     }
     let value: string | null = null;
@@ -343,7 +361,7 @@ function viewMetaParts(
       default:
         value = null;
     }
-    if (value) parts.push(`${t(VIEW_FIELD_MESSAGE_KEYS[field])}: ${value}`);
+    if (value) parts.push({ text: `${t(VIEW_FIELD_MESSAGE_KEYS[field])}: ${value}` });
   }
   return parts;
 }
@@ -362,7 +380,17 @@ function ViewMeta({
   return (
     <span className={styles.viewMeta}>
       {parts.map((part, index) => (
-        <span key={`${part}-${index}`}>{part}</span>
+        <span key={`${part.text}-${index}`} className={styles.viewMetaItem}>
+          {part.name ? (
+            <Avatar
+              name={part.name}
+              src={part.avatar ?? undefined}
+              size={24}
+              decorative
+            />
+          ) : null}
+          {part.text}
+        </span>
       ))}
     </span>
   );

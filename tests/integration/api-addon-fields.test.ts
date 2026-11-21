@@ -181,7 +181,8 @@ describe('compact view projection', () => {
         label: 'Assigned to',
         type: 'user',
         value: household.maya.id,
-        displayValue: 'maya',
+        displayValue: 'Maya',
+        avatar: null,
       },
     ]);
 
@@ -265,6 +266,6 @@ describe('permissions', () => {
     const page = await json<PagePayload>(await projectGet(parent.id));
     expect(page.addons.canEdit).toBe(false);
     const card = page.children.find((entry) => entry.id === child.id);
-    expect(card?.addonFields?.[0]?.displayValue).toBe('jules');
+    expect(card?.addonFields?.[0]?.displayValue).toBe('Jules');
   });
 });

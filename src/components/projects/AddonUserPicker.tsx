@@ -26,6 +26,14 @@ interface Option {
   avatar: string | null;
 }
 
+function UnassignedAvatar() {
+  return (
+    <span className={styles.unassignedAvatar} aria-hidden="true">
+      <Icon name="person_off" size={16} />
+    </span>
+  );
+}
+
 /**
  * Inline Jira-style person picker for an add-on `user` field.
  *
@@ -115,7 +123,7 @@ export function AddonUserPicker({
       {selected ? (
         <Avatar name={selected.label} src={selected.avatar ?? undefined} size={24} decorative />
       ) : (
-        <Icon name="person_off" size={20} className={styles.unassignedIcon} />
+        <UnassignedAvatar />
       )}
       <span className={selected ? styles.name : styles.placeholder}>
         {selected?.label ?? t('addons.unassigned')}
@@ -200,7 +208,7 @@ export function AddonUserPicker({
                         decorative
                       />
                     ) : (
-                      <Icon name="person_off" size={20} className={styles.unassignedIcon} />
+                      <UnassignedAvatar />
                     )}
                     <span className={styles.optionLabel}>{option.label}</span>
                     {option.value === (current ?? '') ? (

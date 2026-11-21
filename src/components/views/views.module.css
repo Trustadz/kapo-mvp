@@ -309,6 +309,12 @@
   font-size: var(--font-size-small);
 }
 
+.viewMetaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
 .viewMeta > span:not(:last-child)::after {
   content: ' · ';
   color: var(--color-soft);

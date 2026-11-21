@@ -23,6 +23,7 @@ import {
 } from '@/server/addons';
 import { indexProject, searchBodyFromAddonValues } from '@/server/db/search';
 import { nowIso, parseJsonObject } from '@/server/db/util';
+import { formatPersonName } from '@/lib/format';
 import { recordAuditEvent } from './audit';
 import {
   DomainError,
@@ -534,7 +535,7 @@ function userOptions(db: BetterSqliteDatabase): ProjectAddonUserOption[] {
     .all() as Array<{ id: string; username: string; avatar: string | null }>;
   return rows.map((row) => ({
     value: row.id,
-    label: row.username,
+    label: formatPersonName(row.username),
     avatar: row.avatar,
   }));
 }
@@ -635,6 +636,17 @@ export function getProjectAddonCardFields(
         type: field.type,
         value,
         displayValue: displayValue(db, field, value),
+        ...(field.type === 'user' ||
+        (field.type === 'select' && field.optionsSource === 'users')
+          ? {
+              avatar:
+                typeof value === 'string'
+                  ? ((db.prepare('SELECT avatar FROM users WHERE id = ?').get(value) as
+                      | { avatar: string | null }
+                      | undefined)?.avatar ?? null)
+                  : null,
+            }
+          : {}),
       });
     }
   }
@@ -751,7 +763,7 @@ function displayValue(db: BetterSqliteDatabase, field: AddonFieldDefinition, val
     const row = db.prepare('SELECT username FROM users WHERE id = ?').get(value) as
       | { username: string }
       | undefined;
-    return row?.username ?? 'Former member';
+    return row ? formatPersonName(row.username) : 'Former member';
   }
   if (field.type === 'select' && typeof value === 'string') {
     return field.options?.find((option) => option.value === value)?.label ?? value;

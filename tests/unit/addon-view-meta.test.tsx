@@ -41,7 +41,8 @@ const addonField: ProjectCardAddonField = {
   label: 'Assigned to',
   type: 'user',
   value: 'user-maya',
-  displayValue: 'maya',
+  displayValue: 'Maya',
+  avatar: null,
 };
 
 function card(overrides: Partial<ProjectCard> = {}): ProjectCard {
@@ -113,7 +114,7 @@ const views: Array<{
 describe('compact add-on fields in collection views', () => {
   it.each(views)('$view renders the label and resolved value', ({ view, render }) => {
     const html = render(context(view, [ASSIGNEE_REF], card({ addonFields: [addonField] })));
-    expect(html).toContain('Assigned to: maya');
+    expect(html).toContain('Assigned to: Maya');
     expect(html).not.toContain(ASSIGNEE_REF);
   });
 
@@ -128,6 +129,6 @@ describe('compact add-on fields in collection views', () => {
       context(view, ['status', ASSIGNEE_REF], card({ addonFields: [addonField] })),
     );
     expect(html).toContain('Status: To do');
-    expect(html).toContain('Assigned to: maya');
+    expect(html).toContain('Assigned to: Maya');
   });
 });

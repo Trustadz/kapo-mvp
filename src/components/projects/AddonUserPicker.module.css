@@ -49,7 +49,15 @@
   color: var(--color-muted);
 }
 
-.unassignedIcon {
+.unassignedAvatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--color-surface-alt);
   color: var(--color-muted);
 }
 

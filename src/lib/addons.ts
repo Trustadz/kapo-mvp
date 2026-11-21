@@ -162,4 +162,6 @@ export interface ProjectCardAddonField {
    * raw form so the client can format them per locale.
    */
   displayValue: string | null;
+  /** Avatar for user-backed fields, when one exists. */
+  avatar?: string | null;
 }
