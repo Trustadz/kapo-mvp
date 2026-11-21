@@ -114,7 +114,7 @@ test.describe('authenticated Dutch UI and Profile switcher', () => {
     await expect(
       page.getByRole('heading', { level: 1, name: 'Applicatie-instellingen' }),
     ).toBeVisible();
-    await expect(page.getByText('Back-ups', { exact: true })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Back-ups' })).toBeVisible();
 
     // Switching back updates everything again and preserves the page.
     await page.goto('/profile');

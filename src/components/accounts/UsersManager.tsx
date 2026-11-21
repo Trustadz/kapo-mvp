@@ -26,11 +26,14 @@ import {
   validateUsername,
 } from '@/lib/validation';
 import type { AccountUser } from '@/server/domain/users';
+import { cn } from '@/lib/cn';
 import styles from './UsersManager.module.css';
 
 export interface UsersManagerProps {
   users: AccountUser[];
   defaultRole: AppRole;
+  /** Render without the outer Card/padding when embedded in a settings tab. */
+  embedded?: boolean;
 }
 
 function sortUsers(users: AccountUser[]): AccountUser[] {
@@ -42,7 +45,7 @@ function sortUsers(users: AccountUser[]): AccountUser[] {
  * changes and add/edit dialogs. Every mutation is validated again server-side;
  * the last application Admin cannot be demoted.
  */
-export function UsersManager({ users, defaultRole }: UsersManagerProps) {
+export function UsersManager({ users, defaultRole, embedded = false }: UsersManagerProps) {
   const { t } = useI18n();
   const router = useRouter();
   const [list, setList] = useState<AccountUser[]>(() => sortUsers(users));
@@ -100,7 +103,7 @@ export function UsersManager({ users, defaultRole }: UsersManagerProps) {
 
   return (
     <>
-      <Card className={styles.card}>
+      <Card className={cn(styles.card, embedded && styles.embeddedCard)}>
         <CardHeader
           title={t('users.users')}
           description={t('users.description')}
@@ -175,9 +178,11 @@ export function UsersManager({ users, defaultRole }: UsersManagerProps) {
           >
             {t('users.addUser')}
           </Button>
-          <LinkButton href="/" variant="quiet">
-            {t('common.cancel')}
-          </LinkButton>
+          {embedded ? null : (
+            <LinkButton href="/" variant="quiet">
+              {t('common.cancel')}
+            </LinkButton>
+          )}
         </div>
       </Card>
 

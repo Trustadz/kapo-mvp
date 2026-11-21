@@ -380,7 +380,17 @@ export const nl: Messages = {
     modeUnavailable: 'Niet beschikbaar',
     requiredNote: 'Aanwezig op elk project en verplicht voordat het de Inbox verlaat.',
     alwaysNote: 'Aanwezig op elk project; velden blijven optioneel.',
+    optionalNote:
+      'Beschikbaar voor projecten; projectbeheerders kiezen of de add-on wordt ingeschakeld.',
     unavailableNote: 'Bestaande waarden blijven bewaard maar worden verborgen.',
+    settingsHeading: 'Add-oninstellingen',
+    noSettings: 'Geen extra instellingen voor deze add-on.',
+    settingsUnsupported:
+      'Dit instellingstype wordt niet ondersteund in Applicatie-instellingen. De opgeslagen waarde blijft bewaard.',
+    settingsMalformed:
+      'Deze add-on bevat een instelling die hier niet kan worden bewerkt. De opgeslagen waarde blijft bewaard.',
+    chooseOption: 'Kies een optie',
+    formAria: 'Add-oninstellingen',
     enableForProject: 'Inschakelen voor dit project',
     inheritFromParent: 'Overnemen van bovenliggend project',
     inheritFromParentHint:
@@ -661,8 +671,6 @@ export const nl: Messages = {
       'Verwijdert projecten in de prullenbak definitief na de bewaartermijn. Back-ups blijven gewoon doorgaan.',
     trashRetention: 'Bewaar projecten in de prullenbak',
     trashRetentionHint: 'Dagen tussen 1 en 365. Standaard 30.',
-    note:
-      'Add-ons breiden projecten uit zonder kernfunctionaliteit te wijzigen. Niet-beschikbare add-ons bewaren hun opgeslagen waarden.',
     viewsAvailable: 'Weergaven beschikbaar voor projecten',
     oneViewRequired: 'Er moet minimaal één weergave beschikbaar blijven.',
     mcp: 'AI-toegang (MCP)',
@@ -690,11 +698,19 @@ export const nl: Messages = {
     restoreManual:
       'Herstellen gaat handmatig: stop de container, vervang de database en uploads door een gekozen back-up en start de container weer. De README beschrijft de exacte stappen.',
     saved: 'Applicatie-instellingen opgeslagen.',
+    applicationSectionsAria: 'Applicatie-instellingen',
+    generalSettings: 'Algemene instellingen',
+    generalFormAria: 'Algemene applicatie-instellingen',
+    backupsFormAria: 'Back-upinstellingen',
+    unsavedChanges: 'Niet-opgeslagen wijzigingen',
     tabs: {
       general: 'Algemeen',
+      backups: 'Back-ups',
+      addons: 'Add-ons',
       workflow: 'Workflow',
       members: 'Leden',
       layout: 'Lay-out',
+      users: 'Gebruikers',
     },
     projectSettings: 'Projectinstellingen',
     sectionsAria: 'Projectinstellingen',

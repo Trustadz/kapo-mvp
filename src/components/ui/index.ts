@@ -24,5 +24,12 @@ export { Notice, type NoticeProps, type NoticeTone } from './Notice';
 export { Radio, type RadioProps } from './Radio';
 export { Select, type SelectProps } from './Select';
 export { Spinner, type SpinnerProps } from './Spinner';
+export {
+  Tabs,
+  tabId,
+  tabPanelId,
+  type TabItem,
+  type TabsProps,
+} from './Tabs';
 export { Textarea, type TextareaProps } from './Textarea';
 export { Toast, type ToastProps, type ToastTone } from './Toast';
