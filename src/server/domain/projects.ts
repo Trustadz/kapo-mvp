@@ -732,14 +732,14 @@ export function createProject(
     reindexProjectAddonSearch(db, projectId);
     recordAuditEvent(db, {
       projectId,
-      actorId: user.id,
+      actor: user,
       action: AUDIT_ACTIONS.projectCreated,
       detail: `Project created under ${parent.title}`,
       createdAt,
     });
     recordAuditEvent(db, {
       projectId: input.parentId,
-      actorId: user.id,
+      actor: user,
       action: AUDIT_ACTIONS.childCreated,
       targetId: projectId,
       newValue: title,
@@ -877,7 +877,7 @@ export function updateProject(
     if (titleChanged) {
       recordAuditEvent(db, {
         projectId,
-        actorId: user.id,
+        actor: user,
         action: AUDIT_ACTIONS.projectRenamed,
         field: AUDIT_FIELDS.title,
         oldValue: row.title,
@@ -889,7 +889,7 @@ export function updateProject(
     if (statusChanged) {
       recordAuditEvent(db, {
         projectId,
-        actorId: user.id,
+        actor: user,
         action: AUDIT_ACTIONS.projectStatusChanged,
         field: AUDIT_FIELDS.status,
         oldValue: statusNameBefore,
@@ -903,7 +903,7 @@ export function updateProject(
     if (archivedChanged) {
       recordAuditEvent(db, {
         projectId,
-        actorId: user.id,
+        actor: user,
         action: nextArchived ? AUDIT_ACTIONS.projectArchived : AUDIT_ACTIONS.projectUnarchived,
         field: AUDIT_FIELDS.archived,
         oldValue: nextArchived ? 'Active' : 'Archived',
@@ -1062,7 +1062,7 @@ export function reorderProject(
     const priorIndex = globalOrder.findIndex((project) => project.id === projectId);
     recordAuditEvent(db, {
       projectId,
-      actorId: user.id,
+      actor: user,
       action: AUDIT_ACTIONS.projectPriorityChanged,
       field: AUDIT_FIELDS.priority,
       oldValue: priorIndex >= 0 ? String(priorIndex + 1) : null,
@@ -1072,7 +1072,7 @@ export function reorderProject(
     if (statusChanged) {
       recordAuditEvent(db, {
         projectId,
-        actorId: user.id,
+        actor: user,
         action: AUDIT_ACTIONS.projectStatusChanged,
         field: AUDIT_FIELDS.status,
         oldValue: statusNameBefore,
@@ -1316,7 +1316,7 @@ export function moveProject(
 
     recordAuditEvent(db, {
       projectId,
-      actorId: user.id,
+      actor: user,
       action: AUDIT_ACTIONS.projectMoved,
       field: AUDIT_FIELDS.parent,
       oldValue: oldParentTitle,
@@ -1325,7 +1325,7 @@ export function moveProject(
     });
     recordAuditEvent(db, {
       projectId,
-      actorId: user.id,
+      actor: user,
       action: AUDIT_ACTIONS.projectStatusChanged,
       field: AUDIT_FIELDS.status,
       oldValue: oldStatusName,
@@ -1490,7 +1490,7 @@ export function moveProjects(
         update.run(destinationId, target.id, timestamp, row.id);
         recordAuditEvent(db, {
           projectId: row.id,
-          actorId: user.id,
+          actor: user,
           action: AUDIT_ACTIONS.projectMoved,
           field: AUDIT_FIELDS.parent,
           oldValue: row.parent_title ?? 'previous parent',
@@ -1500,7 +1500,7 @@ export function moveProjects(
       }
       recordAuditEvent(db, {
         projectId: row.id,
-        actorId: user.id,
+        actor: user,
         action: AUDIT_ACTIONS.projectStatusChanged,
         field: AUDIT_FIELDS.status,
         oldValue: row.status_name,

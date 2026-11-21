@@ -30,6 +30,7 @@ const settings: ApplicationSettings = {
   enabledViews: ['kanban', 'card', 'tree', 'list'],
   trashPurgeEnabled: true,
   trashRetentionDays: 30,
+  mcpEnabled: false,
   installationName: 'Kapo',
   backupEnabled: true,
   backupStartTime: '03:00',
@@ -156,6 +157,7 @@ describe('application settings tabs', () => {
       enabledViews: ['card', 'list'],
       trashPurgeEnabled: true,
       trashRetentionDays: 29,
+      mcpEnabled: false,
     });
     expect(backupSaveBody(state.backup)).toEqual({
       backupEnabled: true,

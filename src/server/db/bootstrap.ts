@@ -10,6 +10,9 @@ export const MIN_TRASH_RETENTION_DAYS = 1;
 export const MAX_TRASH_RETENTION_DAYS = 365;
 export const DEFAULT_TRASH_PURGE_ENABLED = true;
 
+/** MCP access is opt-in: no client can read or write until an Admin enables it. */
+export const DEFAULT_MCP_ENABLED = false;
+
 /** Rolling database/uploads backups (Admin settings, issue #13). */
 export const DEFAULT_BACKUP_ENABLED = true;
 export const DEFAULT_BACKUP_START_TIME = '02:00';
@@ -28,6 +31,7 @@ export const DEFAULT_APP_SETTINGS: AppSettingDefault[] = [
   { key: 'trash_retention_days', value: String(TRASH_RETENTION_DAYS) },
   { key: 'trash_purge_enabled', value: DEFAULT_TRASH_PURGE_ENABLED ? '1' : '0' },
   { key: 'installation_name', value: 'Kapo' },
+  { key: 'mcp_enabled', value: DEFAULT_MCP_ENABLED ? '1' : '0' },
   { key: 'backup_enabled', value: DEFAULT_BACKUP_ENABLED ? '1' : '0' },
   { key: 'backup_start_time', value: DEFAULT_BACKUP_START_TIME },
   { key: 'backup_retention', value: String(DEFAULT_BACKUP_RETENTION) },

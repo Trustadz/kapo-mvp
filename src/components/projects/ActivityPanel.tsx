@@ -191,9 +191,30 @@ export function ActivityPanel({ projectId, projectTitle, initial }: ActivityPane
               formatPersonName(event.actor?.username ?? '') || t('common.someone');
             return (
               <li key={event.id} className={styles.activityRow}>
-                <Avatar name={actorName} src={event.actor?.avatar ?? undefined} size={32} decorative />
+                <span className={styles.activityAvatar}>
+                  <Avatar
+                    name={actorName}
+                    src={event.actor?.avatar ?? undefined}
+                    size={32}
+                    decorative
+                  />
+                  {event.via ? (
+                    <span className={styles.aiBadge} title={t('activity.viaBadgeLabel')}>
+                      <span aria-hidden="true">{t('activity.viaBadge')}</span>
+                      <span className="visually-hidden">{t('activity.viaBadgeLabel')}</span>
+                    </span>
+                  ) : null}
+                </span>
                 <div className={styles.activityBody}>
-                  <p className={styles.activityMain}>{main}</p>
+                  <p className={styles.activityMain}>
+                    {main}
+                    {event.via ? (
+                      <span className={styles.activityVia}>
+                        {' '}
+                        {t('activity.viaAgent', { agent: event.via.agent })}
+                      </span>
+                    ) : null}
+                  </p>
                   {detail ? <p className={styles.activityDetail}>{detail}</p> : null}
                 </div>
                 <time className={styles.activityTime} dateTime={event.createdAt}>

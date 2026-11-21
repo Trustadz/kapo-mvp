@@ -113,6 +113,7 @@ test('switching tabs keeps drafts and each tab saves only its own fields', async
   expect(Object.keys(body).sort()).toEqual([
     'defaultAccountRole',
     'enabledViews',
+    'mcpEnabled',
     'trashPurgeEnabled',
     'trashRetentionDays',
   ]);

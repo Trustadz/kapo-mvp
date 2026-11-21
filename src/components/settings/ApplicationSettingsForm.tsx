@@ -506,6 +506,19 @@ function GeneralPanel({
         {t('settings.oneViewRequired')}
       </p>
 
+      <fieldset className={styles.viewsFieldset}>
+        <legend className={styles.viewsLegend}>{t('settings.mcp')}</legend>
+        <p className={styles.note}>{t('settings.mcpNote')}</p>
+        <Checkbox
+          id="settings-mcp-enabled"
+          name="mcpEnabled"
+          label={t('settings.mcpEnabled')}
+          description={t('settings.mcpEnabledDescription')}
+          checked={values.mcpEnabled}
+          onChange={(event) => onChange({ mcpEnabled: event.target.checked })}
+        />
+      </fieldset>
+
       <PanelActions
         saving={saving}
         dirty={dirty}

@@ -169,7 +169,7 @@ export function trashProjects(
       // The project logs its own trashing; its parent logs the child removal.
       recordAuditEvent(db, {
         projectId,
-        actorId: actor.id,
+        actor: actor,
         action: AUDIT_ACTIONS.projectTrashed,
         detail: `Moved to Trash. Permanently removed after ${retentionDays} days.`,
         createdAt: timestamp,
@@ -179,7 +179,7 @@ export function trashProjects(
         if (parent) {
           recordAuditEvent(db, {
             projectId: row.parent_id,
-            actorId: actor.id,
+            actor: actor,
             action: AUDIT_ACTIONS.childTrashed,
             targetId: projectId,
             newValue: row.title,
@@ -391,7 +391,7 @@ export function restoreProject(
       if (titleRow) reindexProjectAddonSearch(db, candidate.id);
       recordAuditEvent(db, {
         projectId: candidate.id,
-        actorId: actor.id,
+        actor: actor,
         action: AUDIT_ACTIONS.projectRestored,
         detail: 'Restored from Trash',
         createdAt: timestamp,

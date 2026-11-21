@@ -29,6 +29,7 @@ export interface GeneralDraft {
   enabledViews: CollectionView[];
   trashPurgeEnabled: boolean;
   trashRetentionDays: number;
+  mcpEnabled: boolean;
 }
 
 export interface BackupDraft {
@@ -58,6 +59,7 @@ export function generalDraftFromSettings(settings: ApplicationSettings): General
     enabledViews: [...settings.enabledViews],
     trashPurgeEnabled: settings.trashPurgeEnabled,
     trashRetentionDays: settings.trashRetentionDays,
+    mcpEnabled: settings.mcpEnabled,
   };
 }
 
@@ -262,6 +264,7 @@ export function isGeneralDirty(general: GeneralDraft, saved: GeneralDraft): bool
     general.defaultAccountRole !== saved.defaultAccountRole ||
     general.trashPurgeEnabled !== saved.trashPurgeEnabled ||
     general.trashRetentionDays !== saved.trashRetentionDays ||
+    general.mcpEnabled !== saved.mcpEnabled ||
     general.enabledViews.length !== saved.enabledViews.length ||
     general.enabledViews.some((view, index) => view !== saved.enabledViews[index])
   );
@@ -302,6 +305,7 @@ export function generalSaveBody(general: GeneralDraft) {
     enabledViews: [...general.enabledViews],
     trashPurgeEnabled: general.trashPurgeEnabled,
     trashRetentionDays: general.trashRetentionDays,
+    mcpEnabled: general.mcpEnabled,
   };
 }
 

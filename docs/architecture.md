@@ -131,6 +131,26 @@ auth 401; project authorization uses **404 for projects the caller may not read*
 existence); 403 is used for a known project where the caller lacks the capability. Domain mutations
 never return `null` on failure; they throw and route handlers map the error.
 
+### 2.3 MCP adapter (opt-in AI access)
+
+`POST /api/mcp` is an inbound Model Context Protocol server for a user's own AI
+client. It is core, not an add-on: add-ons may not add routes, network I/O or
+their own credentials ([add-ons.md](add-ons.md) §1). The adapter is split so the
+protocol is testable without Next.js:
+
+| Module | Responsibility |
+|---|---|
+| `src/app/api/mcp/route.ts` | HTTP transport: global enable check, bearer auth, JSON parse, status codes |
+| `src/server/mcp/protocol.ts` | JSON-RPC 2.0 (`initialize`, `ping`, `tools/list`, `tools/call`), error mapping, batch/notification rules |
+| `src/server/mcp/tools.ts` | Generic domain verbs; no per-add-on tool and no permission logic of its own |
+| `src/server/auth/mcp-token.ts` | Personal token hashing, resolution, revocation (`mcp_tokens`) |
+
+It is stateless (no session id, no SSE stream) and calls the same domain commands
+as route handlers. Provenance is carried on `AccessUser.via`, which
+`recordAuditEvent` snapshots into `audit_events.via_*`; it is never an
+authorization input. The Admin toggle lives in application settings
+(`mcp_enabled`, default off). See [mcp.md](mcp.md).
+
 ## 3. Data model rationale
 
 `src/server/db/migrations/001_init.sql` implements build-spec §5. The choices that need explaining:
@@ -553,6 +573,10 @@ add-on tables must declare `ON DELETE CASCADE`.
 - Multi-stage Dockerfile: `builder` installs dev deps (needs `python3`/`make`/`g++` for
   better-sqlite3 if no prebuilt binary), runs `npm run build`; runtime stage copies the Next.js
   standalone output plus `node_modules` required for `better-sqlite3`.
+- Release images are published only by the manual `.github/workflows/container.yml` gate. It
+  reruns `.github/workflows/verify.yml`, calculates the version from the latest stable tag, passes
+  it as the `KAPO_RELEASE_VERSION` build arg, and publishes `:vX.Y.Z` and `:latest`. Ordinary pull
+  requests and `main` pushes run **Verify** without publishing.
 - The runtime image starts as root only in `scripts/docker-entrypoint.sh`: it creates/chowns the bind
   folders, then `exec gosu kapo` runs the server as UID/GID 1001. `VOLUME`s are declared for
   `/app/data`, `/app/upload` and `/backup`; the Compose healthcheck polls `/healthz`.
@@ -622,6 +646,7 @@ downgrade with a newer schema is unsupported.
 | `SESSION_SECRET` | unset | reserved; sessions are DB-backed random tokens and need no signing key |
 | `KAPO_PUBLIC_URL` | `http://localhost:3000` | metadata base URL / deployment guidance |
 | `KAPO_BACKUP_DIR` | `/backup` (Docker), `./data/backups` (dev fallback) | rolling backup destination; the image sets `/backup` |
+| `KAPO_RELEASE_VERSION` | unset (source), tag version (published image) | version reported by the MCP handshake; set by the publish workflow |
 | `TZ` | `Europe/Amsterdam` (Compose) | IANA timezone for the local backup schedule and backup folder names |
 | `PORT` | `3000` | Next.js port |
 

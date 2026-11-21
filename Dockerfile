@@ -18,9 +18,18 @@ RUN npm ci --no-audit --no-fund
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+
+# The release workflow passes the tag-derived version, so the image reports the
+# released version without a version-bump commit in the repository.
+ARG KAPO_RELEASE_VERSION
+RUN if [ -n "$KAPO_RELEASE_VERSION" ]; then \
+      npm version "$KAPO_RELEASE_VERSION" --no-git-tag-version --ignore-scripts --allow-same-version; \
+    fi
+
 RUN npm run build
 
 FROM base AS runner
+ARG KAPO_RELEASE_VERSION
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
@@ -28,7 +37,8 @@ ENV NODE_ENV=production \
     DATABASE_PATH=/app/data/kapo.db \
     UPLOAD_DIR=/app/upload \
     KAPO_MIGRATIONS_DIR=/app/migrations \
-    KAPO_BACKUP_DIR=/backup
+    KAPO_BACKUP_DIR=/backup \
+    KAPO_RELEASE_VERSION=${KAPO_RELEASE_VERSION}
 
 # The image starts as root only long enough to fix ownership of the bind-mounted
 # data/backup folders, then the entrypoint drops to the unprivileged kapo user.

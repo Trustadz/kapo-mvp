@@ -1,0 +1,24 @@
+changelog:
+  categories:
+    - title: Added
+      labels:
+        - "type: feature"
+        - "enhancement"
+    - title: Fixed
+      labels:
+        - "type: bug"
+        - "bug"
+    - title: Improved
+      labels:
+        - "type: improvement"
+        - "type: design"
+    - title: Accessibility
+      labels:
+        - "type: accessibility"
+    - title: Documentation
+      labels:
+        - "type: docs"
+        - "documentation"
+    - title: Other changes
+      labels:
+        - "*"

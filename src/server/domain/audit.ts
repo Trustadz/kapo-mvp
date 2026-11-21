@@ -1,4 +1,5 @@
 import type { Database as BetterSqliteDatabase } from 'better-sqlite3';
+import type { AuditVia } from '@/lib/audit';
 import { newId, nowIso } from '@/server/db/util';
 
 /**
@@ -9,9 +10,14 @@ import { newId, nowIso } from '@/server/db/util';
  * update or delete function: the schema trigger rejects updates.
  */
 
+export interface AuditActorInput {
+  id: string;
+  via?: AuditVia;
+}
+
 export interface AuditEventInput {
   projectId: string;
-  actorId: string | null;
+  actor: AuditActorInput | null;
   action: string;
   field?: string | null;
   oldValue?: string | null;
@@ -25,12 +31,13 @@ export interface AuditEventInput {
 export function recordAuditEvent(db: BetterSqliteDatabase, event: AuditEventInput): void {
   db.prepare(
     `INSERT INTO audit_events
-       (id, project_id, actor_id, action, field, old_value, new_value, target_id, detail, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, project_id, actor_id, action, field, old_value, new_value, target_id, detail, created_at,
+        via_channel, via_agent, via_token_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     newId(),
     event.projectId,
-    event.actorId,
+    event.actor?.id ?? null,
     event.action,
     event.field ?? null,
     event.oldValue ?? null,
@@ -38,6 +45,9 @@ export function recordAuditEvent(db: BetterSqliteDatabase, event: AuditEventInpu
     event.targetId ?? null,
     event.detail ?? null,
     event.createdAt ?? nowIso(),
+    event.actor?.via?.channel ?? null,
+    event.actor?.via?.agent ?? null,
+    event.actor?.via?.tokenId ?? null,
   );
 }
 
@@ -57,6 +67,8 @@ export interface ActivityEvent {
   createdAt: string;
   actor: ActivityActor | null;
   target: { id: string; title: string } | null;
+  /** Non-null when an MCP client (a user's AI agent) made the change. */
+  via: { channel: string; agent: string } | null;
 }
 
 export interface ActivityPage {
@@ -78,6 +90,8 @@ interface ActivityRow {
   actor_id: string | null;
   actor_username: string | null;
   actor_avatar: string | null;
+  via_channel: string | null;
+  via_agent: string | null;
 }
 
 function encodeCursor(createdAt: string, id: string): string {
@@ -149,7 +163,7 @@ export function listActivity(
       ? db
           .prepare(
             `SELECT e.id, e.action, e.field, e.old_value, e.new_value, e.detail, e.created_at,
-                    e.target_id, e.actor_id,
+                    e.target_id, e.actor_id, e.via_channel, e.via_agent,
                     u.username AS actor_username, u.avatar AS actor_avatar
                FROM audit_events e
                LEFT JOIN users u ON u.id = e.actor_id
@@ -162,7 +176,7 @@ export function listActivity(
       : db
           .prepare(
             `SELECT e.id, e.action, e.field, e.old_value, e.new_value, e.detail, e.created_at,
-                    e.target_id, e.actor_id,
+                    e.target_id, e.actor_id, e.via_channel, e.via_agent,
                     u.username AS actor_username, u.avatar AS actor_avatar
                FROM audit_events e
                LEFT JOIN users u ON u.id = e.actor_id
@@ -208,6 +222,10 @@ export function listActivity(
           ? { id: row.actor_id, username: row.actor_username, avatar: row.actor_avatar }
           : null,
       target,
+      via:
+        row.via_channel && row.via_agent
+          ? { channel: row.via_channel, agent: row.via_agent }
+          : null,
     };
   });
 
