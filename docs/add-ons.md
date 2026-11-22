@@ -9,10 +9,11 @@ availability/inheritance resolution (`src/server/domain/project-addons.ts`), add
 maintenance, audit/activity integration and `onProjectPurge` hooks. Core still owns every invariant;
 the Assignee definition is registered only through the manifest and no core module branches on its
 identifier. The Inbox-exit hook gate (`src/server/domain/addon-hooks.ts`) now resolves the stored
-mode and runs the shipped add-on's hooks. Still **FORWARD**: a client renderer registry for
-`compactRenderer`, a consumer for add-on dashboard widgets, per-add-on settings controls, per-add-on
-project-page slots and project-level "required" (§2.3). Sections marked **FORWARD** remain the target
-contract for those surfaces.
+mode and runs the shipped add-on's hooks. Application settings are tabbed (General / Backups /
+Add-ons) and support generic per-add-on global settings through `AddonDefinition.settingsFields`.
+Still **FORWARD**: a client renderer registry for `compactRenderer`, a consumer for add-on dashboard
+widgets, per-add-on project-page slots and project-level "required" (§2.3). Sections marked
+**FORWARD** remain the target contract for those surfaces.
 **Companion documents:** [architecture.md](architecture.md), [build-spec.md](build-spec.md) §5/§6/§12,
 [product.md](../product.md) §7.
 
@@ -308,7 +309,7 @@ UI and endpoints:
 
 | Surface | Contract |
 |---|---|
-| Application config | `/settings` → "Add-ons" section: one row per registered add-on with name, version, description, mode radio (`Required` / `Always on` / `Available` / `Unavailable`) and the add-on's global settings. Save via `PUT /api/settings` body `{ addons: { "<id>": { mode, settings } } }`. |
+| Application config | `/settings` → "Add-ons" tab: one card per registered add-on with name, version, description, a mode `Select` (`Required` / `Always on` / `Available` / `Unavailable`) and the add-on's generic global settings (`AddonDefinition.settingsFields`). Save via `PUT /api/settings` body `{ addons: { "<id>": { mode, settings } } }`; the tab submits only changed add-ons. |
 | Project config | `/p/[id]/settings?tab=addons` (tab hidden when the registry is empty). Per add-on: Enable, Inherit from parent, add-on settings; inherited values shown with an Override action. Save via `PUT /api/projects/:id/settings` body `{ addons: { "<id>": { enabled, inheritFromParent, settings } } }`. |
 | Value write | `PATCH /api/projects/:id/addons/:identifier` body `{ values: { "<fieldKey>": value } }` (partial merge). 403/404 when not writable (Viewer, trashed, unavailable, no access); 422 `addon_validation` with `fields` (same code/status as the implemented Inbox-exit gate). Implemented. |
 
@@ -525,32 +526,34 @@ are expanded; and do not assume `validate` is save-only (it runs on exit too).
 ## 5. Project settings and the settings UI contract
 
 Storage is §2.1/§3.2. The application mode surface and the project enable/inherit surface are
-implemented in `/settings` and `/p/[id]/settings?tab=addons`. Per-add-on **settings controls** remain
-FORWARD (the contract has no settings-control type; Assignee has no global setting):
+implemented in `/settings` and `/p/[id]/settings?tab=addons`. Per-add-on **global settings controls**
+are generic and implemented via one optional contract field:
 
 ```ts
-interface AddonSettingsProps {
-  readonly addonId: string;
-  readonly projectId: string | null;              // null in application settings
-  readonly mode: AddonMode;
-  readonly values: Readonly<Record<string, AddonFieldValue>>;  // current add-on settings
-  readonly inheritedValues: Readonly<Record<string, AddonFieldValue>> | null;
-  readonly canEdit: boolean;                      // false for application Viewers
-  readonly disabledReason?: string;               // e.g. "Available only; enable it for this project"
-  readonly onChange: (settings: Readonly<Record<string, AddonFieldValue>>) => void;
+interface AddonDefinition {
+  settingsFields?: AddonFieldDefinition[]; // serialised as AddonApplicationConfig.settingsFields
 }
 ```
 
+Application settings support `boolean`, `number`, `text`, `longtext`, `date` and static `select`
+controls. `user` fields and `optionsSource: 'users'` selects stay project-scoped: the UI explains
+that they cannot be edited here and a save preserves their stored values. `PUT /api/settings`
+validates declared fields (type, required, select options, min/max, maxLength and calendar date),
+preserves unknown keys for compatibility, and never crashes on a malformed definition (unusable
+declarations are skipped). Mode-only updates do not validate or rewrite settings.
+
 Requirements: labeled controls (label beside the control on desktop, above on mobile), helper text
-from `description`, disabled + explanation when `canEdit` is false, no direct fetch/persistence (the
-parent form owns submission), serialisable values. Application Viewers may edit their own
-profile/password/appearance/dashboard but never project or application add-on settings.
+from `description`, disabled + explanation when the setting is unsupported, no direct
+fetch/persistence (the parent form owns submission), serialisable values. Application Viewers may
+edit their own profile/password/appearance/dashboard but never project or application add-on
+settings.
 
 Placement:
 
-- Application settings (`/settings`, Admin): "Add-ons" section, one panel per registered add-on.
-  Mode radio plus `show_avatar`-style global settings; the panel explains Unavailable: "Existing
-  values are kept and hidden."
+- Application settings (`/settings`, Admin): tabbed page — General, Backups and (when the registry is
+  non-empty) Add-ons. Each add-on is its own card with a mode `Select`, a note explaining the
+  selected mode, and its `settingsFields` area (or a quiet "No additional settings" note). Each tab
+  keeps its draft across tab switches and has its own Save/Cancel.
 - Project settings (`/p/[id]/settings?tab=addons`, implemented): Enable for this project (hidden
   for Required/Always on), Inherit from parent, the add-on's project settings when a settings control
   exists, and inherited-state display. The tab is hidden while the registry is empty.
@@ -990,10 +993,11 @@ assignee is wanted later, add a core search filter parameter, not a fake searcha
 
 ### 12.5 Settings UI
 
-- **Implemented:** `/settings` Add-ons section = mode radio (Required / Always on / Available /
-  Unavailable) with the Unavailable retention explanation; `/p/[id]/settings?tab=addons` = Enable for
-  this project (Optional mode only), Inherit from parent, inherited-state text. There is no global
-  Assignee setting in v1.
+- **Implemented:** `/settings` has General / Backups / Add-ons tabs. Each add-on card uses a mode
+  `Select` (Required / Always on / Available / Unavailable) with a note for the selected mode, the
+  generic `settingsFields` area (or "No additional settings"), and the Unavailable retention
+  explanation. `/p/[id]/settings?tab=addons` = Enable for this project (Optional mode only), Inherit
+  from parent, inherited-state text. Assignee declares no `settingsFields` in v1.
 - **Implemented generically:** the project page renders an "Add-ons" card with the field controls from
   the definition (the Assignee `user` field uses a core-provided account picker). A Viewer or a
   trashed project sees values read-only. There is no per-add-on `projectPage.sidebar` renderer slot;

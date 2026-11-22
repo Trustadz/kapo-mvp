@@ -201,7 +201,10 @@ for (const theme of ['light', 'dark'] as const) {
     await page.goto('/settings');
     await expect(page.getByRole('heading', { level: 1, name: 'Application settings' })).toBeVisible();
     await expectTextContrast(
-      page.getByRole('form', { name: 'Application settings' }).locator('label').first(),
+      page
+        .getByRole('form', { name: 'General application settings' })
+        .locator('label')
+        .first(),
       4.5,
       'Settings field label',
     );

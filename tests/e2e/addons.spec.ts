@@ -42,10 +42,11 @@ async function userId(page: Page, username: string): Promise<string> {
 
 async function setAddonMode(page: Page, mode: 'Available' | 'Unavailable'): Promise<void> {
   await page.goto('/settings');
-  const group = page.getByRole('group', { name: /Assignee/i });
-  await expect(group).toBeVisible();
-  await group.getByRole('radio', { name: new RegExp(`^${mode}`) }).check();
-  await page.getByRole('button', { name: 'Save changes' }).click();
+  await page.getByRole('tab', { name: 'Add-ons' }).click();
+  const card = page.getByRole('region', { name: /Assignee/i });
+  await expect(card).toBeVisible();
+  await card.getByLabel('Availability').selectOption({ label: mode });
+  await page.getByRole('button', { name: 'Save add-ons' }).click();
   await expect(page.getByRole('status')).toContainText('Application settings saved.');
 }
 

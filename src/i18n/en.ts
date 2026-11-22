@@ -373,7 +373,16 @@ export const en = {
     modeUnavailable: 'Unavailable',
     requiredNote: 'Present on every project and required before leaving the Inbox.',
     alwaysNote: 'Present on every project; fields stay optional.',
+    optionalNote: 'Available to projects; project Admins choose whether to enable it.',
     unavailableNote: 'Existing values are kept and hidden.',
+    settingsHeading: 'Add-on settings',
+    noSettings: 'No additional settings for this add-on.',
+    settingsUnsupported:
+      'This setting type is not supported in Application settings. Its stored value is kept.',
+    settingsMalformed:
+      'This add-on declares a setting that cannot be edited here. Its stored value is kept.',
+    chooseOption: 'Choose an option',
+    formAria: 'Add-on settings',
     enableForProject: 'Enable for this project',
     saveProject: 'Save add-ons',
     projectSaved: 'Project add-ons saved.',
@@ -640,8 +649,6 @@ export const en = {
       'Permanently delete trashed projects after the retention period. Backups continue regardless.',
     trashRetention: 'Keep trashed projects for',
     trashRetentionHint: 'Days between 1 and 365. Default 30.',
-    note:
-      'Add-ons extend projects without changing core behaviour. Unavailable add-ons keep their stored values.',
     viewsAvailable: 'Views available to projects',
     oneViewRequired: 'At least one view must remain available.',
     mcp: 'AI access (MCP)',
@@ -667,11 +674,19 @@ export const en = {
     restoreManual:
       'Restore is manual: stop the container, replace the database and uploads from a chosen backup, then start it again. The README documents the exact steps.',
     saved: 'Application settings saved.',
+    applicationSectionsAria: 'Application settings sections',
+    generalSettings: 'General settings',
+    generalFormAria: 'General application settings',
+    backupsFormAria: 'Backup settings',
+    unsavedChanges: 'Unsaved changes',
     tabs: {
       general: 'General',
+      backups: 'Backups',
+      addons: 'Add-ons',
       workflow: 'Workflow',
       members: 'Members',
       layout: 'Layout',
+      users: 'Users',
     },
     projectSettings: 'Project settings',
     sectionsAria: 'Project settings sections',
@@ -688,7 +703,6 @@ export const en = {
     sendToInboxDescription:
       'When off, captured children are created directly in their start status.',
     projectSaved: 'Project settings saved.',
-    unsavedChanges: 'Unsaved changes',
     discardUnsavedTitle: 'Discard unsaved changes?',
     discardUnsavedBody:
       'You have unsaved changes in this section. Leaving now will discard them.',

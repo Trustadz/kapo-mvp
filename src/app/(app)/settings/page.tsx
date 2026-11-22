@@ -4,7 +4,8 @@ import { requireAdmin } from '@/server/auth/current-user';
 import { getBackupStatus } from '@/server/backup';
 import { getDb } from '@/server/db/connection';
 import { listAddonApplicationConfigs } from '@/server/domain/project-addons';
-import { getApplicationSettings } from '@/server/domain/settings';
+import { getApplicationSettings, getDefaultAccountRole } from '@/server/domain/settings';
+import { listUsers } from '@/server/domain/users';
 import { getI18n } from '@/i18n/server';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -20,6 +21,8 @@ export default async function ApplicationSettingsPage() {
   const settings = getApplicationSettings(db);
   const addons = listAddonApplicationConfigs(db);
   const backupStatus = getBackupStatus(db);
+  const users = listUsers(db);
+  const defaultRole = getDefaultAccountRole(db);
   const { t } = await getI18n();
 
   return (
@@ -30,7 +33,13 @@ export default async function ApplicationSettingsPage() {
           <p className="page-subtitle">{t('settings.subtitle')}</p>
         </div>
       </div>
-      <ApplicationSettingsForm settings={settings} backupStatus={backupStatus} addons={addons} />
+      <ApplicationSettingsForm
+        settings={settings}
+        backupStatus={backupStatus}
+        addons={addons}
+        users={users}
+        defaultRole={defaultRole}
+      />
     </div>
   );
 }
