@@ -610,7 +610,8 @@ gh workflow run container.yml --ref main -f bump=major
 | [design-handoff.md](design-handoff.md) | Penpot page map, interactions and shared patterns |
 | [docs/build-spec.md](docs/build-spec.md) | Engineering contract: routes, schema, domain rules, tokens, scopes |
 | [docs/architecture.md](docs/architecture.md) | Implemented architecture, invariants, deployment, testing |
-| [docs/add-ons.md](docs/add-ons.md) | **Developer guide for building add-ons** (registry contract, modes, fields, hooks, search, widgets, worked Assignee example) |
+| [docs/add-ons.md](docs/add-ons.md) | **Developer guide for building add-ons** (current registry contract, modes, fields, hooks, search, widgets, worked Assignee example) |
+| [docs/add-on-platform.md](docs/add-on-platform.md) | **Target add-on platform** (locked decisions, capability model, content envelope, work plan) |
 | [docs/architecture-review.md](docs/architecture-review.md) | Architecture review log (findings, resolutions, forward work) |
 | [docs/design-review-app.md](docs/design-review-app.md) | Design fidelity review against Penpot |
 | [docs/product-review.md](docs/product-review.md) | Product-owner acceptance review and scope compliance |

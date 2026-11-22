@@ -16,6 +16,9 @@ widgets, per-add-on project-page slots and project-level "required" (§2.3). Sec
 **FORWARD** remain the target contract for those surfaces.
 **Companion documents:** [architecture.md](architecture.md), [build-spec.md](build-spec.md) §5/§6/§12,
 [product.md](../product.md) §7.
+**Target platform:** [add-on-platform.md](add-on-platform.md) locks the target capability model and
+decisions. This guide documents the **currently shipped** field-only contract; where the two disagree
+about future work, the target document wins until this guide is rewritten.
 
 Precedence: `docs/build-spec.md` wins over this guide where they conflict. `src/server/addons/types.ts`
 is the registry source of truth; if this document and the file disagree, the file wins and this
