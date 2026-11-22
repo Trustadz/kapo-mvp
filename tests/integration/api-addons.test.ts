@@ -188,15 +188,15 @@ describe('application add-on modes', () => {
   });
 });
 
-describe('per-project enablement and inheritance', () => {
-  it('requires an optional add-on to be enabled and inherits from the nearest ancestor', async () => {
-    const { parent, child } = projectTree('Inheritance');
+describe('per-project explicit configuration', () => {
+  it('requires the optional add-on to be enabled on the project itself', async () => {
+    const { child } = projectTree('Explicit enablement');
 
     // Disabled by default below the Root.
     expect((await addonPatch(child.id, 'assignee', { values: {} })).status).toBe(403);
 
-    const enabled = await settingsPut(parent.id, {
-      addons: { assignee: { enabled: true, inheritFromParent: true } },
+    const enabled = await settingsPut(child.id, {
+      addons: { assignee: { enabled: true } },
     });
     expect(enabled.status).toBe(200);
     const enabledPayload = await json<{ addons: Array<{ identifier: string; available: boolean }> }>(
@@ -223,7 +223,7 @@ describe('per-project enablement and inheritance', () => {
 
     // Re-enabling sees the stored value again.
     const reenabled = await settingsPut(child.id, {
-      addons: { assignee: { enabled: true, inheritFromParent: true } },
+      addons: { assignee: { enabled: true } },
     });
     expect(reenabled.status).toBe(200);
     const page = await projectGet(child.id);
@@ -238,8 +238,8 @@ describe('per-project enablement and inheritance', () => {
     ]);
   });
 
-  it('inherits add-on settings from the nearest ancestor and lets a child override', async () => {
-    const { parent, child } = projectTree('Settings inheritance');
+  it('keeps settings explicit per project and ignores later parent changes', async () => {
+    const { parent, child } = projectTree('Explicit settings');
     const parentSave = await settingsPut(parent.id, {
       addons: {
         assignee: { enabled: true, settings: { show_avatar: false, inherited_only: 1 } },
@@ -247,22 +247,33 @@ describe('per-project enablement and inheritance', () => {
     });
     expect(parentSave.status).toBe(200);
     const childSave = await settingsPut(child.id, {
-      addons: { assignee: { settings: { show_avatar: true } } },
+      addons: { assignee: { enabled: true, settings: { show_avatar: true } } },
     });
     expect(childSave.status).toBe(200);
 
     expect(resolveAddonConfig(db, child.id, 'assignee')).toEqual(
       expect.objectContaining({
         available: true,
-        inherited: true,
-        settings: { show_avatar: true, inherited_only: 1 },
+        inherited: false,
+        settings: { show_avatar: true },
       }),
     );
 
-    // Opting out of inheritance stops the parent settings and availability;
-    // the child's own settings survive.
+    // A parent change after the child's snapshot never flows down.
+    await settingsPut(parent.id, {
+      addons: { assignee: { enabled: false, settings: { show_avatar: false } } },
+    });
+    expect(resolveAddonConfig(db, child.id, 'assignee')).toEqual(
+      expect.objectContaining({
+        available: true,
+        inherited: false,
+        settings: { show_avatar: true },
+      }),
+    );
+
+    // Opting the child out is an explicit local decision.
     const optOut = await settingsPut(child.id, {
-      addons: { assignee: { inheritFromParent: false } },
+      addons: { assignee: { enabled: false } },
     });
     expect(optOut.status).toBe(200);
     expect(resolveAddonConfig(db, child.id, 'assignee')).toEqual(
@@ -333,8 +344,8 @@ describe('required mode and the Inbox-exit gate', () => {
 
 describe('generic value writes', () => {
   it('validates field types, permissions and trashed projects', async () => {
-    const { parent, child } = projectTree('Permissions');
-    await settingsPut(parent.id, { addons: { assignee: { enabled: true } } });
+    const { child } = projectTree('Permissions');
+    await settingsPut(child.id, { addons: { assignee: { enabled: true } } });
 
     signIn(db, household.alex.id);
     expect(
@@ -364,20 +375,19 @@ describe('generic value writes', () => {
       trashedAt: new Date().toISOString(),
       purgeDeadline: new Date(Date.now() + 86_400_000).toISOString(),
     });
-    await settingsPut(trashed.parent.id, { addons: { assignee: { enabled: true } } });
     expect(
       (await addonPatch(trashed.child.id, 'assignee', { values: { assignee: null } })).status,
     ).toBe(409);
   });
 
   it('merges values, preserves unknown data and writes an audit event', async () => {
-    const { parent, child } = projectTree('Audited', {
+    const { child } = projectTree('Audited', {
       addonData: {
         legacy: { keep: 'yes' },
         assignee: { assignee: null, future: 'kept' },
       },
     });
-    await settingsPut(parent.id, { addons: { assignee: { enabled: true } } });
+    await settingsPut(child.id, { addons: { assignee: { enabled: true } } });
 
     const response = await addonPatch(child.id, 'assignee', {
       values: { assignee: household.maya.id },
@@ -506,10 +516,11 @@ describe('search integration', () => {
     });
     syncAddonRegistry(db);
 
-    const { parent, child } = projectTree('Search add-on', {
+    const { child } = projectTree('Search add-on', {
       addonData: { 'searchable-notes': { notes: 'planktonic' } },
     });
-    await settingsPut(parent.id, {
+    // Configuration is explicit on the project that owns the values.
+    await settingsPut(child.id, {
       addons: { 'searchable-notes': { enabled: true } },
     });
 
@@ -537,8 +548,8 @@ describe('search integration', () => {
       ),
     ).toContain(child.id);
 
-    // Moving to a parent where the add-on is not enabled hides the text but
-    // keeps the stored value; enabling it there indexes the text again.
+    // Moving the project keeps its own explicit configuration, so the text
+    // stays indexed. Disabling it hides the text but keeps the stored value.
     const destination = createFixtureProject(db, {
       title: 'Search destination',
       parentId: household.home.id,
@@ -552,20 +563,20 @@ describe('search integration', () => {
     });
     expect(moved.status).toBe(200);
     expect(
+      (await json<{ results: Array<{ id: string }> }>(await searchGet('planktonic'))).results.map(
+        (result) => result.id,
+      ),
+    ).toContain(child.id);
+
+    await settingsPut(child.id, {
+      addons: { 'searchable-notes': { enabled: false } },
+    });
+    expect(
       (await json<{ results: unknown[] }>(await searchGet('planktonic'))).results,
     ).toEqual([]);
     expect(JSON.parse(getProjectRow(db, child.id)!.addon_data)).toEqual({
       'searchable-notes': { notes: 'planktonic' },
     });
-
-    await settingsPut(destination.id, {
-      addons: { 'searchable-notes': { enabled: true } },
-    });
-    expect(
-      (await json<{ results: Array<{ id: string }> }>(await searchGet('planktonic'))).results.map(
-        (result) => result.id,
-      ),
-    ).toContain(child.id);
 
     const unavailable = await appSettingsPut({
       addons: { 'searchable-notes': { mode: 'unavailable' } },

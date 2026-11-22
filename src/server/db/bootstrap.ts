@@ -50,7 +50,11 @@ export interface ProjectSettingsDefaults {
 
 export const DEFAULT_PROJECT_SETTINGS: ProjectSettingsDefaults = {
   access: 'inherit',
-  inherit_layout: true,
+  // Layout and add-on configuration are copied from the parent once at
+  // creation, so new rows always start explicit. Legacy rows that still have
+  // `inherit_layout` absent/true are converted by the one-time inheritance
+  // snapshot at startup.
+  inherit_layout: false,
   child_position: 'below',
   default_view: 'kanban',
   enabled_views: ['kanban', 'card', 'tree', 'list'],

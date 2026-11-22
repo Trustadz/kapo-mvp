@@ -59,6 +59,14 @@
   color: var(--color-brand-dark);
 }
 
+.unsavedIndicator {
+  margin-left: auto;
+  align-self: center;
+  color: var(--color-muted-strong);
+  font-size: var(--font-size-small);
+  font-weight: 500;
+}
+
 .card {
   display: flex;
   flex-direction: column;

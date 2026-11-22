@@ -56,7 +56,7 @@ async function setAddonMode(page: Page, mode: 'Available' | 'Unavailable'): Prom
   // the journey on the seeded default ("Available") must not wait forever.
   if (await save.isEnabled()) {
     await save.click();
-    await expect(page.getByRole('status')).toContainText('Application settings saved.');
+    await expect(page.getByRole('status').filter({ hasText: 'Application settings saved.' })).toBeVisible();
   }
 }
 
@@ -65,8 +65,12 @@ async function enableForProject(page: Page, projectId: string): Promise<void> {
   await expect(page.getByRole('heading', { level: 1, name: 'Add-ons' })).toBeVisible();
   const enable = page.getByLabel('Enable for this project');
   if (!(await enable.isChecked())) await enable.check();
-  await page.getByRole('button', { name: 'Save add-ons' }).click();
-  await expect(page.getByRole('status')).toContainText('Project add-ons saved.');
+  const save = page.getByRole('button', { name: 'Save add-ons' });
+  // Save is disabled when the snapshot already matches; keep re-runs idempotent.
+  if (await save.isEnabled()) {
+    await save.click();
+    await expect(page.getByRole('status').filter({ hasText: 'Project add-ons saved.' })).toBeVisible();
+  }
 }
 
 async function addLayoutFields(page: Page, projectId: string): Promise<void> {
@@ -86,7 +90,7 @@ async function addLayoutFields(page: Page, projectId: string): Promise<void> {
     .selectOption({ label: ASSIGNEE_OPTION });
 
   await page.getByRole('button', { name: 'Save changes' }).click();
-  await expect(page.getByRole('status')).toContainText('Layout settings saved.');
+  await expect(page.getByRole('status').filter({ hasText: 'Layout settings saved.' })).toBeVisible();
 }
 
 async function editAssignee(page: Page, card: ReturnType<Page['locator']>): Promise<void> {
@@ -96,7 +100,7 @@ async function editAssignee(page: Page, card: ReturnType<Page['locator']>): Prom
   await page.getByRole('combobox', { name: 'Search people' }).fill('may');
   await expect(listbox.locator('[title="Maya"]')).toHaveCount(1);
   await listbox.getByRole('option', { name: 'Maya' }).click();
-  await expect(page.getByRole('status')).toContainText('Add-on saved.');
+  await expect(page.getByRole('status').filter({ hasText: 'Add-on saved.' })).toBeVisible();
   await expect(listbox).toBeHidden();
 }
 
@@ -161,9 +165,11 @@ test.describe('Assignee add-on as a real layout field', () => {
     };
     expect(pagePayload.addons.items[0]?.values.assignee).toBe(mayaId);
 
-    // Set the child's assignee through the inherited field row, then verify the
-    // compact add-on field in the Kanban meta row.
+    // Copy-on-create gives the child its own snapshot, so configure the
+    // child's add-on and layout explicitly before editing its field row.
     const childId = await findProjectId(page, 'Paint hallway');
+    await enableForProject(page, childId);
+    await addLayoutFields(page, childId);
     await page.goto(`/p/${childId}`);
     await editAssignee(page, page.locator('section[aria-labelledby="details-heading"]'));
 

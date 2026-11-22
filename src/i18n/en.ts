@@ -365,7 +365,7 @@ export const en = {
     applicationHint:
       'Choose how each registered add-on behaves across the installation. Existing values are kept and hidden when an add-on is unavailable.',
     projectHint:
-      'Enable optional add-ons for this project and choose whether configuration may flow down from the parent project.',
+      'Enable optional add-ons for this project. Each project keeps its own explicit snapshot; changes to a parent project do not affect existing children.',
     modeLabel: 'Availability',
     modeRequired: 'Required',
     modeAlways: 'Always on',
@@ -384,9 +384,6 @@ export const en = {
     chooseOption: 'Choose an option',
     formAria: 'Add-on settings',
     enableForProject: 'Enable for this project',
-    inheritFromParent: 'Inherit from parent',
-    inheritFromParentHint: 'Use the configuration of {parent} until this project overrides it.',
-    inheritedFromParent: 'Inherited from the parent project',
     saveProject: 'Save add-ons',
     projectSaved: 'Project add-ons saved.',
     unsavedChanges: 'Unsaved changes',
@@ -706,13 +703,15 @@ export const en = {
     belowDetails: 'Below details and properties',
     aboveDetails: 'Above details and properties',
     defaultView: 'Default view',
-    layout: 'Layout',
-    inheritLayout: 'Inherit layout from the parent project',
     newChildren: 'New children',
     sendToInbox: 'Send new children to the Inbox',
     sendToInboxDescription:
       'When off, captured children are created directly in their start status.',
     projectSaved: 'Project settings saved.',
+    discardUnsavedTitle: 'Discard unsaved changes?',
+    discardUnsavedBody:
+      'You have unsaved changes in this section. Leaving now will discard them.',
+    discardUnsavedConfirm: 'Discard changes',
     workflowTitle: 'Workflow for child projects',
     workflowHint: 'This workflow controls children, not this project’s own status.',
     statusNameN: 'Status name {n}',
@@ -800,8 +799,7 @@ export const en = {
     parentFallback: 'parent',
     layoutTitle: 'Layout and views',
     layoutHint:
-      'Choose where project fields appear, which views are available and which statuses are hidden.',
-    inheritance: 'Inheritance',
+      'Choose where project fields appear, which views are available and which statuses are hidden. New child projects copy the current layout once; later changes here do not affect existing children.',
     useAsTemplate: 'Use as child template',
     useAsTemplateLabel: 'Use this layout as the template for child projects',
     mainArea: 'Main area',

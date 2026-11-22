@@ -86,6 +86,9 @@ function projectTree(
     parentId: parent.id,
     reporterId: household.admin.id,
     addonData: options.childAddonData ?? {},
+    // Copy-on-create snapshots the parent's add-on availability. The fixture
+    // inserts the child directly, so make the snapshot explicit.
+    settings: { addons: { assignee: { enabled: true, inheritFromParent: false } } },
   });
   createWorkflow(db, child.id, { names: ['To do', 'Done'] });
   grantRole(db, child.id, household.admin.id, 'admin');
