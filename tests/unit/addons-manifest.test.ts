@@ -10,7 +10,7 @@ describe('add-on manifest', () => {
     const assignee = getAddon('assignee');
     expect(assignee?.identifier).toBe('assignee');
     expect(assignee?.version).toBe('1.0.0');
-    expect(assignee?.defaultMode).toBe('optional');
+    expect(assignee?.defaultMode).toBe('always');
     expect(assignee?.fields).toEqual([
       expect.objectContaining({ key: 'assignee', type: 'user' }),
     ]);

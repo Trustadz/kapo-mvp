@@ -36,7 +36,7 @@ import { PROJECT_FIELD_KEYS } from './types';
 import type { MemberCandidate } from './api';
 import type { ProjectAccessMode, ViewFieldKey, ViewFields } from '@/lib/projects';
 import type { AddonMode, ProjectAddonConfigView } from '@/lib/addons';
-import { ADDON_MODE_OPTIONS } from '@/lib/addons';
+import { ADDON_MODE_OPTIONS, serializeAddonFieldRef } from '@/lib/addons';
 import { DEFAULT_VIEW_FIELDS, VIEW_FIELD_KEYS } from '@/lib/projects';
 import { formatPersonName } from '@/lib/format';
 import { markFieldChanged } from '@/lib/changed-fields';
@@ -1254,17 +1254,26 @@ function AddonsTab({
 /* Layout                                                                    */
 /* ------------------------------------------------------------------------- */
 
+interface FieldListOption<T extends string> {
+  key: T;
+  label: string;
+}
+
 function ViewFieldListEditor({
   label,
   fields,
+  options,
   onChange,
 }: {
   label: string;
   fields: ViewFieldKey[];
+  options: readonly FieldListOption<ViewFieldKey>[];
   onChange: (next: ViewFieldKey[]) => void;
 }) {
   const { t } = useI18n();
-  const available = VIEW_FIELD_KEYS.filter((key) => !fields.includes(key));
+  const labelFor = (key: ViewFieldKey) =>
+    options.find((option) => option.key === key)?.label ?? key;
+  const available = options.filter((option) => !fields.includes(option.key));
   return (
     <div className={styles.fieldListEditor}>
       <h4 className={styles.subheading}>{label}</h4>
@@ -1274,13 +1283,13 @@ function ViewFieldListEditor({
       <ul className={styles.fieldList}>
         {fields.map((field, index) => (
           <li key={field} className={styles.fieldListRow}>
-            <span>{t(VIEW_FIELD_MESSAGE_KEYS[field])}</span>
+            <span>{labelFor(field)}</span>
             <span className={styles.fieldListActions}>
               <button
                 type="button"
                 className={styles.iconButton}
                 aria-label={t('common.moveNameUpIn', {
-                  name: t(VIEW_FIELD_MESSAGE_KEYS[field]),
+                  name: labelFor(field),
                   context: label,
                 })}
                 disabled={index === 0}
@@ -1299,7 +1308,7 @@ function ViewFieldListEditor({
                 type="button"
                 className={styles.iconButton}
                 aria-label={t('common.moveNameDownIn', {
-                  name: t(VIEW_FIELD_MESSAGE_KEYS[field]),
+                  name: labelFor(field),
                   context: label,
                 })}
                 disabled={index === fields.length - 1}
@@ -1318,7 +1327,7 @@ function ViewFieldListEditor({
                 type="button"
                 className={styles.iconButton}
                 aria-label={t('common.hideNameIn', {
-                  name: t(VIEW_FIELD_MESSAGE_KEYS[field]),
+                  name: labelFor(field),
                   context: label,
                 })}
                 onClick={() => onChange(fields.filter((entry) => entry !== field))}
@@ -1335,14 +1344,14 @@ function ViewFieldListEditor({
           aria-label={t('settings.addPropertyTo', { context: label })}
           value=""
           onChange={(event) => {
-            const value = event.target.value as ViewFieldKey;
-            if (value) onChange([...fields, value]);
+            const option = available.find((candidate) => candidate.key === event.target.value);
+            if (option) onChange([...fields, option.key]);
           }}
         >
           <option value="">{t('settings.addProperty')}</option>
-          {available.map((field) => (
-            <option key={field} value={field}>
-              {t(VIEW_FIELD_MESSAGE_KEYS[field])}
+          {available.map((option) => (
+            <option key={option.key} value={option.key}>
+              {option.label}
             </option>
           ))}
         </Select>
@@ -1354,14 +1363,18 @@ function ViewFieldListEditor({
 function FieldListEditor({
   label,
   fields,
+  options,
   onChange,
 }: {
   label: string;
   fields: ProjectFieldKey[];
+  options: readonly FieldListOption<ProjectFieldKey>[];
   onChange: (next: ProjectFieldKey[]) => void;
 }) {
   const { t } = useI18n();
-  const available = PROJECT_FIELD_KEYS.filter((key) => !fields.includes(key));
+  const labelFor = (key: ProjectFieldKey) =>
+    options.find((option) => option.key === key)?.label ?? key;
+  const available = options.filter((option) => !fields.includes(option.key));
   return (
     <div className={styles.fieldListEditor}>
       <h3 className={styles.subheading}>{label}</h3>
@@ -1371,13 +1384,13 @@ function FieldListEditor({
       <ul className={styles.fieldList}>
         {fields.map((field, index) => (
           <li key={field} className={styles.fieldListRow}>
-            <span>{t(PROJECT_FIELD_MESSAGE_KEYS[field])}</span>
+            <span>{labelFor(field)}</span>
             <span className={styles.fieldListActions}>
               <button
                 type="button"
                 className={styles.iconButton}
                 aria-label={t('common.moveNameUpIn', {
-                  name: t(PROJECT_FIELD_MESSAGE_KEYS[field]),
+                  name: labelFor(field),
                   context: label,
                 })}
                 disabled={index === 0}
@@ -1396,7 +1409,7 @@ function FieldListEditor({
                 type="button"
                 className={styles.iconButton}
                 aria-label={t('common.moveNameDownIn', {
-                  name: t(PROJECT_FIELD_MESSAGE_KEYS[field]),
+                  name: labelFor(field),
                   context: label,
                 })}
                 disabled={index === fields.length - 1}
@@ -1415,7 +1428,7 @@ function FieldListEditor({
                 type="button"
                 className={styles.iconButton}
                 aria-label={t('common.removeNameFrom', {
-                  name: t(PROJECT_FIELD_MESSAGE_KEYS[field]),
+                  name: labelFor(field),
                   context: label,
                 })}
                 onClick={() => onChange(fields.filter((entry) => entry !== field))}
@@ -1432,14 +1445,14 @@ function FieldListEditor({
           aria-label={t('settings.addFieldTo', { context: label })}
           value=""
           onChange={(event) => {
-            const value = event.target.value as ProjectFieldKey;
-            if (value) onChange([...fields, value]);
+            const option = available.find((candidate) => candidate.key === event.target.value);
+            if (option) onChange([...fields, option.key]);
           }}
         >
           <option value="">{t('settings.addField')}</option>
-          {available.map((field) => (
-            <option key={field} value={field}>
-              {t(PROJECT_FIELD_MESSAGE_KEYS[field])}
+          {available.map((option) => (
+            <option key={option.key} value={option.key}>
+              {option.label}
             </option>
           ))}
         </Select>
@@ -1465,7 +1478,6 @@ function LayoutTab({
   const [childPosition, setChildPosition] = useState(data.settings.child_position);
   const [main, setMain] = useState<ProjectFieldKey[]>(data.layout.main);
   const [sidebar, setSidebar] = useState<ProjectFieldKey[]>(data.layout.sidebar);
-  const [asTemplate, setAsTemplate] = useState(data.settings.layout_template !== null);
   const [defaultView, setDefaultView] = useState<CollectionView>(data.settings.default_view);
   const [enabledViews, setEnabledViews] = useState<CollectionView[]>(data.settings.enabled_views);
   const [hiddenStatuses, setHiddenStatuses] = useState<string[]>(data.settings.hidden_statuses);
@@ -1477,12 +1489,35 @@ function LayoutTab({
   const [error, setError] = useState<string | null>(null);
   const childPositionChanged = useFieldChanged(project.id, 'child_position');
 
+  // Add-on fields are offered alongside core fields, labelled with the add-on
+  // name so two add-ons that both expose e.g. a "Name" field stay distinct.
+  // Only add-ons effectively available for this project reach `data.addons`.
+  const addonFieldOptions = data.addons.items.flatMap((item) =>
+    item.fields.map((field) => ({
+      key: serializeAddonFieldRef(item.identifier, field.key),
+      label: `${item.name} · ${field.label}`,
+    })),
+  );
+  const projectFieldOptions: FieldListOption<ProjectFieldKey>[] = [
+    ...PROJECT_FIELD_KEYS.map((key) => ({
+      key,
+      label: t(PROJECT_FIELD_MESSAGE_KEYS[key]),
+    })),
+    ...addonFieldOptions,
+  ];
+  const viewFieldOptions: FieldListOption<ViewFieldKey>[] = [
+    ...VIEW_FIELD_KEYS.map((key) => ({
+      key,
+      label: t(VIEW_FIELD_MESSAGE_KEYS[key]),
+    })),
+    ...addonFieldOptions,
+  ];
+
   useEffect(() => {
     setInheritLayout(data.settings.inherit_layout);
     setChildPosition(data.settings.child_position);
     setMain(data.layout.main);
     setSidebar(data.layout.sidebar);
-    setAsTemplate(data.settings.layout_template !== null);
     setDefaultView(data.settings.default_view);
     setEnabledViews(data.settings.enabled_views);
     setHiddenStatuses(data.settings.hidden_statuses);
@@ -1505,10 +1540,6 @@ function LayoutTab({
   };
 
   const save = async () => {
-    if (asTemplate && main.length === 0 && sidebar.length === 0) {
-      setError(t('settings.chooseOneField'));
-      return;
-    }
     setError(null);
     setSaving(true);
     const result = await saveProjectSettings(project.id, {
@@ -1518,7 +1549,7 @@ function LayoutTab({
       enabled_views: enabledViews,
       hidden_statuses: hiddenStatuses,
       view_fields: viewFields,
-      layout_template: asTemplate ? { main, sidebar } : null,
+      layout_template: { main, sidebar },
     });
     setSaving(false);
     if (!result.ok) {
@@ -1543,14 +1574,6 @@ function LayoutTab({
             label={t('settings.inheritLayout')}
             checked={inheritLayout}
             onChange={(event) => setInheritLayout(event.target.checked)}
-          />
-        </Field>
-        <Field label={t('settings.useAsTemplate')} htmlFor="layout-template">
-          <Checkbox
-            id="layout-template"
-            label={t('settings.useAsTemplateLabel')}
-            checked={asTemplate}
-            onChange={(event) => setAsTemplate(event.target.checked)}
           />
         </Field>
       </div>
@@ -1580,11 +1603,13 @@ function LayoutTab({
         <FieldListEditor
           label={t('settings.mainArea')}
           fields={main}
+          options={projectFieldOptions}
           onChange={setMain}
         />
         <FieldListEditor
           label={t('settings.propertiesSidebar')}
           fields={sidebar}
+          options={projectFieldOptions}
           onChange={setSidebar}
         />
       </div>
@@ -1600,6 +1625,7 @@ function LayoutTab({
               key={view}
               label={t(COLLECTION_VIEW_MESSAGE_KEYS[view])}
               fields={viewFields[view] ?? []}
+              options={viewFieldOptions}
               onChange={(next) => setViewFields((current) => ({ ...current, [view]: next }))}
             />
           ))}
@@ -1669,8 +1695,7 @@ function LayoutTab({
             setChildPosition(data.settings.child_position);
             setMain(data.layout.main);
             setSidebar(data.layout.sidebar);
-            setAsTemplate(data.settings.layout_template !== null);
-            setDefaultView(data.settings.default_view);
+                    setDefaultView(data.settings.default_view);
             setEnabledViews(data.settings.enabled_views);
             setHiddenStatuses(data.settings.hidden_statuses);
             setViewFields({ ...DEFAULT_VIEW_FIELDS, ...data.settings.view_fields });

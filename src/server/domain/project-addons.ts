@@ -5,7 +5,9 @@ import type {
   ProjectAddonEditorData,
   ProjectAddonEditorItem,
   ProjectAddonUserOption,
+  ProjectCardAddonField,
 } from '@/lib/addons';
+import { serializeAddonFieldRef } from '@/lib/addons';
 import {
   addonSettingsFieldList,
   isEditableApplicationSetting,
@@ -26,6 +28,7 @@ import {
 } from '@/server/addons';
 import { indexProject, searchBodyFromAddonValues } from '@/server/db/search';
 import { nowIso, parseJsonObject } from '@/server/db/util';
+import { formatPersonName } from '@/lib/format';
 import { recordAuditEvent } from './audit';
 import {
   DomainError,
@@ -587,9 +590,13 @@ export function updateProjectAddons(
 
 function userOptions(db: BetterSqliteDatabase): ProjectAddonUserOption[] {
   const rows = db
-    .prepare('SELECT id, username FROM users ORDER BY username COLLATE NOCASE ASC')
-    .all() as Array<{ id: string; username: string }>;
-  return rows.map((row) => ({ value: row.id, label: row.username }));
+    .prepare('SELECT id, username, avatar FROM users ORDER BY username COLLATE NOCASE ASC')
+    .all() as Array<{ id: string; username: string; avatar: string | null }>;
+  return rows.map((row) => ({
+    value: row.id,
+    label: formatPersonName(row.username),
+    avatar: row.avatar,
+  }));
 }
 
 export function getProjectAddonsForPage(
@@ -606,9 +613,16 @@ export function getProjectAddonsForPage(
   const canEdit = canEditProject(ctx, projectId) && !trashed;
   const resolved = resolveProjectAddons(db, projectId).filter((config) => config.available);
   const allValues = parseJsonObject(row.addon_data);
-  const picker = resolved.some((config) =>
-    getAddon(config.identifier)?.fields.some((field) => field.type === 'user'),
-  )
+  const needsUserOptions = (fields: readonly AddonFieldDefinition[]): boolean =>
+    fields.some(
+      (field) =>
+        field.type === 'user' ||
+        (field.type === 'select' && field.optionsSource === 'users'),
+    );
+  const picker = resolved.some((config) => {
+    const definition = getAddon(config.identifier);
+    return definition ? needsUserOptions(definition.fields) : false;
+  })
     ? userOptions(db)
     : [];
 
@@ -630,9 +644,7 @@ export function getProjectAddonsForPage(
       required: config.required,
       fields: definition.fields,
       values,
-      ...(definition.fields.some((field) => field.type === 'user')
-        ? { userOptions: picker }
-        : {}),
+      ...(needsUserOptions(definition.fields) ? { userOptions: picker } : {}),
     });
   }
 
@@ -641,6 +653,63 @@ export function getProjectAddonsForPage(
     canEdit,
     readOnlyReason: trashed ? 'trashed' : canEdit ? null : 'viewer',
   };
+}
+
+/**
+ * Projects the compact add-on fields needed by the collection views onto one
+ * project card. Only add-ons effectively available for that project are
+ * included, and `onlyRefs` limits the result to the fields actually selected in
+ * a view property list. No unavailable/unregistered value can leak here.
+ */
+export function getProjectAddonCardFields(
+  db: BetterSqliteDatabase,
+  projectId: string,
+  onlyRefs?: ReadonlySet<string>,
+): ProjectCardAddonField[] {
+  if (onlyRefs && onlyRefs.size === 0) return [];
+  const row = db.prepare('SELECT addon_data FROM projects WHERE id = ?').get(projectId) as
+    | { addon_data: string }
+    | undefined;
+  if (!row) return [];
+  const resolved = resolveProjectAddons(db, projectId).filter((config) => config.available);
+  if (resolved.length === 0) return [];
+
+  const allValues = parseJsonObject(row.addon_data);
+  const fields: ProjectCardAddonField[] = [];
+  for (const config of resolved) {
+    const definition = getAddon(config.identifier);
+    if (!definition) continue;
+    const raw = isRecord(allValues[definition.identifier])
+      ? parseScalarSettings(allValues[definition.identifier])
+      : {};
+    for (const field of definition.fields) {
+      const ref = serializeAddonFieldRef(definition.identifier, field.key);
+      if (onlyRefs && !onlyRefs.has(ref)) continue;
+      const value = raw[field.key] ?? null;
+      fields.push({
+        ref,
+        identifier: definition.identifier,
+        fieldKey: field.key,
+        addonName: definition.name,
+        label: field.label,
+        type: field.type,
+        value,
+        displayValue: displayValue(db, field, value),
+        ...(field.type === 'user' ||
+        (field.type === 'select' && field.optionsSource === 'users')
+          ? {
+              avatar:
+                typeof value === 'string'
+                  ? ((db.prepare('SELECT avatar FROM users WHERE id = ?').get(value) as
+                      | { avatar: string | null }
+                      | undefined)?.avatar ?? null)
+                  : null,
+            }
+          : {}),
+      });
+    }
+  }
+  return fields;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -745,11 +814,15 @@ function runValidateHook(
 
 function displayValue(db: BetterSqliteDatabase, field: AddonFieldDefinition, value: unknown): string | null {
   if (value === null || value === undefined) return null;
-  if (field.type === 'user' && typeof value === 'string') {
+  if (
+    (field.type === 'user' ||
+      (field.type === 'select' && field.optionsSource === 'users')) &&
+    typeof value === 'string'
+  ) {
     const row = db.prepare('SELECT username FROM users WHERE id = ?').get(value) as
       | { username: string }
       | undefined;
-    return row?.username ?? 'Former member';
+    return row ? formatPersonName(row.username) : 'Former member';
   }
   if (field.type === 'select' && typeof value === 'string') {
     return field.options?.find((option) => option.value === value)?.label ?? value;

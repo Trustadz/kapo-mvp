@@ -5,7 +5,7 @@ import type {
   CollectionView,
   DashboardWidgetId,
 } from '@/lib/types';
-import type { ProjectFieldKey, ViewFieldKey } from '@/lib/projects';
+import type { CoreProjectFieldKey, CoreViewFieldKey } from '@/lib/projects';
 
 /**
  * Domain enums → message keys. Keeping the mapping typed means a new status,
@@ -48,7 +48,7 @@ export const DASHBOARD_WIDGET_MESSAGE_KEYS: Record<DashboardWidgetId, MessageKey
   recent: 'dashboard.recentLabel',
 };
 
-export const PROJECT_FIELD_MESSAGE_KEYS: Record<ProjectFieldKey, MessageKey> = {
+export const PROJECT_FIELD_MESSAGE_KEYS: Record<CoreProjectFieldKey, MessageKey> = {
   projectId: 'project.projectId',
   parent: 'project.parent',
   reporter: 'project.reporter',
@@ -57,7 +57,7 @@ export const PROJECT_FIELD_MESSAGE_KEYS: Record<ProjectFieldKey, MessageKey> = {
   updated: 'project.updated',
 };
 
-export const VIEW_FIELD_MESSAGE_KEYS: Record<ViewFieldKey, MessageKey> = {
+export const VIEW_FIELD_MESSAGE_KEYS: Record<CoreViewFieldKey, MessageKey> = {
   status: 'project.status',
   parent: 'project.parent',
   reporter: 'project.reporter',

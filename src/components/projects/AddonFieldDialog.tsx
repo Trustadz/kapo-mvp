@@ -1,33 +1,32 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import {
   Button,
-  Card,
   Checkbox,
+  Dialog,
   Field,
   Input,
   Notice,
   Select,
   Textarea,
 } from '@/components/ui';
-import { useI18n } from '@/i18n/client';
+import { useI18n, type I18nContextValue } from '@/i18n/client';
 import type {
   AddonFieldDefinition,
   AddonFieldValue,
-  ProjectAddonEditorData,
   ProjectAddonEditorItem,
 } from '@/lib/addons';
 import { saveAddonValues } from './api';
-import styles from './AddonEditor.module.css';
+import styles from './AddonFieldDialog.module.css';
 
 /**
- * Generic project-page add-on editor.
+ * Generic add-on field form (formerly the project-page AddonEditor card).
  *
- * Everything is driven by `AddonDefinition.fields` delivered by the server;
- * there is no per-add-on branch or renderer lookup. Any registered add-on whose
- * resolved config is available for the project appears here. Read-only states
- * (Viewer, Trashed) render values without controls.
+ * It is now only mounted inside a small dialog opened from an add-on field row
+ * in Details/Properties. Everything is driven by
+ * `AddonDefinition.fields` delivered by the server; no code branches on a
+ * concrete add-on identifier.
  */
 
 type DraftValue = string | boolean | null;
@@ -53,20 +52,29 @@ function toFieldValue(field: AddonFieldDefinition, raw: DraftValue): AddonFieldV
   return raw as string;
 }
 
-function displayValue(
+/**
+ * Locale-aware display for one add-on value. Returns null when the value is
+ * unset so callers can render their own muted placeholder.
+ */
+export function formatAddonFieldValue(
   item: ProjectAddonEditorItem,
   field: AddonFieldDefinition,
-  value: AddonFieldValue,
-  notSet: string,
-  yes: string,
-  no: string,
-): string {
-  if (value === null || value === undefined || value === '') return notSet;
-  if (field.type === 'boolean') return value === true ? yes : no;
+  t: I18nContextValue['t'],
+  formatDate: I18nContextValue['formatDate'],
+  formatNumber: I18nContextValue['formatNumber'],
+): string | null {
+  const value = item.values[field.key] ?? null;
+  if (value === null || value === undefined || value === '') return null;
+  if (field.type === 'boolean') return value === true ? t('addons.yes') : t('addons.no');
+  if (field.type === 'date' && typeof value === 'string') return formatDate(value);
+  if (field.type === 'number' && typeof value === 'number') return formatNumber(value);
   if (field.type === 'user') {
     return item.userOptions?.find((option) => option.value === value)?.label ?? String(value);
   }
   if (field.type === 'select') {
+    if (field.optionsSource === 'users') {
+      return item.userOptions?.find((option) => option.value === value)?.label ?? String(value);
+    }
     return field.options?.find((option) => option.value === value)?.label ?? String(value);
   }
   return String(value);
@@ -124,13 +132,14 @@ function AddonFieldControl({
           <option value="">
             {field.type === 'user' ? t('addons.unassigned') : t('addons.notSet')}
           </option>
-          {(field.type === 'user' ? (item.userOptions ?? []) : (field.options ?? [])).map(
-            (option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ),
-          )}
+          {(field.type === 'user' || field.optionsSource === 'users'
+            ? (item.userOptions ?? [])
+            : (field.options ?? [])
+          ).map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
         </Select>
       ) : (
         <Input
@@ -148,26 +157,38 @@ function AddonFieldControl({
   );
 }
 
-function AddonEditorItemCard({
-  projectId,
-  item,
-  canEdit,
-  notify,
-  onSaved,
-}: {
+export interface AddonFieldDialogProps {
+  open: boolean;
   projectId: string;
   item: ProjectAddonEditorItem;
-  canEdit: boolean;
   notify: (message: string, tone?: 'success' | 'error' | 'info') => void;
+  onClose: () => void;
   onSaved: () => void;
-}) {
+}
+
+/**
+ * Small per-add-on dialog reused by every add-on field row. Saving writes the
+ * whole add-on value object through the generic value endpoint, then refreshes
+ * the page so every layout slot shows the new value.
+ */
+export function AddonFieldDialog({
+  open,
+  projectId,
+  item,
+  notify,
+  onClose,
+  onSaved,
+}: AddonFieldDialogProps) {
   const { t } = useI18n();
   const [draft, setDraft] = useState<Record<string, DraftValue>>(() => draftFromValues(item));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const formId = `addon-field-form-${item.identifier}`;
 
-  const save = async () => {
+  const save = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (saving) return;
     setSaving(true);
     setError(null);
     setFieldErrors({});
@@ -184,96 +205,44 @@ function AddonEditorItemCard({
     }
     notify(t('addons.saved'));
     onSaved();
+    onClose();
   };
 
   return (
-    <div className={styles.addon}>
-      <div className={styles.addonHeader}>
-        <h3 className={styles.addonTitle}>{item.name}</h3>
-        {item.description ? <p className={styles.addonDescription}>{item.description}</p> : null}
-      </div>
-      {error ? <Notice tone="error">{error}</Notice> : null}
-      {canEdit ? (
-        <>
-          <div className={styles.fields}>
-            {item.fields.map((field) => (
-              <AddonFieldControl
-                key={field.key}
-                item={item}
-                field={field}
-                value={draft[field.key] ?? null}
-                error={fieldErrors[field.key]}
-                disabled={saving}
-                onChange={(next) =>
-                  setDraft((current) => ({ ...current, [field.key]: next }))
-                }
-              />
-            ))}
-          </div>
-          <div className={styles.footer}>
-            <Button onClick={() => void save()} loading={saving} disabled={saving}>
-              {t('addons.save', { name: item.name })}
-            </Button>
-          </div>
-        </>
-      ) : (
-        <dl className={styles.valueList}>
-          {item.fields.map((field) => (
-            <div className={styles.valueRow} key={field.key}>
-              <dt>{field.label}</dt>
-              <dd>
-                {displayValue(
-                  item,
-                  field,
-                  item.values[field.key] ?? null,
-                  t('addons.notSet'),
-                  t('addons.yes'),
-                  t('addons.no'),
-                )}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      )}
-    </div>
-  );
-}
-
-export interface AddonEditorProps {
-  projectId: string;
-  data: ProjectAddonEditorData;
-  notify: (message: string, tone?: 'success' | 'error' | 'info') => void;
-  onSaved: () => void;
-}
-
-export function AddonEditor({ projectId, data, notify, onSaved }: AddonEditorProps) {
-  const { t } = useI18n();
-  if (data.items.length === 0) return null;
-  const readOnlyReason =
-    data.readOnlyReason === 'trashed'
-      ? t('addons.readOnlyTrashed')
-      : data.readOnlyReason === 'viewer'
-        ? t('addons.readOnlyViewer')
-        : null;
-  return (
-    <Card className={styles.card} as="section" aria-labelledby="addons-heading">
-      <h2 id="addons-heading" className={styles.cardTitle}>
-        {t('addons.title')}
-      </h2>
-      {!data.canEdit && readOnlyReason ? (
-        <p className={styles.readOnlyNote}>{readOnlyReason}</p>
-      ) : null}
-      {data.items.map((item) => (
-        <AddonEditorItemCard
-          // Re-key on the server snapshot so a refresh resets the draft.
-          key={`${item.identifier}-${JSON.stringify(item.values)}`}
-          projectId={projectId}
-          item={item}
-          canEdit={data.canEdit}
-          notify={notify}
-          onSaved={onSaved}
-        />
-      ))}
-    </Card>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title={item.name}
+      description={item.description}
+      dismissible={!saving}
+      size="sm"
+      footer={
+        <div className={styles.dialogFooter}>
+          <Button type="submit" form={formId} loading={saving} disabled={saving}>
+            {t('addons.save', { name: item.name })}
+          </Button>
+          <Button type="button" variant="quiet" onClick={onClose} disabled={saving}>
+            {t('common.cancel')}
+          </Button>
+        </div>
+      }
+    >
+      <form id={formId} className={styles.form} onSubmit={save} noValidate>
+        {error ? <Notice tone="error">{error}</Notice> : null}
+        {item.fields.map((field) => (
+          <AddonFieldControl
+            key={field.key}
+            item={item}
+            field={field}
+            value={draft[field.key] ?? null}
+            error={fieldErrors[field.key]}
+            disabled={saving}
+            onChange={(next) =>
+              setDraft((current) => ({ ...current, [field.key]: next }))
+            }
+          />
+        ))}
+      </form>
+    </Dialog>
   );
 }

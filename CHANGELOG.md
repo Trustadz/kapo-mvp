@@ -4,6 +4,15 @@
 
 ### Changed
 
+- Add-on fields are now real layout fields. The standalone **Add-ons** card on
+  the project page is gone: add-on fields can be placed in **Details**, the
+  **Properties** sidebar and per-view properties through the opaque
+  `addon:<identifier>:<fieldKey>` slot reference. Field rows render the label
+  and formatted value; editors open a small add-on dialog from the row, while
+  Viewers and trashed projects see the value read-only. Collection views render
+  compact add-on meta values, unavailable add-ons hide their slots and layout
+  selectors only offer fields from add-ons effectively available for the
+  project. No schema migration.
 - Container images and GitHub Releases are published only by the manual
   **Publish container** workflow. Pull requests and pushes to `main` run the
   automatic **Verify** workflow without publishing; publishing calculates the
