@@ -25,6 +25,7 @@ import {
 import { VIEW_FIELD_MESSAGE_KEYS } from '@/i18n/domain-labels';
 import { useI18n, type I18nContextValue } from '@/i18n/client';
 import { formatPersonName } from '@/lib/format';
+import { stripMarkdown } from '@/lib/markdown';
 import {
   dropZoneAt,
   insertionIndexAt,
@@ -297,8 +298,11 @@ function addonCompactValue(
   if (field.type === 'date' && typeof field.value === 'string') return formatDate(field.value);
   if (field.type === 'number' && typeof field.value === 'number') return formatNumber(field.value);
   // User and select labels are resolved on the server; text/number/date keep
-  // their raw value in `displayValue`.
-  return field.displayValue ?? String(field.value);
+  // their raw value in `displayValue`. Longtext is Markdown, so compact meta
+  // gets a plain-text projection instead of block markup inside a card row.
+  const text = field.displayValue ?? String(field.value);
+  if (field.type === 'longtext') return stripMarkdown(text) || t('addons.notSet');
+  return text;
 }
 
 interface ViewMetaPart {

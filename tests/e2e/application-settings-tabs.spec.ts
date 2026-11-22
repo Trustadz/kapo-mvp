@@ -158,7 +158,7 @@ test('add-on cards use a mode dropdown and a quiet empty-settings area', async (
   await expect(card.getByRole('radiogroup')).toHaveCount(0);
 
   const mode = card.getByRole('combobox', { name: 'Availability' });
-  await expect(mode).toHaveValue('optional');
+  await expect(mode).toHaveValue('always');
   await expect(mode.locator('option')).toHaveText([
     'Required',
     'Always on',
@@ -184,10 +184,13 @@ test('add-on cards use a mode dropdown and a quiet empty-settings area', async (
   // Persisted after a full reload.
   await page.reload();
   await page.getByRole('tab', { name: 'Add-ons' }).click();
-  await expect(page.getByRole('combobox', { name: 'Availability' })).toHaveValue('unavailable');
+  const reloadedCard = page.getByRole('region', { name: /Assignee/i });
+  await expect(reloadedCard.getByRole('combobox', { name: 'Availability' })).toHaveValue(
+    'unavailable',
+  );
 
-  // Restore Available so the rest of the suite keeps the optional add-on.
-  await page.getByRole('combobox', { name: 'Availability' }).selectOption('optional');
+  // Restore the product default (Always on) for the rest of the suite.
+  await reloadedCard.getByRole('combobox', { name: 'Availability' }).selectOption('always');
   await Promise.all([
     page.waitForResponse(
       (response) =>

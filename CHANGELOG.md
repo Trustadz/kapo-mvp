@@ -1,5 +1,36 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Inline project title editing** on the project page. Editors click the title
+  (or press Enter/Space on it) to rename in place; Enter or blur saves, Escape
+  cancels, and an unchanged title sends no request. Successful saves show a
+  toast and refresh the page data; a rejected title keeps the editor open with
+  the server field error. Viewers and trashed projects keep a plain heading.
+- Reusable **Markdown** and **MarkdownTextarea** primitives in
+  `src/components/ui`: a dependency-free renderer for paragraphs, line breaks,
+  bold/italic/code, http(s) links and lists that never injects raw HTML, plus a
+  controlled Edit/Preview textarea. Add-on longtext fields use them.
+- A reusable **Combobox** primitive for searchable single-selects with optional
+  avatars and descriptions. The add-on user field and `optionsSource: 'users'`
+  selects use it.
+
+### Changed
+
+- Add-on fields now edit **inline from their Details/Properties row** for every
+  field type: text, number, date, boolean, select, user-backed select and user.
+  Enter/blur saves text-like fields, Escape cancels, booleans save immediately,
+  selects save on change, and the editor keeps the existing user picker's
+  searchable avatar list. Longtext opens a compact Markdown editor with
+  Save/Cancel and renders the saved Markdown in Details/Properties. Collection
+  card meta keeps longtext as stripped plain text. The per-field PATCH
+  semantics, permissions, audit entries and APIs are unchanged; the old add-on
+  edit dialog and its styles are removed.
+- The Markdown editor is available for add-on longtext values only; no schema
+  migration or release/version change is included.
+
 ## 0.4.1 — 2026-11-22
 
 ### Changed
