@@ -117,6 +117,17 @@ export interface AddonDefinition {
   /** Product default stored by the registry→`addons` table sync (default `optional`). */
   defaultMode?: AddonMode;
   fields: AddonFieldDefinition[];
+  /**
+   * Optional application-wide settings, rendered under
+   * Application settings → Add-ons. Values live in the `addons.settings` JSON
+   * column and are validated against these definitions on every write.
+   *
+   * Application settings support `boolean`, `number`, `text`, `longtext`,
+   * `date` and static `select` fields. `user` fields and `optionsSource`
+   * selects are project-scoped only; they are kept read-only here and their
+   * stored values are preserved.
+   */
+  settingsFields?: AddonFieldDefinition[];
   searchFields?: string[]; // field keys exposed to FTS
   compactRenderer?: string; // UI key resolved later; registry ships none
   dashboardWidgets?: AddonDashboardWidget[];

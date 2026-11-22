@@ -47,11 +47,11 @@ async function userId(page: Page, username: string): Promise<string> {
 
 async function setAddonMode(page: Page, mode: 'Available' | 'Unavailable'): Promise<void> {
   await page.goto('/settings');
-  const group = page.getByRole('group', { name: /Assignee/i });
-  await expect(group).toBeVisible();
-  const radio = group.getByRole('radio', { name: new RegExp(`^${mode}`) });
-  if (!(await radio.isChecked())) await radio.check();
-  const save = page.getByRole('button', { name: 'Save changes' });
+  await page.getByRole('tab', { name: 'Add-ons' }).click();
+  const card = page.getByRole('region', { name: /Assignee/i });
+  await expect(card).toBeVisible();
+  await card.getByLabel('Availability').selectOption({ label: mode });
+  const save = page.getByRole('button', { name: 'Save add-ons' });
   // The form disables Save when the selected mode already matches. Re-running
   // the journey on the seeded default ("Available") must not wait forever.
   if (await save.isEnabled()) {
