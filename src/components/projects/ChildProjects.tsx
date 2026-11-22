@@ -126,7 +126,11 @@ export function ChildProjects({
       (project) => project.reporter.id === filters.reporterId,
     );
     if (known) {
-      reporters.push({ id: known.reporter.id, username: known.reporter.username });
+      reporters.push({
+        id: known.reporter.id,
+        username: known.reporter.username,
+        avatar: known.reporter.avatar,
+      });
       reporters.sort((a, b) => a.username.localeCompare(b.username) || a.id.localeCompare(b.id));
     }
   }

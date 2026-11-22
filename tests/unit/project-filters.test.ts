@@ -129,9 +129,9 @@ describe('reporterFilterOptions', () => {
       project('d', { reporter: MAYA }),
     ]);
     expect(options).toEqual([
-      { id: ADMIN.id, username: 'admin' },
-      { id: JULES.id, username: 'jules' },
-      { id: MAYA.id, username: 'maya' },
+      { id: ADMIN.id, username: 'admin', avatar: null },
+      { id: JULES.id, username: 'jules', avatar: null },
+      { id: MAYA.id, username: 'maya', avatar: null },
     ]);
   });
 
