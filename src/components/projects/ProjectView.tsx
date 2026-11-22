@@ -518,10 +518,11 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
         </Notice>
       ) : null}
 
-      {childPositionAbove ? childSection : null}
+      <div className={styles.workspace}>
+        {childPositionAbove ? childSection : null}
 
-      <div className={styles.overview}>
-        <Card className={styles.detailsCard} as="section" aria-labelledby="details-heading">
+        <div className={styles.overview}>
+          <Card className={styles.detailsCard} as="section" aria-labelledby="details-heading">
           <h2 id="details-heading" className={styles.cardTitle}>
             {t('project.details')}
           </h2>
@@ -566,10 +567,11 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
           <div className={styles.propertiesRows}>
             {visibleSidebarFields.map((field) => renderProperty(field))}
           </div>
-        </Card>
-      </div>
+          </Card>
+        </div>
 
-      {!childPositionAbove ? childSection : null}
+        {!childPositionAbove ? childSection : null}
+      </div>
 
       <ActivityPanel
         projectId={project.id}
