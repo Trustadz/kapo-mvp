@@ -1,14 +1,19 @@
 import { expect, test, type Page } from '@playwright/test';
 
 /**
- * Focused Assignee add-on journey (issue #7, docs/add-ons.md §12).
+ * Assignee add-on journey (issue #7, docs/add-ons.md §12) through the generic
+ * field-slot model.
  *
- * Exercises the generic plumbing only: application mode, per-project
- * enablement, the add-on value editor, persistence, activity integration and
- * retention while the add-on is unavailable. No core code knows the identifier.
+ * Add-on fields are placed in Details, Properties and a view like any core
+ * field. There is no standalone Add-ons card; editing happens in a small dialog
+ * opened from the field row. Unavailable add-ons hide their slots and values
+ * without deleting either.
  */
 
 const PASSWORD = 'kapo1234';
+const ASSIGNEE_OPTION = 'Assignee · Assigned to';
+
+test.describe.configure({ mode: 'serial' });
 
 async function login(page: Page, username: string): Promise<void> {
   await page.goto('/login');
@@ -46,46 +51,179 @@ async function setAddonMode(page: Page, mode: 'Available' | 'Unavailable'): Prom
   const card = page.getByRole('region', { name: /Assignee/i });
   await expect(card).toBeVisible();
   await card.getByLabel('Availability').selectOption({ label: mode });
-  await page.getByRole('button', { name: 'Save add-ons' }).click();
-  await expect(page.getByRole('status')).toContainText('Application settings saved.');
+  const save = page.getByRole('button', { name: 'Save add-ons' });
+  // The form disables Save when the selected mode already matches. Re-running
+  // the journey on the seeded default ("Available") must not wait forever.
+  if (await save.isEnabled()) {
+    await save.click();
+    await expect(page.getByRole('status').filter({ hasText: 'Application settings saved.' })).toBeVisible();
+  }
 }
 
-test.describe('Assignee add-on', () => {
-  test('enables per project, saves, persists and keeps values when unavailable', async ({
+async function enableForProject(page: Page, projectId: string): Promise<void> {
+  await page.goto(`/p/${projectId}/settings?tab=addons`);
+  await expect(page.getByRole('heading', { level: 1, name: 'Add-ons' })).toBeVisible();
+  const enable = page.getByLabel('Enable for this project');
+  if (!(await enable.isChecked())) await enable.check();
+  const save = page.getByRole('button', { name: 'Save add-ons' });
+  // Save is disabled when the snapshot already matches; keep re-runs idempotent.
+  if (await save.isEnabled()) {
+    await save.click();
+    await expect(page.getByRole('status').filter({ hasText: 'Project add-ons saved.' })).toBeVisible();
+  }
+}
+
+async function addLayoutFields(page: Page, projectId: string): Promise<void> {
+  await page.goto(`/p/${projectId}/settings?tab=layout`);
+  await expect(page.getByRole('heading', { level: 1, name: 'Layout' })).toBeVisible();
+
+  const mainSelect = page.getByRole('combobox', { name: 'Add a field to Main area' });
+  if ((await mainSelect.count()) > 0 && (await mainSelect.isVisible())) {
+    await mainSelect.selectOption({ label: ASSIGNEE_OPTION });
+  }
+  const sidebarSelect = page.getByRole('combobox', { name: 'Add a field to Properties sidebar' });
+  if ((await sidebarSelect.count()) > 0 && (await sidebarSelect.isVisible())) {
+    await sidebarSelect.selectOption({ label: ASSIGNEE_OPTION });
+  }
+  await page
+    .getByRole('combobox', { name: 'Add a property to Kanban' })
+    .selectOption({ label: ASSIGNEE_OPTION });
+
+  await page.getByRole('button', { name: 'Save changes' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Layout settings saved.' })).toBeVisible();
+}
+
+async function editAssignee(page: Page, card: ReturnType<Page['locator']>): Promise<void> {
+  await card.getByRole('button', { name: 'Assign Assigned to' }).click();
+  const listbox = page.getByRole('listbox', { name: 'People' });
+  await expect(listbox).toBeVisible();
+  await page.getByRole('combobox', { name: 'Search people' }).fill('may');
+  await expect(listbox.locator('[title="Maya"]')).toHaveCount(1);
+  await listbox.getByRole('option', { name: 'Maya' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Add-on saved.' })).toBeVisible();
+  await expect(listbox).toBeHidden();
+}
+
+
+/** Restore the seeded Home layout/value so later specs don't see add-on meta. */
+test.afterAll(async ({ browser }) => {
+  const page = await browser.newPage();
+  await login(page, 'admin');
+  const homeId = await findProjectId(page, 'Home improvement');
+  const childId = await findProjectId(page, 'Paint hallway');
+  await page.request.put(`/api/projects/${homeId}/settings`, {
+    data: {
+      layout_template: null,
+      view_fields: { kanban: [], card: [], tree: ['status'], list: [] },
+    },
+  });
+  for (const projectId of [homeId, childId]) {
+    await page.request.patch(`/api/projects/${projectId}/addons/assignee`, {
+      data: { values: { assignee: null } },
+    });
+  }
+  await page.request.put('/api/settings', {
+    data: { addons: { assignee: { mode: 'always' } } },
+  });
+  await page.close();
+});
+
+test.describe('Assignee add-on as a real layout field', () => {
+  test('places add-on fields in Details, Properties and a view; edits inline', async ({
     page,
   }) => {
     await login(page, 'admin');
-    const projectId = await findProjectId(page, 'Home improvement');
+    await setAddonMode(page, 'Available');
+
+    const homeId = await findProjectId(page, 'Home improvement');
     const mayaId = await userId(page, 'maya');
+    await enableForProject(page, homeId);
+    await addLayoutFields(page, homeId);
 
-    // Optional mode: enable the add-on for this project in project settings.
-    await page.goto(`/p/${projectId}/settings?tab=addons`);
-    await expect(page.getByRole('heading', { level: 1, name: 'Add-ons' })).toBeVisible();
-    await page.getByLabel('Enable for this project').check();
-    await page.getByRole('button', { name: 'Save add-ons' }).click();
-    await expect(page.getByRole('status')).toContainText('Project add-ons saved.');
+    // The standalone card is gone; only the layout rows remain.
+    await page.goto(`/p/${homeId}`);
+    await expect(page.getByRole('heading', { level: 2, name: 'Add-ons' })).toHaveCount(0);
+    const details = page.locator('section[aria-labelledby="details-heading"]');
+    const properties = page.locator('aside[aria-labelledby="properties-heading"]');
+    await expect(details.getByText('Assigned to', { exact: true })).toBeVisible();
+    await expect(properties.getByText('Assigned to', { exact: true })).toBeVisible();
+    await expect(details.getByRole('button', { name: 'Assign Assigned to' })).toBeVisible();
+    await expect(properties.getByRole('button', { name: 'Assign Assigned to' })).toBeVisible();
 
-    // The project page now renders the generic add-on editor.
-    await page.goto(`/p/${projectId}`);
-    await expect(page.getByRole('heading', { level: 2, name: 'Add-ons' })).toBeVisible();
-    await page.getByLabel('Assignee').selectOption({ label: 'maya' });
-    await page.getByRole('button', { name: 'Save Assignee' }).click();
-    await expect(page.getByRole('status')).toContainText('Add-on saved.');
+    // Details and Properties share the same add-on value: edit once here.
+    await editAssignee(page, details);
+    await expect(details.getByText('Maya', { exact: true })).toBeVisible();
+    await expect(properties.getByText('Maya', { exact: true })).toBeVisible();
 
-    // Persisted after a full reload, and visible in Activity.
+    // Persisted after a full reload.
     await page.reload();
-    await expect(page.getByLabel('Assignee')).toHaveValue(mayaId);
-    await expect(page.getByText('updated the Assignee')).toBeVisible();
+    await expect(details.getByText('Maya', { exact: true })).toBeVisible();
 
-    // Unavailable hides the editor but keeps the value.
+    const pageResponse = await page.request.get(`/api/projects/${homeId}`);
+    const pagePayload = (await pageResponse.json()) as {
+      addons: { items: Array<{ identifier: string; values: Record<string, unknown> }> };
+    };
+    expect(pagePayload.addons.items[0]?.values.assignee).toBe(mayaId);
+
+    // Copy-on-create gives the child its own snapshot, so configure the
+    // child's add-on and layout explicitly before editing its field row.
+    const childId = await findProjectId(page, 'Paint hallway');
+    await enableForProject(page, childId);
+    await addLayoutFields(page, childId);
+    await page.goto(`/p/${childId}`);
+    await editAssignee(page, page.locator('section[aria-labelledby="details-heading"]'));
+
+    await page.goto(`/p/${homeId}`);
+    const childCard = page.getByRole('article').filter({ hasText: 'Paint hallway' });
+    await expect(childCard.getByText('Assigned to: Maya')).toBeVisible();
+    await expect(childCard.locator('[title="Maya"]')).toBeVisible();
+
+    // Making the add-on globally unavailable hides every slot safely; the
+    // stored layout refs and value survive and return when it is available.
     await setAddonMode(page, 'Unavailable');
-    await page.goto(`/p/${projectId}`);
+    await page.goto(`/p/${homeId}`);
+    await expect(page.getByText('Assigned to', { exact: true })).toHaveCount(0);
+    await expect(page.getByText('Assigned to: Maya')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Edit Assigned to' })).toHaveCount(0);
     await expect(page.getByRole('heading', { level: 2, name: 'Add-ons' })).toHaveCount(0);
 
-    // Available again: the stored assignee reappears without re-saving.
     await setAddonMode(page, 'Available');
-    await page.goto(`/p/${projectId}`);
-    await expect(page.getByRole('heading', { level: 2, name: 'Add-ons' })).toBeVisible();
-    await expect(page.getByLabel('Assignee')).toHaveValue(mayaId);
+    await page.goto(`/p/${homeId}`);
+    await expect(details.getByText('Maya', { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole('article').filter({ hasText: 'Paint hallway' }).getByText('Assigned to: Maya'),
+    ).toBeVisible();
+  });
+
+  test('read-only viewers see add-on values without Edit controls', async ({ page }) => {
+    await login(page, 'alex');
+    const homeId = await findProjectId(page, 'Home improvement');
+    await page.goto(`/p/${homeId}`);
+    const details = page.locator('section[aria-labelledby="details-heading"]');
+    const properties = page.locator('aside[aria-labelledby="properties-heading"]');
+    await expect(details.getByText('Maya', { exact: true })).toBeVisible();
+    await expect(properties.getByText('Maya', { exact: true })).toBeVisible();
+    await expect(details.getByRole('button', { name: 'Assign Assigned to' })).toHaveCount(0);
+    await expect(properties.getByRole('button', { name: 'Assign Assigned to' })).toHaveCount(0);
+  });
+
+  test('layout field selectors hide unavailable add-on fields', async ({ page }) => {
+    await login(page, 'admin');
+    const homeId = await findProjectId(page, 'Home improvement');
+    await setAddonMode(page, 'Unavailable');
+    await page.goto(`/p/${homeId}/settings?tab=layout`);
+    await expect(page.getByRole('heading', { level: 1, name: 'Layout' })).toBeVisible();
+    await expect(page.getByRole('option', { name: ASSIGNEE_OPTION })).toHaveCount(0);
+    await expect(page.getByText('Assigned to', { exact: true })).toHaveCount(0);
+
+    await setAddonMode(page, 'Available');
+    await page.goto(`/p/${homeId}/settings?tab=layout`);
+    // The field is already placed in Details/Properties/Kanban; Card still has
+    // an empty slot list, so its selector must offer the add-on field.
+    await expect(
+      page
+        .getByRole('combobox', { name: 'Add a property to Card' })
+        .getByRole('option', { name: ASSIGNEE_OPTION }),
+    ).toBeAttached();
   });
 });

@@ -57,11 +57,14 @@ tests/integration/ real route handlers: auth/setup, projects, accounts,
                  dashboard/members, project admin surface, new features
                  (workflow same-name replacement, view_fields, Tree bulk
                  move, Trash grouping), add-on plumbing (value writes,
-                 explicit configuration, registry sync, search, purge hooks),
-                 the one-time copy-on-create snapshot, seed script
+                 modes/inheritance, explicit configuration, registry sync,
+                 search, purge hooks, layout/view field refs and card
+                 projection), the one-time copy-on-create snapshot, seed script
 tests/regressions/ architecture-review fix pass (AR-021…AR-052)
 tests/e2e/       first-install + seeded desktop journeys, including the
-                 focused Assignee add-on enable/save/persist journey and the
+                 Assignee add-on field-slot journey (Details, Properties,
+                 view meta, dialog edit and unavailable filtering), the
+                 focused Assignee add-on enable/save/persist journey, the
                  project-settings copy-on-create/unsaved-changes guard, and the
                  MCP enable → token → AI-provenance → revoke journey
 ```

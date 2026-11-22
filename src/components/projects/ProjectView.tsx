@@ -7,13 +7,20 @@ import { Avatar, Badge, Button, Card, Icon, Menu, Notice, Select, Toast } from '
 import type { MenuItem } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { formatPersonName } from '@/lib/format';
+import {
+  isAddonFieldRef,
+  parseAddonFieldRef,
+  type ProjectAddonEditorItem,
+  type AddonFieldDefinition,
+} from '@/lib/addons';
 import { PROJECT_FIELD_MESSAGE_KEYS } from '@/i18n/domain-labels';
 import { useI18n } from '@/i18n/client';
 import { useToastMessage } from '@/components/ui/use-live-announcer';
 import { markFieldChanged } from '@/lib/changed-fields';
 import { useFieldChanged } from '@/lib/use-field-changed';
 import { ActivityPanel } from './ActivityPanel';
-import { AddonEditor } from './AddonEditor';
+import { AddonFieldDialog, formatAddonFieldValue } from './AddonFieldDialog';
+import { AddonUserPicker } from './AddonUserPicker';
 import { ChildProjects } from './ChildProjects';
 import {
   readShowInboxPreference,
@@ -33,6 +40,7 @@ import {
   updateProjectFields,
 } from './api';
 import type {
+  CoreProjectFieldKey,
   ProjectFieldKey,
   ProjectLink,
   ProjectPageData,
@@ -41,6 +49,7 @@ import styles from './ProjectPage.module.css';
 
 type DialogState =
   | { kind: 'add' }
+  | { kind: 'addon'; identifier: string }
   | { kind: 'move'; projectId: string; projectTitle: string; destinationId?: string }
   | { kind: 'trash'; projectId: string; projectTitle: string }
   | { kind: 'archive'; projectId: string; projectTitle: string; mode: 'archive' | 'unarchive' }
@@ -56,7 +65,93 @@ function LinkValue({ link }: { link: ProjectLink }) {
   );
 }
 
-function FieldValue({ field, data }: { field: ProjectFieldKey; data: ProjectPageData }) {
+interface ResolvedAddonField {
+  item: ProjectAddonEditorItem;
+  field: AddonFieldDefinition;
+}
+
+function resolveAddonField(data: ProjectPageData, ref: string): ResolvedAddonField | null {
+  const parts = parseAddonFieldRef(ref);
+  if (!parts) return null;
+  const item = data.addons.items.find((candidate) => candidate.identifier === parts.identifier);
+  if (!item) return null;
+  const field = item.fields.find((candidate) => candidate.key === parts.fieldKey);
+  return field ? { item, field } : null;
+}
+
+function AddonValueText({ resolved }: { resolved: ResolvedAddonField }) {
+  const { t, formatDate, formatNumber } = useI18n();
+  const text = formatAddonFieldValue(
+    resolved.item,
+    resolved.field,
+    t,
+    formatDate,
+    formatNumber,
+  );
+  return text ? (
+    <span className={styles.detailValue}>{text}</span>
+  ) : (
+    <span className={styles.detailValueMuted}>—</span>
+  );
+}
+
+function AddonEditButton({
+  resolved,
+  onEdit,
+}: {
+  resolved: ResolvedAddonField;
+  onEdit: (identifier: string) => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <Button
+      size="sm"
+      variant="quiet"
+      className={styles.addonEdit}
+      aria-label={t('addons.editField', { field: resolved.field.label })}
+      onClick={() => onEdit(resolved.item.identifier)}
+    >
+      {t('common.edit')}
+    </Button>
+  );
+}
+
+function AddonFieldDisplay({
+  resolved,
+  projectId,
+  canEdit,
+  notify,
+  onSaved,
+  onEdit,
+}: {
+  resolved: ResolvedAddonField;
+  projectId: string;
+  canEdit: boolean;
+  notify: (message: string, tone?: 'success' | 'error' | 'info') => void;
+  onSaved: () => void;
+  onEdit: (identifier: string) => void;
+}) {
+  if (resolved.field.type === 'user') {
+    return (
+      <AddonUserPicker
+        projectId={projectId}
+        item={resolved.item}
+        field={resolved.field}
+        canEdit={canEdit}
+        notify={notify}
+        onSaved={onSaved}
+      />
+    );
+  }
+  return (
+    <>
+      <AddonValueText resolved={resolved} />
+      {canEdit ? <AddonEditButton resolved={resolved} onEdit={onEdit} /> : null}
+    </>
+  );
+}
+
+function FieldValue({ field, data }: { field: CoreProjectFieldKey; data: ProjectPageData }) {
   const { t, formatDate } = useI18n();
   const project = data.project;
   switch (field) {
@@ -292,6 +387,25 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
   );
 
   const renderProperty = (field: ProjectFieldKey) => {
+    if (isAddonFieldRef(field)) {
+      const resolved = resolveAddonField(data, field);
+      if (!resolved) return null;
+      return (
+        <div className={styles.propertyRow} key={field}>
+          <span className={styles.propertyLabel}>{resolved.field.label}</span>
+          <span className={styles.propertyValue}>
+            <AddonFieldDisplay
+              resolved={resolved}
+              projectId={project.id}
+              canEdit={data.addons.canEdit}
+              notify={notify}
+              onSaved={refresh}
+              onEdit={(identifier) => setDialog({ kind: 'addon', identifier })}
+            />
+          </span>
+        </div>
+      );
+    }
     if (field === 'status') {
       if (project.isRoot) return null;
       return (
@@ -477,14 +591,35 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
             {t('project.details')}
           </h2>
           <div className={styles.detailRows}>
-            {visibleMainFields.map((field) => (
-              <div className={styles.detailRow} key={field}>
-                <span className={styles.detailLabel}>
-                  {t(PROJECT_FIELD_MESSAGE_KEYS[field])}
-                </span>
-                <FieldValue field={field} data={data} />
-              </div>
-            ))}
+            {visibleMainFields.map((field) => {
+              if (isAddonFieldRef(field)) {
+                const resolved = resolveAddonField(data, field);
+                if (!resolved) return null;
+                return (
+                  <div className={styles.detailRow} key={field}>
+                    <span className={styles.detailLabel}>{resolved.field.label}</span>
+                    <span className={styles.detailValueGroup}>
+                      <AddonFieldDisplay
+                        resolved={resolved}
+                        projectId={project.id}
+                        canEdit={data.addons.canEdit}
+                        notify={notify}
+                        onSaved={refresh}
+                        onEdit={(identifier) => setDialog({ kind: 'addon', identifier })}
+                      />
+                    </span>
+                  </div>
+                );
+              }
+              return (
+                <div className={styles.detailRow} key={field}>
+                  <span className={styles.detailLabel}>
+                    {t(PROJECT_FIELD_MESSAGE_KEYS[field])}
+                  </span>
+                  <FieldValue field={field} data={data} />
+                </div>
+              );
+            })}
           </div>
         </Card>
 
@@ -499,13 +634,6 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
       </div>
 
       {!childPositionAbove ? childSection : null}
-
-      <AddonEditor
-        projectId={project.id}
-        data={data.addons}
-        notify={notify}
-        onSaved={refresh}
-      />
 
       <ActivityPanel
         projectId={project.id}
@@ -527,6 +655,25 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
           }}
         />
       ) : null}
+      {dialog?.kind === 'addon'
+        ? (() => {
+            const item = data.addons.items.find(
+              (candidate) => candidate.identifier === dialog.identifier,
+            );
+            if (!item) return null;
+            return (
+              <AddonFieldDialog
+                key={`${item.identifier}-${JSON.stringify(item.values)}`}
+                open
+                projectId={project.id}
+                item={item}
+                notify={notify}
+                onClose={() => setDialog(null)}
+                onSaved={refresh}
+              />
+            );
+          })()
+        : null}
       {dialog?.kind === 'move' ? (
         <MoveDialog
           open

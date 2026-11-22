@@ -33,6 +33,11 @@ async function findProjectId(page: Page, title: string): Promise<string> {
 test.describe('project settings copy-on-create', () => {
   test.beforeEach(async ({ page }) => {
     await login(page, 'admin');
+    // Keep the per-project enable control editable regardless of what an
+    // earlier spec left in the shared seeded database.
+    await page.request.put('/api/settings', {
+      data: { addons: { assignee: { mode: 'optional' } } },
+    });
   });
 
   test('removes the inheritance controls and guards unsaved tab changes', async ({ page }) => {

@@ -41,6 +41,7 @@ const data = {
   },
   settings,
   layout: { main: [], sidebar: ['status', 'reporter'] },
+  addons: { items: [], canEdit: true, readOnlyReason: null },
 } as unknown as ProjectPageData;
 
 const workflow: WorkflowViewData = {
