@@ -252,11 +252,11 @@ export function InboxTree({
         <h2 className="visually-hidden">{t('inbox.treeRegion')}</h2>
         {items.length > 0 ? (
           <div className={styles.bulkToolbar} role="region" aria-label={t('inbox.bulkRelease')}>
-            <span className={styles.bulkCount}>
-              {selectedItems.length > 0
-                ? plural('plurals.inboxSelected', selectedItems.length)
-                : t('inbox.selectPrompt')}
-            </span>
+            {selectedItems.length > 0 ? (
+              <span className={styles.bulkCount}>
+                {plural('plurals.inboxSelected', selectedItems.length)}
+              </span>
+            ) : null}
             <Button
               size="sm"
               variant="quiet"
@@ -282,7 +282,6 @@ export function InboxTree({
           <table
             className={styles.treeTable}
             aria-label={t('inbox.tableAria')}
-            aria-describedby="inbox-tree-drag-hint"
           >
             <caption className="visually-hidden">
               {t('inbox.caption')}
@@ -336,7 +335,6 @@ export function InboxTree({
                     data-drop={dropTarget?.id === node.id ? dropTarget.zone : undefined}
                     data-touch-id={node.id}
                     data-touch-target=""
-                    aria-describedby={selectableItem ? 'inbox-tree-drag-hint' : undefined}
                     draggable={selectableItem}
                     onPointerDown={(event) => touchDrag.start(event, node)}
                     onPointerMove={touchDrag.handlePointerMove}
@@ -463,9 +461,6 @@ export function InboxTree({
           </table>
         </div>
 
-        <p className={styles.hint} id="inbox-tree-drag-hint">
-          {t('inbox.dragHint')}
-        </p>
       </div>
       {touchDrag.active ? (
         <TouchDragGhost
@@ -897,11 +892,7 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
           }}
         />
       ) : items.length === 0 ? (
-        <EmptyState
-          icon="inbox"
-          title={t('inbox.emptyTitle')}
-          description={t('inbox.emptyDescription')}
-        />
+        <EmptyState icon="inbox" title={t('inbox.emptyTitle')} />
       ) : (
         <div className={styles.cardLayout}>
           <div className={styles.dropRail}>
@@ -943,7 +934,6 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
                     status: lastReleased.startStatusName ?? t('inbox.startStatus'),
                   })}
                 </span>
-                <span className={styles.dropResultHint}>{t('inbox.stillPulled')}</span>
               </span>
               <Link
                 href={`/p/${lastReleased.project.id}`}

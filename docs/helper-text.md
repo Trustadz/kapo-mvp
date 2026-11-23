@@ -38,7 +38,7 @@ name the exception in the pull request:
 | B | **Non-obvious access consequence** | Permissions or visibility change in a way the role labels do not convey. | “Only the selected members below can open this project, even application Admins.” |
 | C | **Security-sensitive behaviour** | A secret, token, sign-in method or delegated identity has a consequence the user must know. | “It is shown only once. Paste it into your AI client’s MCP configuration as a Bearer token.” |
 | D | **Data lifecycle** | Retention, purge or backup timing/number is not inferable from the control. | “Between 1 and 30; the oldest are pruned after each run.” |
-| E | **Non-discoverable interaction** | The task needs an interaction that is not visible or conventional, and there is no visible equivalent. | A single short line: “Drag to reorder or reparent; on touch, press and hold. Keyboard: use Actions.” |
+| E | **Shared help for a non-discoverable interaction** | The task needs an interaction that is not visible or conventional. Put the instruction in one shared help affordance, never under every view. | A “How dragging works” popover linked once. |
 | F | **Empty state with a next step** | The page is empty and the action that fills it is not visible from that state. | “Watch a project to hear about its changes.” |
 | G | **Accessibility-only description** | Screen-reader or focus help for a complex interaction. This is not visual clutter. | The visually hidden drag description on Inbox cards. |
 | H | **Error recovery** | The error state needs a next step or reassurance the error message does not carry. | “Your query is preserved. Retry when Kapo is available.” |
@@ -79,7 +79,13 @@ If a proposed string fits none of A–I, do not add it.
     beside every project row.
 11. **Accessibility-only text is exempt from the visual budget.** Keep it
     concise and unique; do not delete it as clutter.
-12. **Remove on touch.** When editing a screen, delete any helper text that no
+12. **No repeated interaction hints.** Do not put drag, touch or keyboard
+    instructions under every collection view. Use one shared help affordance or
+    an accessibility-only description; the visible Actions menu is the keyboard
+    path.
+13. **Do not narrate obvious state.** “Marked read when this closes.” and
+    “Stays here as Pulled.” are not help; the UI already shows the state.
+14. **Remove on touch.** When editing a screen, delete any helper text that no
     longer meets these rules. Do not leave it “for later”.
 
 ## Decision check
@@ -125,7 +131,6 @@ Keep:
 - “It is shown only once. Paste it into your AI client’s MCP configuration as
   a Bearer token.” (C)
 - “Between 1 and 30; the oldest are pruned after each run.” (D)
-- “Drag to reorder or reparent; on touch, press and hold. Keyboard: use Actions.” (E)
 - “Watch a project to hear about its changes.” (F)
 - The visually hidden card drag description. (G)
 - “Your query is preserved. Retry when Kapo is available.” (H)
@@ -142,3 +147,8 @@ Remove:
   the exact deadline is shown.
 - A field description that repeats its label, such as “One person responsible
   for this project.” under “Assigned to”.
+- “Drag cards to reorder or change status. Keyboard: use Actions.” under every
+  collection view. Use one shared help affordance, or rely on the visible
+  Actions menu.
+- “Marked read when this closes.” — the read state is already visible.
+- “Stays here as Pulled.” — the Pulled badge says it.

@@ -271,7 +271,6 @@ describe('Inbox Tree — application overview', () => {
     const contextRow = html.match(/<tr[^>]*data-context="true"[^>]*>/)?.[0] ?? '';
     expect(inboxRow).toContain('draggable="true"');
     expect(contextRow).toContain('draggable="false"');
-    expect(html).toContain('Drag to reorder or reparent; on touch, press and hold. Keyboard: use Actions.');
   });
 
   it('reports bulk state and keeps Release selected disabled with no selection', () => {
@@ -280,7 +279,6 @@ describe('Inbox Tree — application overview', () => {
       [ROOT, HOME, node({ id: 'p1', title: 'Book boiler service', parentId: 'home', inbox: true })],
       { selected: [], bulkPending: true },
     );
-    expect(html).toContain('Select captures to release them together');
     expect(html).toMatch(/<button[^>]*aria-busy="true"[^>]*>.*Release selected/);
   });
 });

@@ -114,9 +114,11 @@
   descriptions, page subtitles and tooltips appear only when they explain a
   destructive consequence, a permission change, a security or retention rule,
   a non-discoverable interaction, an empty state’s next step or an error
-  recovery path. Repeated and restating copy was removed, long drag-and-drop
-  instructions were reduced to one short line per view, and the Add-on
-  settings area is hidden when an add-on has no settings.
+  recovery path. Repeated and restating copy was removed, drag-and-drop
+  instructions are no longer repeated under every collection view (the visible
+  Actions menu is the keyboard path, with one screen-reader description in the
+  Inbox), obvious state notes such as “Marked read when this closes.” are gone,
+  and the Add-on settings area is hidden when an add-on has no settings.
 
 ### Fixed
 

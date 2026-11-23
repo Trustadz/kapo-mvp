@@ -313,11 +313,6 @@
   overflow-wrap: anywhere;
 }
 
-.dropResultHint {
-  color: var(--color-muted);
-  font-size: var(--font-size-small);
-}
-
 .error {
   margin-bottom: calc(var(--space-2) * -1);
 }

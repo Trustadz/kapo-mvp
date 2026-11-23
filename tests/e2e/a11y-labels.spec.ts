@@ -305,7 +305,7 @@ test.describe('labels, landmarks and announcements', () => {
     await expect(card.getByText('Pulled')).toBeVisible();
   });
 
-  test('Inbox Tree is a captioned table with row headers and drag descriptions', async ({
+  test('Inbox Tree is a captioned table with row headers', async ({
     page,
   }) => {
     await login(page);
@@ -325,8 +325,6 @@ test.describe('labels, landmarks and announcements', () => {
     await expect(row.getByRole('rowheader', { name: /Renovate basement/ })).toBeVisible();
     await expect(row.getByRole('checkbox', { name: 'Select Renovate basement' })).toBeVisible();
     await expect(table.getByRole('checkbox', { name: 'Select all Inbox captures' })).toBeVisible();
-    await expect(row).toHaveAttribute('aria-describedby', 'inbox-tree-drag-hint');
-    await expect(page.getByText('Drag to reorder or reparent; on touch, press and hold. Keyboard: use Actions.')).toBeVisible();
     await expectPageAudit(page);
   });
 
@@ -383,7 +381,6 @@ test.describe('labels, landmarks and announcements', () => {
     await expect(table.locator('caption')).toHaveText(/Child projects with status/);
     const paintRow = table.getByRole('row', { name: /Paint hallway/ });
     await expect(paintRow.getByRole('rowheader', { name: /Paint hallway/ })).toBeVisible();
-    await expect(paintRow).toHaveAttribute('aria-describedby', 'tree-drag-hint');
     await expectPageAudit(page);
 
     // Restore the seeded default so the other suites see Kanban.

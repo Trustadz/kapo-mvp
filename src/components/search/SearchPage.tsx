@@ -106,11 +106,7 @@ export function SearchPage({ tab, query, results, trashItems, trashGroups }: Sea
             <EmptyState icon="search" title={t('search.findTitle')} />
           ) : null}
           {query && results.length === 0 ? (
-            <EmptyState
-              icon="search"
-              title={t('search.noMatchTitle', { query })}
-              description={t('search.noMatchDescription')}
-            />
+            <EmptyState icon="search" title={t('search.noMatchTitle', { query })} />
           ) : null}
           {results.map((result) => (
             <article key={result.id} className={styles.resultCard}>

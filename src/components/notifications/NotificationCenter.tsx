@@ -305,7 +305,6 @@ export function NotificationCenter({ initialUnreadCount }: NotificationCenterPro
           )}
 
           <div className={cn(styles.footer, styles.panelFooter)}>
-            <span>{t('notifications.closeMarksRead')}</span>
             <span className="visually-hidden" aria-live="polite">
               {unreadCount > 0 ? plural('plurals.notificationsUnread', unreadCount) : ''}
             </span>
