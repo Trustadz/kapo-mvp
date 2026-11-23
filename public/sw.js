@@ -4,15 +4,20 @@
  * Scope: installability plus a static-asset cache. Authenticated pages and all
  * /api/* responses are never cached — the server stays authoritative and no
  * private project data is written to Cache Storage.
+ *
+ * The web app manifest is deliberately never cached here. Chrome fetches it
+ * through the service worker when deciding whether an installed PWA needs an
+ * update, so a cached copy freezes the theme colour, name and icons of an
+ * already-installed app: the server can change, but the WebAPK never sees it.
+ * Leave it to the network.
  */
 
-const VERSION = 'kapo-v1';
+const VERSION = 'kapo-v2';
 const CACHE_NAME = `${VERSION}-static`;
 const OFFLINE_URL = '/offline.html';
 const PRECACHE = [
   OFFLINE_URL,
   '/logo.svg',
-  '/manifest.webmanifest',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
 ];
@@ -41,8 +46,7 @@ function isStaticAsset(url) {
   return (
     url.pathname.startsWith('/_next/static/') ||
     url.pathname.startsWith('/icons/') ||
-    url.pathname === '/logo.svg' ||
-    url.pathname === '/manifest.webmanifest'
+    url.pathname === '/logo.svg'
   );
 }
 
