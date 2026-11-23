@@ -30,6 +30,13 @@
   font-size: var(--font-size-body);
 }
 
+.desktopActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: none;
+}
+
 .searchLink {
   display: inline-flex;
   align-items: center;

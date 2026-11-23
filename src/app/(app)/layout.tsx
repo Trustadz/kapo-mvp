@@ -20,6 +20,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       favorites={shellData.favorites}
       rootProjectId={shellData.rootProjectId}
       installationName={shellData.installationName}
+      unreadNotifications={shellData.unreadNotifications}
     >
       {children}
     </AppShell>

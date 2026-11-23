@@ -18,6 +18,7 @@ import { useI18n } from '@/i18n/client';
 import { useToastMessage } from '@/components/ui/use-live-announcer';
 import { markFieldChanged } from '@/lib/changed-fields';
 import { useFieldChanged } from '@/lib/use-field-changed';
+import { setProjectWatch } from '@/components/notifications/api';
 import { ActivityPanel } from './ActivityPanel';
 import { AddonFieldDialog, formatAddonFieldValue } from './AddonFieldDialog';
 import { AddonUserPicker } from './AddonUserPicker';
@@ -235,6 +236,7 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
   const { toast, notify, dismiss } = useToastMessage();
   const [showArchivedSaving, setShowArchivedSaving] = useState(false);
   const [favoriteSaving, setFavoriteSaving] = useState(false);
+  const [watchSaving, setWatchSaving] = useState(false);
   // Default off, matching the server-rendered markup (the saved preference is
   // read after hydration). The project id is stored alongside the value so
   // client-side navigation to another project does not briefly reuse it.
@@ -274,6 +276,18 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
       return;
     }
     notify(result.data.favorite ? t('project.favoriteAdded') : t('project.favoriteRemoved'));
+    refresh();
+  };
+
+  const toggleWatch = async () => {
+    setWatchSaving(true);
+    const result = await setProjectWatch(project.id, !project.watching);
+    setWatchSaving(false);
+    if (!result.ok) {
+      notify(result.message, 'error');
+      return;
+    }
+    notify(result.data.watching ? t('project.watchingStarted') : t('project.watchingStopped'));
     refresh();
   };
 
@@ -526,16 +540,34 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
             </div>
             <div className={styles.headerActions}>
               {!project.trashed ? (
-                <button
-                  type="button"
-                  className={styles.favoriteButton}
-                  aria-pressed={project.favorite}
-                  onClick={() => void toggleFavorite()}
-                  disabled={favoriteSaving}
-                >
-                  <Icon name="star" size={20} filled={project.favorite} />
-                  <span>{t('project.favorite')}</span>
-                </button>
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-pressed={project.favorite}
+                    onClick={() => void toggleFavorite()}
+                    disabled={favoriteSaving}
+                    icon={<Icon name="star" size={18} filled={project.favorite} />}
+                  >
+                    {t('project.favorite')}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    aria-pressed={project.watching}
+                    onClick={() => void toggleWatch()}
+                    disabled={watchSaving}
+                    icon={
+                      <Icon
+                        name={project.watching ? 'visibility' : 'visibility_off'}
+                        size={18}
+                        filled={project.watching}
+                      />
+                    }
+                  >
+                    {project.watching ? t('project.watching') : t('project.watch')}
+                  </Button>
+                </>
               ) : null}
               <Menu
                 label={t('project.actions')}

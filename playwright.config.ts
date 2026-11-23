@@ -75,7 +75,7 @@ export default defineConfig({
     {
       name: 'desktop',
       testMatch:
-        /(app|login|motion|views-reorder|project-filters|kanban-placeholder|inbox-tree|inbox-drag|a11y-keyboard|a11y-labels|contrast|drag-free|i18n|addons|settings-tabs|application-settings-tabs|mcp)\.spec\.ts/,
+        /(app|login|motion|views-reorder|project-filters|kanban-placeholder|inbox-tree|inbox-drag|a11y-keyboard|a11y-labels|contrast|drag-free|i18n|addons|settings-tabs|application-settings-tabs|notifications|mcp)\.spec\.ts/,
       dependencies: ['first-install'],
       // Drag/reorder specs should measure stable rects; the motion spec opts
       // back into animation explicitly.

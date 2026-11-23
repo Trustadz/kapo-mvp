@@ -1,5 +1,39 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **In-app notifications.** A bell in the desktop top bar (right of Search)
+  and next to the avatar on mobile shows the unread count. The overflow panel
+  lists the newest notifications with message, project/add-on origin, action
+  link and timestamp; unread items are visually distinct. Closing the panel
+  marks all visible notifications read. A full `/notifications` page provides
+  the paginated history and an explicit “Mark all as read” action.
+- **Watch a project.** An eye toggle beside Favorite subscribes the current
+  user to a project. Every history entry for that project creates a
+  notification for its watchers, including child-created/child-trashed entries
+  that belong to the watched project's own history. Routine edits inside child
+  projects do not notify parent watchers, and a user is never notified about
+  their own action. Watching is personal and never grants access.
+- **Add-on notification endpoint.** Add-ons can supply an `onValuesSaved`
+  hook and call `notify({ recipients, message, kind, translations, data, href,
+  sourceEventId })` after their value write commits. Core owns storage, read
+  state, badge and UI; recipients are permission-filtered, so an add-on cannot
+  notify a non-member. Core and add-on copy supports English/Dutch, with a
+  plain-text fallback.
+- Per-user retention keeps the latest 200 notifications; older read rows are
+  pruned on write. Notifications are removed with a purged project.
+
+### Upgrade notes
+
+- Migration `005_notifications.sql` adds `project_watches` and
+  `notifications`. No manual action is required; existing projects, history
+  and access are unchanged.
+- Push notifications are intentionally not part of this change. The
+  notification service is the single insertion point a future Web Push
+  delivery layer can use.
+
 ## 0.4.1 — 2026-11-22
 
 ### Changed
