@@ -16,10 +16,30 @@
   font-size: var(--font-size-body);
 }
 
-/* Spacing belongs to the <nav> only. Inner crumb groups get their own layout
-   class, so a bottom margin can never push the final crumb onto a second line. */
-.breadcrumbNav {
+/* The row owns the spacing. The nav shrinks so the mobile settings trigger can
+   share the breadcrumb line without pushing the final crumb onto a second line. */
+.breadcrumbRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
   margin-bottom: var(--space-2);
+}
+
+.breadcrumbNav {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.mobileSettings {
+  display: none;
+  flex: none;
+}
+
+.desktopSettings {
+  display: inline-flex;
+  flex: none;
 }
 
 .breadcrumbItem {
@@ -518,7 +538,31 @@
   }
 
   .headerActions {
-    align-self: flex-start;
+    align-self: stretch;
+    justify-content: flex-end;
+    gap: var(--space-1);
+  }
+
+  .headerActions .compactHeaderAction {
+    height: 28px;
+    padding: 0 var(--space-2);
+    font-size: var(--font-size-small);
+    gap: var(--space-1);
+  }
+
+  .mobileSettings {
+    display: inline-flex;
+  }
+
+  .desktopSettings {
+    display: none;
+  }
+
+  .mobileSettings .mobileSettingsButton {
+    width: 32px;
+    height: 32px;
+    border: 0;
+    background: transparent;
   }
 
   .detailRows {

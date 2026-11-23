@@ -139,4 +139,38 @@ test('places the bell between Search and the avatar on mobile', async ({ page })
   await expect(page.getByRole('dialog', { name: 'Notifications' })).toBeVisible();
   await page.getByRole('button', { name: 'Close' }).click();
   await expect(page.getByRole('dialog', { name: 'Notifications' })).toBeHidden();
+
+  // The project settings trigger sits on the breadcrumb line; the smaller
+  // Favorite/Watch actions are right-aligned beneath the title.
+  const homeId = await findProjectId(page, 'Home improvement');
+  await page.goto(`/p/${homeId}`);
+  const breadcrumb = page.getByRole('navigation', { name: 'Breadcrumb' });
+  const settings = page.getByRole('button', { name: 'Project actions' });
+  const favorite = page.getByRole('button', { name: 'Favorite', exact: true });
+  const watch = page.getByRole('button', { name: /^(Watch|Watching)$/ });
+  await expect(breadcrumb).toBeVisible();
+  await expect(settings).toBeVisible();
+  await expect(favorite).toBeVisible();
+  await expect(watch).toBeVisible();
+
+  const breadcrumbBox = await breadcrumb.boundingBox();
+  const settingsBox = await settings.boundingBox();
+  const favoriteBox = await favorite.boundingBox();
+  const watchBox = await watch.boundingBox();
+  expect(breadcrumbBox).not.toBeNull();
+  expect(settingsBox).not.toBeNull();
+  expect(favoriteBox).not.toBeNull();
+  expect(watchBox).not.toBeNull();
+  expect(settingsBox!.x).toBeGreaterThan(breadcrumbBox!.x + breadcrumbBox!.width);
+  expect(settingsBox!.y + settingsBox!.height / 2).toBeCloseTo(
+    breadcrumbBox!.y + breadcrumbBox!.height / 2,
+    0,
+  );
+  expect(favoriteBox!.height).toBeLessThanOrEqual(30);
+  expect(watchBox!.height).toBeLessThanOrEqual(30);
+  expect(favoriteBox!.x + favoriteBox!.width).toBeLessThan(watchBox!.x);
+  expect(watchBox!.x + watchBox!.width).toBeCloseTo(
+    settingsBox!.x + settingsBox!.width,
+    0,
+  );
 });
