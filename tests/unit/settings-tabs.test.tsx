@@ -24,6 +24,7 @@ const settings: ProjectPageData['settings'] = {
   access: 'inherit',
   inherit_layout: false,
   child_position: 'below',
+  layout_mode: null,
   default_view: 'kanban',
   enabled_views: ['kanban', 'card', 'tree', 'list'],
   hidden_statuses: [],
@@ -86,6 +87,9 @@ describe('project settings tabs after copy-on-create', () => {
       <LayoutTab data={data} workflow={workflow} notify={noop} refresh={noop} />,
     );
     expect(html).toContain('layout-default-view');
+    expect(html).toContain('Page layout');
+    expect(html).toContain('Details, properties and children');
+    expect(html).toContain('Children and history only');
     expect(html).toContain('Project view appears');
     expect(html).toContain('Main area');
     expect(html).toContain('Properties sidebar');
@@ -93,6 +97,21 @@ describe('project settings tabs after copy-on-create', () => {
     expect(html).toContain('View properties');
     expect(html).not.toContain('layout-inherit');
     expect(html).not.toContain('Inherit layout from the parent project');
+  });
+
+  it('focused layout hides field placement and child-position controls', () => {
+    const focused = {
+      ...data,
+      settings: { ...settings, layout_mode: 'children' },
+    } as unknown as ProjectPageData;
+    const html = renderToStaticMarkup(
+      <LayoutTab data={focused} workflow={workflow} notify={noop} refresh={noop} />,
+    );
+    expect(html).toContain('Children and history only');
+    expect(html).toContain('View properties');
+    expect(html).not.toContain('Project view appears');
+    expect(html).not.toContain('Main area');
+    expect(html).not.toContain('Properties sidebar');
   });
 
   it('Add-ons no longer renders the Inherit from parent checkbox', () => {

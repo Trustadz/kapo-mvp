@@ -235,6 +235,10 @@ function parseViewFields(value: unknown): ViewFields {
   return views;
 }
 
+function parseLayoutMode(value: unknown): ProjectSettingsData['layout_mode'] {
+  return value === 'full' || value === 'children' ? value : null;
+}
+
 function parseLayoutTemplate(value: unknown): ProjectLayoutTemplate | null {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
   const candidate = value as { main?: unknown; sidebar?: unknown };
@@ -282,6 +286,7 @@ export function parseProjectSettings(raw: string | null | undefined): ProjectSet
     // layout reads never consult it any more.
     inherit_layout: parsed.inherit_layout !== false,
     child_position: parsed.child_position === 'above' ? 'above' : 'below',
+    layout_mode: parseLayoutMode(parsed.layout_mode),
     default_view: defaultView,
     enabled_views: enabledViews,
     hidden_statuses: hiddenStatuses,
@@ -314,6 +319,7 @@ export interface UpdateProjectSettingsInput {
   view_fields?: unknown;
   inherit_layout?: unknown;
   child_position?: unknown;
+  layout_mode?: unknown;
   default_view?: unknown;
   enabled_views?: unknown;
   hidden_statuses?: unknown;
@@ -379,6 +385,14 @@ export function updateProjectSettings(
       fields.child_position = 'Choose where child projects appear.';
     } else {
       next.child_position = input.child_position;
+    }
+  }
+
+  if (input.layout_mode !== undefined) {
+    if (input.layout_mode !== 'full' && input.layout_mode !== 'children') {
+      fields.layout_mode = 'Choose a page layout.';
+    } else {
+      next.layout_mode = input.layout_mode;
     }
   }
 
@@ -488,6 +502,7 @@ export function updateProjectSettings(
     access: next.access,
     inherit_layout: next.inherit_layout,
     child_position: next.child_position,
+    layout_mode: next.layout_mode,
     default_view: next.default_view,
     enabled_views: next.enabled_views,
     hidden_statuses: next.hidden_statuses,
@@ -718,6 +733,9 @@ export function createProject(
   const childSettings: Record<string, unknown> = {
     ...DEFAULT_PROJECT_SETTINGS,
     inherit_layout: false,
+    // Root's compact default is a Root presentation choice, not a project
+    // template: its children start on the full page unless they opt in.
+    layout_mode: parent.parent_id === null ? null : parentSettings.layout_mode,
     layout_template: parentLayout,
   };
   if (Object.keys(addonSnapshot).length > 0) childSettings.addons = addonSnapshot;

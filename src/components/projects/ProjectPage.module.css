@@ -48,6 +48,13 @@
   gap: var(--space-2);
 }
 
+/* Root hides its redundant breadcrumb, title and Favorite; keep the project
+   actions menu reachable without reserving a title row. */
+.rootHeader {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .headerRow {
   display: flex;
   align-items: flex-start;

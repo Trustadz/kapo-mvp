@@ -828,6 +828,11 @@ export const nl: Messages = {
     layoutTitle: 'Lay-out en weergaven',
     layoutHint:
       'Kies waar projectvelden verschijnen, welke weergaven beschikbaar zijn en welke statussen verborgen zijn. Nieuwe onderliggende projecten nemen de huidige lay-out eenmalig over; latere wijzigingen hier hebben geen invloed op bestaande onderliggende projecten.',
+    pageLayout: 'Pagina-indeling',
+    layoutFull: 'Details, eigenschappen en onderliggende projecten',
+    layoutChildren: 'Alleen onderliggende projecten en geschiedenis',
+    layoutModeHint:
+      'De gerichte pagina verbergt Details en Eigenschappen; onderliggende projecten en de projectgeschiedenis vullen de pagina. Het hoofdproject gebruikt dit standaard.',
     useAsTemplate: 'Als kindtemplate gebruiken',
     useAsTemplateLabel:
       'Deze lay-out als template voor onderliggende projecten gebruiken',

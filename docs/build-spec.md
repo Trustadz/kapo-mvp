@@ -11,7 +11,7 @@ and an older document disagree, this document wins; where it is silent, the Penp
 | Scope | Full MVP per `product.md` §11, phased. Add-on registry ships as backend contracts + docs only. |
 | Stack | Next.js 16 App Router, React 19, TypeScript strict, SQLite (better-sqlite3), single container. |
 | Precedence | Penpot design > `product.md`. This spec > both where it records a decision. |
-| Project page | Page 01 composition (breadcrumb, Favorite, settings menu, right Properties sidebar) + page 07 collection toolbar and four views. Page 07's alternate header (inline Status + `…`) is not implemented. |
+| Project page | Page 01 composition (breadcrumb, Favorite, settings menu, right Properties sidebar) + page 07 collection toolbar and four views. A focused layout hides Details and Properties for a child-collection + Activity page; Root uses it by default and omits breadcrumb, title and Favorite. Page 07's alternate header (inline Status + `…`) is not implemented. |
 | Completed-last-week widget | Cut from this iteration. Not registered, not in defaults, not in the editor. `docs/add-ons.md` records how to reintroduce it. |
 | Viewer rights | May edit own profile, password, appearance and dashboard. Read-only on all project data. |
 | Tablets | Inferred responsively; no separate tablet designs. |
@@ -69,7 +69,7 @@ Archived rows use dashed border + muted text, never opacity below 0.7.
 | `/inbox` | Global Inbox, Card presentation + release/Pulled. |
 | `/search` | Search results; tabs Search / Trash. |
 | `/trash` | Redirects to `/search?tab=trash`. |
-| `/p/[id]` | Project page: header, details, properties sidebar, child collection (Kanban/Card/Tree/List), Activity. |
+| `/p/[id]` | Project page: header, details, properties sidebar (full layout) or focused child collection (Kanban/Card/Tree/List) + Activity. |
 | `/p/[id]/settings` | Project settings: General, Workflow, Members, Layout tabs (`?tab=`). |
 | `/profile` | Account, landing page, appearance, password change, avatar. |
 | `/settings` | Application settings (Admin). |
@@ -92,7 +92,8 @@ Cookie `kapo_session`, httpOnly, sameSite lax, secure when `NODE_ENV=production`
 (null only for Root), status_id (null only for Root), priority (integer, unique per parent,
 0-based), inbox (0/1), archived (0/1), trashed_at, trash_action_id, purge_deadline,
 addon_data (JSON), settings (JSON: `access` `inherit|custom`, inherit_layout, child_position
-`below|above`, default_view, enabled_views, hidden_statuses, skip_inbox, layout_template),
+`below|above`, layout_mode `full|children|null`, default_view, enabled_views, hidden_statuses,
+skip_inbox, layout_template),
 created_by, created_at, updated_at.
 
 `statuses` id, parent_id (the project that owns the workflow for its children), name,

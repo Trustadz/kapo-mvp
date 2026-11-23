@@ -41,6 +41,7 @@ export interface ProjectSettingsDefaults {
   access: 'inherit' | 'custom';
   inherit_layout: boolean;
   child_position: 'below' | 'above';
+  layout_mode: null;
   default_view: 'kanban' | 'card' | 'tree' | 'list';
   enabled_views: string[];
   hidden_statuses: string[];
@@ -56,6 +57,9 @@ export const DEFAULT_PROJECT_SETTINGS: ProjectSettingsDefaults = {
   // snapshot at startup.
   inherit_layout: false,
   child_position: 'below',
+  // Null means the default composition: full for ordinary projects and
+  // children+history for Root (see resolveProjectLayoutMode).
+  layout_mode: null,
   default_view: 'kanban',
   enabled_views: ['kanban', 'card', 'tree', 'list'],
   hidden_statuses: [],

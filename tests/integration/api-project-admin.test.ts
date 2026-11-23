@@ -241,6 +241,7 @@ describe('GET/PUT /api/projects/:id/settings', () => {
         method: 'PUT',
         body: {
           child_position: 'above',
+          layout_mode: 'children',
           enabled_views: ['list', 'tree'],
           default_view: 'list',
           skip_inbox: true,
@@ -253,6 +254,7 @@ describe('GET/PUT /api/projects/:id/settings', () => {
     const payload = await json<{
       settings: {
         child_position: string;
+        layout_mode: string | null;
         enabled_views: string[];
         default_view: string;
         skip_inbox: boolean;
@@ -260,6 +262,7 @@ describe('GET/PUT /api/projects/:id/settings', () => {
       };
     }>(updated);
     expect(payload.settings.child_position).toBe('above');
+    expect(payload.settings.layout_mode).toBe('children');
     expect(payload.settings.enabled_views).toEqual(['list', 'tree']);
     expect(payload.settings.default_view).toBe('list');
     expect(payload.settings.skip_inbox).toBe(true);
@@ -289,6 +292,7 @@ describe('GET/PUT /api/projects/:id/settings', () => {
       { default_view: 'gantt' },
       { hidden_statuses: ['not-a-status'] },
       { child_position: 'middle' },
+      { layout_mode: 'minimal' },
     ]) {
       const response = await settingsRoute.PUT(
         request(`/api/projects/${project.id}/settings`, { method: 'PUT', body }),

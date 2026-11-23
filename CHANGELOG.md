@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Focused project layout**: Project settings → Layout now offers a
+  “Children and history only” page that hides the Details and Properties
+  cards, leaving the child viewer and project history. Root uses this layout
+  by default; Root also no longer shows its redundant breadcrumb, page title
+  or Favorite control, while the project actions menu stays available.
+  Ordinary projects keep the full layout by default and can switch either way.
+  The choice is stored in `settings.layout_mode`; no schema migration is
+  needed.
+
 ## 0.4.1 — 2026-11-22
 
 ### Changed

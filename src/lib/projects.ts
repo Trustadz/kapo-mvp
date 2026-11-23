@@ -151,6 +151,27 @@ export interface ProjectLayoutTemplate {
 }
 
 /**
+ * Which project-page composition the project uses.
+ *
+ * `full` renders the title header, Details, Properties, the child collection
+ * and Activity. `children` drops the Details and Properties cards so the page
+ * is only the child viewer and project history; Root uses it by default.
+ */
+export const PROJECT_LAYOUT_MODES = ['full', 'children'] as const;
+
+export type ProjectLayoutMode = (typeof PROJECT_LAYOUT_MODES)[number];
+
+export const DEFAULT_PROJECT_LAYOUT_MODE: ProjectLayoutMode = 'full';
+
+/** The project's stored mode, or the Root-aware default when it has none. */
+export function resolveProjectLayoutMode(
+  settings: Pick<ProjectSettingsData, 'layout_mode'>,
+  isRoot: boolean,
+): ProjectLayoutMode {
+  return settings.layout_mode ?? (isRoot ? 'children' : DEFAULT_PROJECT_LAYOUT_MODE);
+}
+
+/**
  * Default Details card is intentionally empty (PO issue #17): fields are
  * opt-in through the layout settings. The sidebar keeps the two most useful
  * properties, so a default project page is not blank.
@@ -166,6 +187,8 @@ export interface ProjectSettingsData {
   access: ProjectAccessMode;
   inherit_layout: boolean;
   child_position: 'below' | 'above';
+  /** Null means the default: full for projects, children+history for Root. */
+  layout_mode: ProjectLayoutMode | null;
   default_view: CollectionView;
   enabled_views: CollectionView[];
   hidden_statuses: string[];
