@@ -11,8 +11,12 @@ import { APPEARANCES } from '@/lib/types';
 export const SESSION_COOKIE = 'kapo_session';
 /** Non-httpOnly mirror of the user preference so the pre-paint script can read it. */
 export const APPEARANCE_COOKIE = 'kapo_appearance';
+/** Short-lived OIDC state/nonce/PKCE transaction, scoped to the SSO routes. */
+export const OIDC_TRANSACTION_COOKIE = 'kapo_oidc_txn';
 export const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 export const APPEARANCE_MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
+export const OIDC_TRANSACTION_MAX_AGE_SECONDS = 10 * 60;
+const OIDC_TRANSACTION_PATH = '/api/auth/pocketid';
 
 export async function readSessionToken(): Promise<string | null> {
   const store = await cookies();
@@ -55,6 +59,42 @@ export async function clearSessionCookie(): Promise<void> {
     sameSite: 'lax',
     secure: secureCookieRequired(https),
     path: '/',
+    maxAge: 0,
+  });
+}
+
+export async function readOidcTransactionCookie(): Promise<string | null> {
+  const store = await cookies();
+  const value = store.get(OIDC_TRANSACTION_COOKIE)?.value;
+  return value && value.length > 0 ? value : null;
+}
+
+export async function setOidcTransactionCookie(value: string): Promise<void> {
+  const https = await requestIsHttps();
+  const store = await cookies();
+  store.set({
+    name: OIDC_TRANSACTION_COOKIE,
+    value,
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: secureCookieRequired(https),
+    path: OIDC_TRANSACTION_PATH,
+    maxAge: OIDC_TRANSACTION_MAX_AGE_SECONDS,
+  });
+}
+
+export async function clearOidcTransactionCookie(): Promise<void> {
+  const https = await requestIsHttps();
+  const store = await cookies();
+  // Expire it with the same path used by setOidcTransactionCookie; a path-less
+  // delete would leave the scoped cookie in the browser.
+  store.set({
+    name: OIDC_TRANSACTION_COOKIE,
+    value: '',
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: secureCookieRequired(https),
+    path: OIDC_TRANSACTION_PATH,
     maxAge: 0,
   });
 }
