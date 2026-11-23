@@ -5,7 +5,7 @@ import type { AuthUser } from '@/lib/types';
 /**
  * Viewer shell (product.md §6, build-spec §1): application Viewers are
  * read-only, so the global capture input and the mobile Add action are not
- * rendered at all; the desktop bar explains "Viewers can browse only".
+ * rendered at all.
  * Server-side authorisation is covered by the API tests (Viewer POST/PATCH/
  * trash/move/reorder/members/settings all return 403).
  */
@@ -41,7 +41,6 @@ const ROOT_ID = '00000000-0000-4000-8000-000000000001';
 describe('desktop top bar capture', () => {
   it('hides the capture input from an application Viewer', () => {
     const html = renderToStaticMarkup(<TopBar user={user('viewer')} rootProjectId={ROOT_ID} />);
-    expect(html).toContain('Viewers can browse only.');
     expect(html).not.toContain('Add a project to Root');
     expect(html).not.toContain('capture-title');
     expect(html).not.toMatch(/<input[^>]+placeholder="Add a project to Root/);

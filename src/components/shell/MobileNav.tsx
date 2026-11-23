@@ -52,11 +52,6 @@ export function MobileNav({ rootProjectId, favorites, canCapture }: MobileNavPro
   const favoritesHeader = (
     <div className={styles.favoritesMenuHeader}>
       <span className={styles.favoritesMenuTitle}>{t('common.favorites')}</span>
-      {favorites.length === 0 ? (
-        <p className={styles.favoritesMenuHint}>
-          {t('shell.noFavorites')}
-        </p>
-      ) : null}
     </div>
   );
 
@@ -132,7 +127,6 @@ export function MobileNav({ rootProjectId, favorites, canCapture }: MobileNavPro
           open={addOpen}
           onClose={close}
           title={t('shell.addProjectTitle')}
-          description={t('shell.addProjectDescription')}
           size="sm"
         >
           <CaptureForm

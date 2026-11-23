@@ -221,9 +221,6 @@ export function Dashboard({ user }: DashboardProps) {
               );
             })}
           </ul>
-          <p className={styles.editorHint}>
-            {t('dashboard.editorHint')}
-          </p>
           {editError ? (
             <div className={styles.editorError}>
               <Notice tone="error">{editError}</Notice>
@@ -248,9 +245,6 @@ export function Dashboard({ user }: DashboardProps) {
           <Icon name="info" size={20} className={styles.emptyIcon} />
           <div>
             <p className={styles.emptyTitle}>{t('dashboard.emptyTitle')}</p>
-            <p className={styles.emptyDescription}>
-              {t('dashboard.emptyDescription')}
-            </p>
           </div>
         </div>
       ) : (
@@ -401,9 +395,7 @@ function InboxWidgetBody({ data }: { data: DashboardInboxWidget }) {
     readiness === 'ready' ? t('dashboard.readyToDo') : t('dashboard.needsProperties');
   return (
     <div className={styles.widgetBody}>
-      {data.items.length === 0 ? (
-        <p className={styles.widgetEmpty}>{t('dashboard.inboxEmpty')}</p>
-      ) : (
+      {data.items.length === 0 ? null : (
         <ul className={styles.inboxList}>
           {data.items.map((item) => (
             <li key={item.id} className={styles.inboxItem}>
@@ -462,9 +454,7 @@ function RecentWidgetBody({ data }: { data: DashboardRecentWidget }) {
   const { t, formatDayTime } = useI18n();
   return (
     <div className={styles.widgetBody}>
-      {data.items.length === 0 ? (
-        <p className={styles.widgetEmpty}>{t('dashboard.noRecent')}</p>
-      ) : (
+      {data.items.length === 0 ? null : (
         <ul className={styles.recentList}>
           {data.items.map((event) => (
             <li key={event.id}>
@@ -495,7 +485,6 @@ function RecentWidgetBody({ data }: { data: DashboardRecentWidget }) {
           ))}
         </ul>
       )}
-      <p className={styles.recentFooter}>{t('dashboard.recentFooter')}</p>
     </div>
   );
 }

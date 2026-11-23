@@ -189,7 +189,6 @@ for (const theme of ['light', 'dark'] as const) {
     const dialog = page.getByRole('dialog', { name: 'Move project' });
     await expect(dialog).toBeVisible();
     await expectTextContrast(dialog.getByRole('heading', { name: 'Move project' }), 4.5, 'Dialog title');
-    await expectTextContrast(dialog.locator('p').first(), 4.5, 'Dialog description');
     await expectBorderContrast(
       dialog.getByLabel('Destination', { exact: true }),
       3,

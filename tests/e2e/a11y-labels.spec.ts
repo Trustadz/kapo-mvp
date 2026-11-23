@@ -303,7 +303,6 @@ test.describe('labels, landmarks and announcements', () => {
       new RegExp(`Released “${title}” to .+\\.`),
     );
     await expect(card.getByText('Pulled')).toBeVisible();
-    await expect(card.getByText(/released — open it to keep working/i)).toBeVisible();
   });
 
   test('Inbox Tree is a captioned table with row headers and drag descriptions', async ({
@@ -327,7 +326,7 @@ test.describe('labels, landmarks and announcements', () => {
     await expect(row.getByRole('checkbox', { name: 'Select Renovate basement' })).toBeVisible();
     await expect(table.getByRole('checkbox', { name: 'Select all Inbox captures' })).toBeVisible();
     await expect(row).toHaveAttribute('aria-describedby', 'inbox-tree-drag-hint');
-    await expect(page.getByText(/Drop one on another row’s middle/i)).toBeVisible();
+    await expect(page.getByText('Drag to reorder or reparent; on touch, press and hold. Keyboard: use Actions.')).toBeVisible();
     await expectPageAudit(page);
   });
 
@@ -468,7 +467,7 @@ test.describe('labels, landmarks and announcements', () => {
     const addonCard = page.getByRole('region', { name: /Assignee/i });
     await expect(addonCard).toBeVisible();
     await expect(addonCard.getByRole('combobox', { name: 'Availability' })).toBeVisible();
-    await expect(addonCard.getByText('No additional settings for this add-on.')).toBeVisible();
+    await expect(addonCard.getByRole('heading', { level: 4, name: 'Add-on settings' })).toHaveCount(0);
     await expect(addonCard.getByRole('radio')).toHaveCount(0);
     await expectPageAudit(page);
 

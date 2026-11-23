@@ -293,7 +293,6 @@ function UserDialog({ open, mode, user, defaultRole, onClose, onSaved }: UserDia
       open={open}
       onClose={onClose}
       title={mode === 'add' ? t('users.addUser') : t('users.editUser')}
-      description={t('users.dialogDescription')}
       dismissible={!saving}
       footer={
         <>
@@ -395,9 +394,6 @@ function UserDialog({ open, mode, user, defaultRole, onClose, onSaved }: UserDia
           />
         </Field>
 
-        <Notice tone="info" title={t('users.rolesNoticeTitle')}>
-          {t('users.rolesNoticeBody')}
-        </Notice>
       </form>
     </Dialog>
   );

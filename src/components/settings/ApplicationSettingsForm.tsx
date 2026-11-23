@@ -21,6 +21,7 @@ import { APP_ROLES, COLLECTION_VIEWS, type AppRole, type CollectionView } from '
 import type { AddonApplicationConfig, AddonFieldValue, AddonMode } from '@/lib/addons';
 import type { DescriptionCapabilitySettings } from '@/lib/description';
 import { ADDON_MODE_OPTIONS } from '@/lib/addons';
+import { addonSettingsFieldList } from '@/lib/addon-settings';
 import { COLLECTION_VIEW_MESSAGE_KEYS, SHORT_ROLE_MESSAGE_KEYS } from '@/i18n/domain-labels';
 import { useI18n } from '@/i18n/client';
 import type { BackupStatus } from '@/server/backup';
@@ -513,7 +514,6 @@ function GeneralPanel({
 
       <fieldset className={styles.viewsFieldset}>
         <legend className={styles.viewsLegend}>{t('settings.mcp')}</legend>
-        <p className={styles.note}>{t('settings.mcpNote')}</p>
         <Checkbox
           id="settings-mcp-enabled"
           name="mcpEnabled"
@@ -577,7 +577,6 @@ function BackupsPanel({
         id="settings-backup-enabled"
         name="backupEnabled"
         label={t('settings.automaticBackups')}
-        description={t('settings.automaticBackupsDescription')}
         checked={values.backupEnabled}
         onChange={(event) => onChange({ backupEnabled: event.target.checked })}
       />
@@ -704,7 +703,6 @@ function AddonsPanel({
     >
       <h2 className={styles.panelTitle}>{t('addons.applicationHeading')}</h2>
       {formError ? <Notice tone="error">{formError}</Notice> : null}
-      <p className={styles.note}>{t('addons.applicationHint')}</p>
 
       <DescriptionProviderCard capability={descriptionCapability} />
 
@@ -714,6 +712,12 @@ function AddonsPanel({
         const titleId = `addon-title-${addon.identifier}`;
         const modeId = `addon-mode-${addon.identifier}`;
         const settingsError = errors[`addons.${addon.identifier}.settings`];
+        const settingFields = addonSettingsFieldList(addon.settingsFields);
+        const malformedSettings =
+          Array.isArray(addon.settingsFields) &&
+          addon.settingsFields.length !== settingFields.length;
+        const showSettings =
+          settingFields.length > 0 || malformedSettings || Boolean(settingsError);
         return (
           <section
             key={addon.identifier}
@@ -752,19 +756,21 @@ function AddonsPanel({
               </Select>
             </Field>
 
-            <div className={styles.addonSettings}>
-              <h4 className={styles.settingsHeading}>{t('addons.settingsHeading')}</h4>
-              {settingsError ? <Notice tone="error">{settingsError}</Notice> : null}
-              <AddonSettingsFields
-                addon={addon}
-                values={draft.settings}
-                errors={settingsErrorsForAddon(errors, addon.identifier)}
-                disabled={saving}
-                onChange={(key, value) =>
-                  onSettingChange(addon.identifier, key, value)
-                }
-              />
-            </div>
+            {showSettings ? (
+              <div className={styles.addonSettings}>
+                <h4 className={styles.settingsHeading}>{t('addons.settingsHeading')}</h4>
+                {settingsError ? <Notice tone="error">{settingsError}</Notice> : null}
+                <AddonSettingsFields
+                  addon={addon}
+                  values={draft.settings}
+                  errors={settingsErrorsForAddon(errors, addon.identifier)}
+                  disabled={saving}
+                  onChange={(key, value) =>
+                    onSettingChange(addon.identifier, key, value)
+                  }
+                />
+              </div>
+            ) : null}
           </section>
         );
       })}

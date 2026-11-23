@@ -124,7 +124,7 @@ describe('Inbox view switcher', () => {
     expect(page).toContain('aria-label="Inbox view"');
 
     const tree = renderTree([], [ROOT, HOME]);
-    expect(tree).toContain('No Inbox captures right now');
+    expect(tree).toContain('No Inbox captures — showing all projects you can read.');
     expect(tree).toContain('Home improvement');
     expect(tree).not.toContain('data-inbox="true"');
   });
@@ -271,7 +271,7 @@ describe('Inbox Tree — application overview', () => {
     const contextRow = html.match(/<tr[^>]*data-context="true"[^>]*>/)?.[0] ?? '';
     expect(inboxRow).toContain('draggable="true"');
     expect(contextRow).toContain('draggable="false"');
-    expect(html).toContain('Drop one on another row’s middle');
+    expect(html).toContain('Drag to reorder or reparent; on touch, press and hold. Keyboard: use Actions.');
   });
 
   it('reports bulk state and keeps Release selected disabled with no selection', () => {

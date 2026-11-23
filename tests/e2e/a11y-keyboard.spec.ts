@@ -284,7 +284,6 @@ test.describe('keyboard navigation and focus order', () => {
     await release.focus();
     await page.keyboard.press('Enter');
     await expect(item.getByText('Pulled')).toBeVisible();
-    await expect(item.getByText(/released — open it to keep working/i)).toBeVisible();
   });
 
   test('project settings controls are keyboard reachable and focus rings show', async ({

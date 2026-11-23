@@ -36,6 +36,15 @@ specifies a narrower scope or a different workflow.
 See [build spec §11](docs/build-spec.md#11-agent-write-scopes-avoid-concurrent-edits)
 for file ownership when more than one agent works in this checkout.
 
+## UI copy and helper text
+
+Default to **no helper text**. Labels, placeholders, structure and validation
+messages should carry the meaning. Add supporting copy only for an exception
+listed in the [helper text guidelines](docs/helper-text.md), cite the exception
+in the PR, and include a screenshot. Do not add prospective helper text for a
+hypothetical question; wait for a real question or observed confusion. When
+touching a screen, remove helper text that no longer meets the guidelines.
+
 ## Release
 
 - **Verify** runs typecheck, Vitest, and the production build automatically on

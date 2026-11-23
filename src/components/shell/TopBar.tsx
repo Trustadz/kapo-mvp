@@ -26,16 +26,11 @@ export function TopBar({ user, rootProjectId, unreadNotifications = 0 }: TopBarP
   return (
     <>
       <header className={styles.desktopBar}>
-        <div className={styles.capture}>
-          {canCapture ? (
+        {canCapture ? (
+          <div className={styles.capture}>
             <CaptureForm rootProjectId={rootProjectId} />
-          ) : (
-            <p className={styles.readOnlyHint}>
-              <Icon name="visibility" size={18} />
-              <span>{t('shell.viewersCanBrowseOnly')}</span>
-            </p>
-          )}
-        </div>
+          </div>
+        ) : null}
         <div className={styles.desktopActions}>
           <Link href="/search" className={styles.searchLink}>
             <Icon name="search" size={20} />

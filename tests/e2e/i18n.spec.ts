@@ -95,9 +95,8 @@ test.describe('authenticated Dutch UI and Profile switcher', () => {
     // Inbox chrome.
     await page.goto('/inbox');
     await expect(page.getByRole('heading', { level: 1, name: 'Inbox' })).toBeVisible();
-    await expect(
-      page.getByText('Bekijk vastgelegde projecten en zet ze om in werk.'),
-    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Kaart' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Boom' })).toBeVisible();
 
     // Project chrome (the seeded project title is user content and stays English).
     const projectId = await findProjectId(page, 'Home improvement');

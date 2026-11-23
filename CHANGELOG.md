@@ -109,11 +109,21 @@
 - The child-collection view selector and Add action now share the filter row,
   and the button reads “Add new”.
 
+- **Less helper text across the interface.** Supporting copy now follows the
+  “default to none” rule in [docs/helper-text.md](docs/helper-text.md): hints,
+  descriptions, page subtitles and tooltips appear only when they explain a
+  destructive consequence, a permission change, a security or retention rule,
+  a non-discoverable interaction, an empty state’s next step or an error
+  recovery path. Repeated and restating copy was removed, long drag-and-drop
+  instructions were reduced to one short line per view, and the Add-on
+  settings area is hidden when an add-on has no settings.
+
 ### Fixed
 
 - Installed PWAs now receive manifest changes (theme colour, name, icons) instead
   of serving a frozen copy from the service worker cache. The manifest is no
   longer precached or intercepted by `public/sw.js`.
+
 
 ### Security notes
 

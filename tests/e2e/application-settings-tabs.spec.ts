@@ -7,7 +7,7 @@ import { expect, test, type Page } from '@playwright/test';
  * - switching tabs never discards an edit;
  * - General and Backups each submit only their own fields and clear only their
  *   own dirty state;
- * - the add-on card uses a Select (not radios) and a quiet empty-settings note.
+ * - the add-on card uses a Select (not radios) and omits an empty settings area.
  */
 
 const PASSWORD = 'kapo1234';
@@ -143,8 +143,13 @@ test('switching tabs keeps drafts and each tab saves only its own fields', async
   await expect(page.getByRole('status')).toContainText('Application settings saved.');
 });
 
-test('add-on cards use a mode dropdown and a quiet empty-settings area', async ({ page }) => {
+test('add-on cards use a mode dropdown and omit empty settings areas', async ({ page }) => {
   await login(page);
+  // An earlier spec leaves the shared add-on mode as Always on; normalise it so
+  // this test can exercise the optional-mode enable control.
+  await page.request.put('/api/settings', {
+    data: { addons: { assignee: { mode: 'optional' } } },
+  });
   await page.goto('/settings');
   const addonsTab = page.getByRole('tab', { name: 'Add-ons' });
   await addonsTab.click();
@@ -153,7 +158,7 @@ test('add-on cards use a mode dropdown and a quiet empty-settings area', async (
   await expect(card).toBeVisible();
   await expect(card.getByRole('heading', { level: 3, name: /Assignee/ })).toContainText('v1.0.0');
   await expect(card.getByText('Assign a project to one household member.')).toBeVisible();
-  await expect(card.getByText('No additional settings for this add-on.')).toBeVisible();
+  await expect(card.getByRole('heading', { level: 4, name: 'Add-on settings' })).toHaveCount(0);
   await expect(card.getByRole('radio')).toHaveCount(0);
   await expect(card.getByRole('radiogroup')).toHaveCount(0);
 

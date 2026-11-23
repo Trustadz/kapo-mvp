@@ -80,7 +80,6 @@ export function AddProjectDialog({
       open={open}
       onClose={onClose}
       title={t('dialogs.addChildTitle')}
-      description={t('dialogs.addChildDescription', { title: parentTitle })}
       dismissible={!saving}
       initialFocusRef={titleRef}
       footer={
@@ -214,7 +213,6 @@ export function MoveDialog({
       open={open}
       onClose={onClose}
       title={t('dialogs.moveTitle')}
-      description={t('dialogs.moveDescription', { title: projectTitle })}
       dismissible={!saving}
       footer={
         <div className={styles.dialogFooter}>
@@ -427,11 +425,7 @@ export function ArchiveDialog({
           <p className={styles.dialogHint}>
             {t('dialogs.archiveHint')}
           </p>
-        ) : (
-          <p className={styles.dialogHint}>
-            {t('dialogs.unarchiveHint')}
-          </p>
-        )}
+        ) : null}
       </div>
     </Dialog>
   );
@@ -492,7 +486,6 @@ export function HideArchivedDialog({
       open={open}
       onClose={onClose}
       title={t('dialogs.hideArchivedTitle')}
-      description={t('dialogs.hideArchivedDescription', { title: projectTitle })}
       dismissible={!saving}
       footer={
         <div className={styles.dialogFooter}>

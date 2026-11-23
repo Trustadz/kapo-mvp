@@ -863,7 +863,6 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
       <header className={styles.header}>
         <div className={styles.headerText}>
           <h1 className={styles.title}>{t('inbox.title')}</h1>
-          <p className={styles.subtitle}>{t('inbox.subtitle')}</p>
         </div>
         <InboxViewSwitch view={view} onChange={setView} />
       </header>
@@ -910,7 +909,6 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
             className={styles.dropZone}
             data-active={dropActive || undefined}
             aria-label={t('inbox.releaseDropArea')}
-            aria-describedby="inbox-drop-hint"
             data-drop-area="release"
             onDragOver={(event) => {
               event.preventDefault();
@@ -929,9 +927,6 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
             <span className={styles.dropText}>
               <span className={styles.dropTitle}>
                 {dropActive ? t('inbox.dropActive') : t('inbox.dropIdle')}
-              </span>
-              <span id="inbox-drop-hint" className={styles.dropHint}>
-                {t('inbox.dropHint')}
               </span>
             </span>
           </section>
@@ -1022,12 +1017,7 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
                       <ParentContext item={item} />
                     </p>
                     <div className={styles.actions}>
-                      {isPulled ? (
-                        <span className={styles.pulledNote}>
-                          <Icon name="check_circle" size={18} />
-                          {t('inbox.releasedOpen')}
-                        </span>
-                      ) : item.canRelease ? (
+                      {isPulled ? null : item.canRelease ? (
                         <Button
                           variant="quiet"
                           onClick={() => void release(item)}

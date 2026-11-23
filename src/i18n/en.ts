@@ -67,8 +67,6 @@ export const en = {
     expandName: 'Expand {title}',
     openName: 'Open {title}',
     thisStatus: 'this status',
-    titleOnly: 'Title only.',
-    noFieldsSelected: 'No fields selected.',
     networkError: 'Could not reach the server. Check your connection and try again.',
     genericError: 'Something went wrong. Try again.',
     checkFields: 'Check the highlighted fields.',
@@ -106,7 +104,6 @@ export const en = {
   },
   language: {
     label: 'Language',
-    switchHint: 'The whole interface updates immediately; you stay on this page.',
   },
   auth: {
     signIn: 'Sign in',
@@ -119,10 +116,8 @@ export const en = {
     createAccount: 'Create account',
     createAccountForm: 'Create account',
     setupSubheading: 'Set up your first Admin account',
-    setupDescription: 'This account manages your Kapo installation.',
     email: 'Email',
     confirmPassword: 'Confirm password',
-    setupHint: 'Your initials are used until you choose a profile picture.',
     invalidCredentials: 'Invalid username or password.',
     setupComplete: 'This installation already has an account.',
     passwordRecovery: 'For password recovery, contact an application Admin.',
@@ -130,7 +125,6 @@ export const en = {
     continueWith: 'Continue with {provider}',
     or: 'or',
     passwordLoginDisabled: 'Password sign-in is disabled.',
-    ssoOnlyNote: 'Use {provider} to sign in.',
     ssoFailed: 'Could not sign in with {provider}. Try again.',
     ssoUnavailable:
       'Single sign-on is not available right now. Try again or contact an application Admin.',
@@ -157,7 +151,6 @@ export const en = {
     collapseSidebar: 'Collapse sidebar',
     expandSidebar: 'Expand sidebar',
     accountMenu: 'Account menu',
-    viewersCanBrowseOnly: 'Viewers can browse only.',
     appearanceNotSaved: 'Appearance changed for this visit, but could not be saved.',
     captureForm: 'Add a project to Root',
     capturePlaceholder: 'Add a project to Root…',
@@ -168,9 +161,7 @@ export const en = {
     rootUnavailable: 'Root project is not available.',
     captureFailed: 'Could not create the project. Try again.',
     addProjectTitle: 'Add a project',
-    addProjectDescription: 'Creates a Root child in Inbox.',
     add: 'Add',
-    noFavorites: 'No favorites yet. Open a project and tap Favorite.',
   },
   dashboard: {
     title: 'Home',
@@ -178,12 +169,9 @@ export const en = {
     editTitle: 'Edit dashboard',
     visibleWidgets: 'Visible widgets and order',
     widgetsAria: 'Dashboard widgets',
-    editorHint:
-      'One of each widget. Show/hide and reorder; the layout adapts to your device.',
     save: 'Save dashboard',
     restoreDefaults: 'Restore defaults',
     emptyTitle: 'Your dashboard is empty',
-    emptyDescription: 'Choose Edit dashboard to show the widgets you find useful.',
     inboxLabel: 'Inbox',
     recentLabel: 'Recent changes',
     loadingWidget: 'Loading {name}',
@@ -191,10 +179,7 @@ export const en = {
     unexpectedResponse: 'This widget returned an unexpected response.',
     widgetErrorTitle: '{name} could not load',
     widgetErrorText: 'Other widgets remain available. Retry this widget.',
-    inboxEmpty: 'Your Inbox is empty.',
     openInbox: 'Open Inbox',
-    noRecent: 'No recent changes.',
-    recentFooter: 'Open a project to see its Activity.',
     saved: 'Dashboard saved.',
     readyToDo: 'Ready to do',
     needsProperties: 'Needs properties',
@@ -214,7 +199,6 @@ export const en = {
   },
   inbox: {
     title: 'Inbox',
-    subtitle: 'Review captured projects and move them into work.',
     viewAria: 'Inbox view',
     card: 'Card',
     tree: 'Tree',
@@ -222,10 +206,8 @@ export const en = {
     treeRegion: 'Application tree',
     bulkRelease: 'Bulk release',
     selected: '{count} selected',
-    selectPrompt: 'Select captures to release them together',
     releaseSelected: 'Release selected',
-    treeEmptyNotice:
-      'No Inbox captures right now — showing every project you can read.',
+    treeEmptyNotice: 'No Inbox captures — showing all projects you can read.',
     tableAria: 'Application projects',
     caption: 'Application projects and Inbox captures, with status and available actions',
     columnProject: 'Project',
@@ -236,8 +218,6 @@ export const en = {
     selectProject: 'Select {title}',
     alreadyReleased: 'Already released',
     needEditToRelease: 'You need edit access to release this capture',
-    dragHint:
-      'Inbox captures are highlighted, selectable for bulk release, and draggable. Drop one on another row’s middle to move it under that project, or between rows to reorder it in the global sequence. On touch, press and hold an Inbox row, then drag. Non-Inbox rows are drop targets but read-only context. Use the chevron to expand or collapse a branch — all branches start expanded.',
     releaseAria: 'Released capture',
     releaseSuccess: 'Released “{title}” to {status}.',
     releaseBulkSuccess: 'Released {count} captures.',
@@ -248,29 +228,21 @@ export const en = {
       'Moved “{title}” under {parent}; it stays in the Inbox.',
     newParent: 'the new parent',
     releaseTo: 'Release to {status}',
-    releasedOpen: 'Released — open it to keep working.',
     changeParent: 'Change parent',
     releaseDropArea: 'Release drop area',
     dropActive: 'Release to the start status',
     dropIdle: 'Drag a capture here to release it',
-    dropHint:
-      'Drop here to release. To reorder instead, drag between cards in the list. Prefer the keyboard? Use the Release button on a card.',
     releasedTo: '“{title}” released to {status}.',
-    stillPulled: 'Still listed below as Pulled.',
-    cardDragHint:
-      'Drag a capture above or below another card to reorder it in the global sequence. Dragging a capture onto the release rail moves it into work. On touch, press and hold a card, then drag. Every drag action also has a keyboard-operable button: Release, Change parent, or Open.',
+    cardDragHint: 'Drag a capture to reorder it, or drop it on the release rail to release it. Keyboard users can use the card buttons.',
     listAria: 'Projects in the Inbox',
     emptyTitle: 'Inbox is empty',
-    emptyDescription:
-      'New projects captured from the top bar appear here for refinement.',
     changeParentTitle: 'Change parent',
     changeParentDescription:
       '{title} stays in the Inbox and starts at the new parent’s Start status.',
     loadingProjects: 'Loading projects…',
     noOtherParent: 'There is no other project you can move this capture under.',
     findParent: 'Find a parent',
-    findParentHint:
-      'Search by project title. The list only includes projects you can edit.',
+    findParentHint: 'Only projects you can edit are listed.',
     typeProjectTitle: 'Type a project title',
     parentDestinations: 'Parent destinations',
     noTitlesMatch: 'No project titles match “{query}”.',
@@ -347,7 +319,6 @@ export const en = {
     unread: 'Unread',
     emptyTitle: 'No notifications yet',
     emptyText: 'Watch a project to hear about its changes.',
-    closeMarksRead: 'Marked read when this closes.',
     loadOlder: 'Load older notifications',
     aChildProject: 'a child project',
     created: '{actor} created “{title}”',
@@ -385,7 +356,6 @@ export const en = {
   },
   activity: {
     title: 'Activity',
-    empty: 'No activity yet.',
     loadOlder: 'Load older activity',
     viaBadge: 'AI',
     viaBadgeLabel: 'Changed by an AI agent through MCP',
@@ -453,10 +423,7 @@ export const en = {
     heading: 'Add-ons',
     tab: 'Add-ons',
     applicationHeading: 'Add-ons',
-    applicationHint:
-      'Choose how each registered add-on behaves across the installation. Existing values are kept and hidden when an add-on is unavailable.',
-    projectHint:
-      'Enable optional add-ons for this project. Each project keeps its own explicit snapshot; changes to a parent project do not affect existing children.',
+    projectHint: 'Each project keeps its own snapshot; changes to a parent do not affect existing children.',
     modeLabel: 'Availability',
     modeRequired: 'Required',
     modeAlways: 'Always on',
@@ -467,7 +434,6 @@ export const en = {
     optionalNote: 'Available to projects; project Admins choose whether to enable it.',
     unavailableNote: 'Existing values are kept and hidden.',
     settingsHeading: 'Add-on settings',
-    noSettings: 'No additional settings for this add-on.',
     settingsUnsupported:
       'This setting type is not supported in Application settings. Its stored value is kept.',
     settingsMalformed:
@@ -513,16 +479,7 @@ export const en = {
     columnAria: '{status}, {count} projects',
     columnAriaOne: '{status}, {count} project',
     noProjects: 'No projects',
-    kanbanHint:
-      'Drag a card onto a column to change its status, or between cards to reorder it. The highlighted gap shows where it will land. On touch, press and hold a card, then drag. Keyboard and menu users: open Actions on a card to move it earlier, later, or to another status or project.',
-    cardHint:
-      'Drag a card onto another card to move it inside that project; drop between cards to reorder. On touch, press and hold a card, then drag. Keyboard and menu users: open Actions on a card to move it earlier, later, to another status, or to another project.',
-    treeHint:
-      'Drag a project onto another row to move it inside that project. Drag between two rows to reorder it among siblings of the same parent; dropping between rows of a different parent opens the move dialog. On touch, press and hold a row, then drag. Select rows to move or trash several projects together. Keyboard and menu users: open Actions on a row to move it earlier, later, to another status, or to another project.',
-    treeContextHint:
-      'Rows marked Context are ancestors kept visible so matching descendants stay connected; they are read-only while filters are active.',
-    listHint:
-      'Drag a row above or below another row to reorder it. On touch, press and hold a row, then drag. Keyboard and menu users: open Actions on a row to move it earlier, later, to another status, or to another project.',
+    treeContextHint: 'Context rows are ancestors shown so matches stay connected; they are read-only.',
     bulkActions: 'Bulk actions',
     bulkMove: 'Bulk move',
     bulkTrash: 'Bulk trash',
@@ -549,12 +506,9 @@ export const en = {
   },
   dialogs: {
     addChildTitle: 'Add child project',
-    addChildDescription: 'Create a project under {title}.',
     title: 'Title',
-    addChildHint:
-      'New projects start in the parent’s start status and normally arrive in the Inbox.',
+    addChildHint: 'Starts at the parent’s start status; usually lands in Inbox.',
     moveTitle: 'Move project',
-    moveDescription: 'Move {title} to another parent.',
     loadingDestinations: 'Loading destinations…',
     destination: 'Destination',
     chooseProject: 'Choose a project',
@@ -578,13 +532,9 @@ export const en = {
     unarchiveButton: 'Unarchive project',
     archiveHint:
       'Archiving hides this project and its descendants unless Show archived is turned on. Descendants keep their own archived state.',
-    unarchiveHint:
-      'Unarchiving shows this project again according to the current Show archived setting.',
     hideArchivedTitle: 'Turn off Show archived?',
-    hideArchivedDescription: '{title} will be hidden.',
     turnOffShowArchived: 'Turn off Show archived',
-    hideArchivedHint:
-      'This project is archived, or is inside an archived project, so it will no longer be visible with Show archived off. You will be taken to {fallback}. You can turn Show archived back on later.',
+    hideArchivedHint: 'Turning Show archived off hides this project; you will be taken to {fallback}. You can turn it back on later.',
     restoreTitle: 'Restore project',
     restoreButton: 'Restore project',
     preparingRestore: 'Preparing restore…',
@@ -623,9 +573,6 @@ export const en = {
     search: 'Search',
     trash: 'Trash',
     sectionsAria: 'Search sections',
-    subtitle: 'Search project titles and available text fields.',
-    trashSubtitle:
-      'Read-only projects · Permanently removed 30 days after entering Trash',
     filterAria: 'Filter trashed projects',
     searchAria: 'Search projects',
     filterPlaceholder: 'Filter trashed projects…',
@@ -633,16 +580,12 @@ export const en = {
     resultsAria: 'Search results',
     trashResultsAria: 'Trashed projects',
     findTitle: 'Find a project',
-    findDescription: 'Enter a title or another available text value to search.',
     noMatchTitle: 'No projects match “{query}”',
-    noMatchDescription: 'Try a shorter or different word.',
     titleMatch: 'Title match',
     matchIn: 'Match in {field}: {text}',
     textMatch: 'Match in text: {text}',
     trashNote: 'Trash is not included in ordinary search.',
     emptyTrashTitle: 'Trash is empty',
-    emptyTrashDescription:
-      'Projects you move to Trash appear here for 30 days before permanent removal.',
     trashedSeparately: 'Trashed separately',
     under: 'Under {title}',
     statusUnavailable: 'Status unavailable',
@@ -659,7 +602,6 @@ export const en = {
   },
   profile: {
     heading: 'Profile',
-    subtitle: 'Your account and preferences',
     account: 'Account',
     accountForm: 'Account profile',
     changePicture: 'Change picture',
@@ -669,13 +611,12 @@ export const en = {
     uploadFailed: 'Could not upload the picture. Try again.',
     saved: 'Profile saved.',
     mcpTitle: 'AI access (MCP)',
-    mcpDescription:
-      'Connect a local AI assistant to Kapo with a personal token. The assistant acts as you, and every change it makes is marked in project history.',
+    mcpDescription: 'Connect a local AI assistant with a personal token. Its changes are marked in project history.',
     mcpDisabled:
       'MCP access is turned off for this installation. An administrator can enable it in Application settings.',
     mcpNameLabel: 'Token name',
     mcpNamePlaceholder: 'For example: Claude Desktop',
-    mcpNameHint: 'Shown in project history as “via …”. Choose a name you will recognise.',
+    mcpNameHint: 'Shown as “via …” in project history.',
     mcpCreate: 'Create token',
     mcpCreatedTitle: 'Copy this token now',
     mcpCreatedBody:
@@ -685,7 +626,6 @@ export const en = {
     mcpCopyFailed: 'Couldn’t copy automatically. Select the token above and copy it manually.',
     mcpDone: 'Done',
     mcpExisting: 'Your tokens',
-    mcpNone: 'You have no MCP tokens yet.',
     mcpCreatedAt: 'Created {date}',
     mcpLastUsed: 'Last used {date}',
     mcpNeverUsed: 'Never used',
@@ -708,11 +648,9 @@ export const en = {
     newPassword: 'New password',
     confirmPassword: 'Confirm password',
     savePassword: 'Save password',
-    languageHint: 'The interface, dates and numbers update immediately.',
   },
   users: {
     heading: 'User management',
-    subtitle: 'Application Admin only',
     users: 'Users',
     description: 'Application roles do not grant access to private projects.',
     accountsAria: 'Accounts',
@@ -725,19 +663,14 @@ export const en = {
     accountSaved: 'Account saved.',
     usernameTaken: 'That username is already taken.',
     editUser: 'Edit user',
-    dialogDescription: 'Application administration',
     createUser: 'Create user',
     saveAccount: 'Save account',
     applicationRole: 'Application role',
     initialResetPassword: 'Initial / reset password',
     leaveBlank: 'Leave blank to keep the current password.',
-    rolesNoticeTitle: 'Roles do not grant private access',
-    rolesNoticeBody:
-      'Changing an application role does not bypass project permissions. A change that removes the last effective Admin is rejected.',
   },
   settings: {
     heading: 'Application settings',
-    subtitle: 'Manage your Kapo installation',
     defaults: 'Application defaults',
     defaultRole: 'Default account role',
     trashPurgeEnabled: 'Automatically purge trash',
@@ -748,18 +681,14 @@ export const en = {
     viewsAvailable: 'Views available to projects',
     oneViewRequired: 'At least one view must remain available.',
     mcp: 'AI access (MCP)',
-    mcpNote:
-      'Off by default. When enabled, people you choose can connect a local AI assistant with a personal token. Every action it takes stays attributed to that person and is marked in project history.',
     mcpEnabled: 'Allow MCP access',
     mcpEnabledDescription:
       'Let signed-in users create personal MCP tokens. Turning this off blocks every token immediately; existing history is kept.',
     backups: 'Backups',
-    backupsNote:
-      'Every run stores a consistent copy of the database and the uploads folder on the server. The oldest backups are removed automatically after a successful run.',
+    backupsNote: 'Copies the database and uploads folder.',
     automaticBackups: 'Automatic daily backups',
-    automaticBackupsDescription: 'Runs inside the app at the configured local time.',
     startTime: 'Start time',
-    startTimeHint: 'Server local time (set TZ for the container).',
+    startTimeHint: 'Server local time.',
     keepBackups: 'Keep backups',
     keepBackupsHint: 'Between 1 and 30; the oldest are pruned after each run.',
     lastBackup: 'Last backup',
@@ -767,8 +696,7 @@ export const en = {
     destination: 'Destination',
     noBackups: 'No backups yet',
     backupsDisabled: 'Automatic backups are disabled',
-    restoreManual:
-      'Restore is manual: stop the container, replace the database and uploads from a chosen backup, then start it again. The README documents the exact steps.',
+    restoreManual: 'Restore is manual.',
     saved: 'Application settings saved.',
     applicationSectionsAria: 'Application settings sections',
     generalSettings: 'General settings',
@@ -787,7 +715,6 @@ export const en = {
     projectSettings: 'Project settings',
     sectionsAria: 'Project settings sections',
     projectDefaults: 'Project defaults',
-    projectDefaultsHint: 'Core project details and how children behave.',
     title: 'Title',
     reporter: 'Reporter',
     childProjectsAppear: 'Project view appears',
@@ -800,8 +727,6 @@ export const en = {
       'When off, captured children are created directly in their start status.',
     projectSaved: 'Project settings saved.',
     discardUnsavedTitle: 'Discard unsaved changes?',
-    discardUnsavedBody:
-      'You have unsaved changes in this section. Leaving now will discard them.',
     discardUnsavedConfirm: 'Discard changes',
     workflowTitle: 'Workflow for child projects',
     workflowHint: 'This workflow controls children, not this project’s own status.',
@@ -834,8 +759,6 @@ export const en = {
       '{count} removed status is only used by trashed projects; those will be mapped when the projects are restored.',
     removedTrashedOnlyPlural:
       '{count} removed statuses are only used by trashed projects; those will be mapped when the projects are restored.',
-    removedInUseHint:
-      'Removing an in-use status asks you to map its children before saving.',
     saveWorkflow: 'Save workflow',
     needOneStatus: 'A workflow needs at least one status.',
     nameEveryStatus: 'Give every status a name.',
@@ -847,8 +770,7 @@ export const en = {
     workflowSavedRemapped: 'Workflow saved. {count} child projects remapped.',
     workflowSavedRemappedOne: 'Workflow saved. {count} child project remapped.',
     projectMembers: 'Project members',
-    membersHint:
-      'Explicit grants only. Reducing or removing a role here also restricts descendants after confirmation; increasing access never propagates automatically.',
+    membersHint: 'Explicit grants only. Reducing a role here also restricts descendants; increasing access does not propagate.',
     access: 'Access',
     rootAccessBefore: 'Root always uses ',
     rootAccessCustom: 'Custom access',
@@ -862,7 +784,6 @@ export const en = {
       'Only the selected members below can open this project, even application Admins.',
     privateState: 'Private — only selected members',
     makePrivate: 'Make private',
-    makePrivateHint: 'Keeps you as Admin and removes every other explicit grant.',
     membersAria: 'Project members',
     explicitGrant: 'Explicit grant · {role}',
     inheritedFrom: 'Inherited from {parent} · {role}',
@@ -882,15 +803,13 @@ export const en = {
     restrictHint:
       'Descendant grants held by the affected accounts are overridden by the new role. Increases do not propagate.',
     makePrivateTitle: 'Make this project private?',
-    makePrivateBody:
-      'Switching to Custom access removes every other account’s explicit grant to this project. Descendant grants held by those accounts are restricted too. Only you and accounts you re-add will have access.',
+    makePrivateBody: 'Switching to Custom access removes every other account’s explicit grant, including on descendants. Only you and accounts you re-add keep access.',
     permissionsUpdated: 'Permissions updated.',
     nowPrivate: 'Project is now private.',
     changeAtLeastOne: 'Change at least one role or the access mode before saving.',
     parentFallback: 'parent',
     layoutTitle: 'Layout and views',
-    layoutHint:
-      'Choose where project fields appear, which views are available and which statuses are hidden. New child projects copy the current layout once; later changes here do not affect existing children.',
+    layoutHint: 'New child projects copy this layout once; later changes here do not affect them.',
     pageLayout: 'Page layout',
     layoutFull: 'Details, properties and children',
     layoutChildren: 'Children and history only',
@@ -901,8 +820,6 @@ export const en = {
     mainArea: 'Main area',
     propertiesSidebar: 'Properties sidebar',
     viewProperties: 'View properties',
-    viewPropertiesHint:
-      'Compact properties shown on cards and rows for each collection view. Core and available add-on fields can be placed here.',
     addProperty: 'Add a property…',
     addField: 'Add a field…',
     addPropertyTo: 'Add a property to {context}',

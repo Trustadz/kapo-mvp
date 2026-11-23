@@ -31,7 +31,6 @@ describe('LoginForm SSO states', () => {
   it('renders only the PocketID link when password login is disabled', () => {
     const html = render({ passwordLoginEnabled: false });
     expect(html).toContain('Continue with PocketID');
-    expect(html).toContain('Use PocketID to sign in.');
     expect(html).not.toContain('id="login-password"');
     expect(html).not.toContain('id="login-username"');
   });

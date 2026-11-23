@@ -178,9 +178,7 @@ export function McpTokensSection({ enabled, initialTokens }: McpTokensSectionPro
           {error ? <Notice tone="error">{error}</Notice> : null}
 
           <h3 className={styles.listHeading}>{t('profile.mcpExisting')}</h3>
-          {tokens.length === 0 ? (
-            <p className={styles.empty}>{t('profile.mcpNone')}</p>
-          ) : (
+          {tokens.length === 0 ? null : (
             <ul className={styles.list}>
               {tokens.map((token) => (
                 <li key={token.id} className={styles.item}>

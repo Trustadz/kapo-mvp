@@ -67,7 +67,6 @@ test.describe('mobile favorites', () => {
 
     const menu = page.getByRole('menu', { name: 'Favorites', exact: true });
     await expect(menu).toBeVisible();
-    await expect(menu.getByText('No favorites yet. Open a project and tap Favorite.')).toBeVisible();
     await expect(menu.getByRole('menuitem')).toHaveCount(0);
   });
 });

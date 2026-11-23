@@ -50,7 +50,7 @@ export function AddonSettingsFields({
   const malformed = rawFields.length !== fields.length;
 
   if (fields.length === 0 && !malformed) {
-    return <p className={styles.emptySettings}>{t('addons.noSettings')}</p>;
+    return null;
   }
 
   return (
