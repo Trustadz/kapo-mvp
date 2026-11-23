@@ -15,6 +15,7 @@ export interface AppShellProps {
   favorites: FavoriteProject[];
   rootProjectId: string | null;
   installationName: string;
+  unreadNotifications: number;
   children: ReactNode;
 }
 
@@ -25,7 +26,13 @@ const SIDEBAR_STORAGE_KEY = 'kapo-sidebar-collapsed';
  * user/favorites data; everything interactive (collapse, capture, menus) is
  * client-side.
  */
-export function AppShell({ user, favorites, rootProjectId, children }: AppShellProps) {
+export function AppShell({
+  user,
+  favorites,
+  rootProjectId,
+  unreadNotifications,
+  children,
+}: AppShellProps) {
   const { t } = useI18n();
   const [collapsed, setCollapsed] = useState(false);
 
@@ -62,7 +69,11 @@ export function AppShell({ user, favorites, rootProjectId, children }: AppShellP
         onToggle={toggleCollapsed}
       />
       <div className="app-main">
-        <TopBar user={user} rootProjectId={rootProjectId} />
+        <TopBar
+          user={user}
+          rootProjectId={rootProjectId}
+          unreadNotifications={unreadNotifications}
+        />
         <main id="main-content" className="app-content" tabIndex={-1}>
           {children}
         </main>

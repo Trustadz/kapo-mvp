@@ -124,6 +124,27 @@ export const nl: Messages = {
     setupComplete: 'Deze installatie heeft al een account.',
     passwordRecovery:
       'Neem contact op met een applicatiebeheerder als je je wachtwoord kwijt bent.',
+    contactAdmin:
+      'Neem voor hulp bij je account contact op met een applicatiebeheerder.',
+    continueWith: 'Doorgaan met {provider}',
+    or: 'of',
+    passwordLoginDisabled: 'Inloggen met een wachtwoord is uitgeschakeld.',
+    ssoOnlyNote: 'Gebruik {provider} om in te loggen.',
+    ssoFailed: 'Inloggen met {provider} is niet gelukt. Probeer het opnieuw.',
+    ssoUnavailable:
+      'Eenmalig inloggen is nu niet beschikbaar. Probeer het opnieuw of neem contact op met een applicatiebeheerder.',
+    ssoExpired: 'Deze inlogpoging is verlopen. Probeer het opnieuw.',
+    ssoDenied: 'Inloggen is geannuleerd.',
+    ssoEmailRequired:
+      'PocketID heeft geen e-mailadres doorgegeven. Vraag een applicatiebeheerder om er een toe te voegen.',
+    ssoEmailNotVerified:
+      'PocketID heeft je e-mailadres niet geverifieerd. Verifieer het daar en probeer het opnieuw.',
+    ssoEmailAmbiguous:
+      'Meerdere accounts gebruiken dit e-mailadres. Neem contact op met een applicatiebeheerder.',
+    ssoAccountConflict:
+      'Dit PocketID-account is al gekoppeld aan een ander Kapo-account. Neem contact op met een applicatiebeheerder.',
+    ssoAccountNotFound:
+      'Geen Kapo-account gevonden voor dit e-mailadres. Vraag een applicatiebeheerder om er een aan te maken.',
   },
   shell: {
     skipToContent: 'Naar de inhoud',
@@ -275,6 +296,8 @@ export const nl: Messages = {
     updated: 'Bijgewerkt',
     inTrash: 'In prullenbak',
     favorite: 'Favoriet',
+    watch: 'Volgen',
+    watching: 'Volgend',
     actions: 'Projectacties',
     showArchived: 'Gearchiveerde tonen',
     showInbox: 'Inbox-items tonen',
@@ -289,6 +312,8 @@ export const nl: Messages = {
     thisProject: 'dit project',
     favoriteAdded: 'Toegevoegd aan Favorieten.',
     favoriteRemoved: 'Verwijderd uit Favorieten.',
+    watchingStarted: 'Je volgt dit project.',
+    watchingStopped: 'Je volgt dit project niet meer.',
     archivedShown: 'Gearchiveerde projecten worden nu getoond.',
     archivedHidden: 'Gearchiveerde projecten worden nu verborgen.',
     dashboardFallback: 'het dashboard',
@@ -318,6 +343,39 @@ export const nl: Messages = {
     addChild: 'Onderliggend project toevoegen',
     noMatchFilters: 'Geen projecten voldoen aan deze filters',
     clearFilters: 'Filters wissen',
+  },
+  notifications: {
+    title: 'Meldingen',
+    open: 'Meldingen openen',
+    viewAll: 'Alles bekijken',
+    markAllRead: 'Alles als gelezen markeren',
+    allRead: 'Alles bijgewerkt.',
+    unread: 'Ongelezen',
+    emptyTitle: 'Nog geen meldingen',
+    emptyText: 'Volg een project om wijzigingen te ontvangen.',
+    closeMarksRead: 'Wordt als gelezen gemarkeerd bij sluiten.',
+    loadOlder: 'Oudere meldingen laden',
+    aChildProject: 'een subproject',
+    created: '{actor} heeft “{title}” aangemaakt',
+    renamed: '{actor} heeft het project hernoemd naar “{title}”',
+    statusChangedFromTo: '{actor} heeft de status van “{old}” naar “{new}” gewijzigd',
+    statusChanged: '{actor} heeft de status gewijzigd',
+    archived: '{actor} heeft het project gearchiveerd',
+    unarchived: '{actor} heeft het project uit het archief gehaald',
+    trashed: '{actor} heeft het project naar de prullenbak verplaatst',
+    restored: '{actor} heeft het project uit de prullenbak hersteld',
+    movedTo: '{actor} heeft het project naar “{destination}” verplaatst',
+    moved: '{actor} heeft het project verplaatst',
+    priorityChanged: '{actor} heeft de volgorde van het project gewijzigd',
+    inboxReleased: '{actor} heeft het project uit de inbox gehaald',
+    childCreated: '{actor} heeft “{title}” aangemaakt',
+    childTrashed: '{actor} heeft “{title}” naar de prullenbak verplaatst',
+    workflowUpdated: '{actor} heeft de subworkflow bijgewerkt',
+    fieldChangedFromTo: '{actor} heeft {field} van “{old}” naar “{new}” gewijzigd',
+    fieldSet: '{actor} heeft {field} ingesteld op “{value}”',
+    fieldCleared: '{actor} heeft {field} gewist (was “{value}”)',
+    fieldChanged: '{actor} heeft {field} bijgewerkt',
+    updatedProject: '{actor} heeft het project bijgewerkt',
   },
   filters: {
     group: 'Onderliggende projecten filteren',
@@ -880,6 +938,10 @@ export const nl: Messages = {
     goHome: 'Naar Start',
   },
   plurals: {
+    notificationsUnread: {
+      one: '{count} ongelezen melding',
+      other: '{count} ongelezen meldingen',
+    },
     inboxSelected: { one: '{count} geselecteerd', other: '{count} geselecteerd' },
     releases: {
       one: '{count} item vrijgegeven.',

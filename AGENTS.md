@@ -9,7 +9,11 @@ specifies a narrower scope or a different workflow.
   `fix/<issue>-<slug>`, `docs/<slug>` or `chore/<slug>`. Keep unrelated work on
   its own branch or checkout. Preserve existing working files and stage only
   the intended paths.
-- Before opening a draft PR, run `npm run typecheck`, `npm test`, and
+- Use a separate git worktree (workspace) under `data/worktrees/<slug>` for
+  additional or parallel work. Do not switch the root checkout off an active
+  feature branch; add the new branch as a worktree and leave the root checkout
+  where it is.
+- Before asking for local approval, run `npm run typecheck`, `npm test`, and
   `npm run build`. Run `npm run test:e2e` for changes that affect the UI, API,
   migrations, Docker, or the release workflow (install Chromium once with
   `npx playwright install chromium`). Report which checks ran and any remaining
@@ -17,9 +21,14 @@ specifies a narrower scope or a different workflow.
 - For changes the user wants to try, run a local preview from the feature branch
   with a dedicated database and port, and give the user the URL. A local preview
   does not put code on GitHub.
-- Open a draft PR against `main` for user testing and review after the local
-  checks pass. Include the preview and the checks that correspond to the PR.
-  GitHub **Verify** runs for both draft and ready PRs.
+- **Stop for local approval before submitting a PR.** After the local change and
+  checks are ready, present the summary, the local diff/stat, the preview URL
+  when applicable, and the checks that ran, then ask the user to approve
+  submitting a PR. Do not push the branch or open a PR until the user explicitly
+  approves. Approval to submit a PR is not approval to merge.
+- After local approval, open a draft PR against `main` for user testing and
+  review. Include the preview and the checks that correspond to the PR. GitHub
+  **Verify** runs for both draft and ready PRs.
 - Let the user test and approve before merging. A request to review or test does
   not authorize merging or publishing. A request to publish, ship, or release
   authorizes merging its passing PR and running the release workflow.

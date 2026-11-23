@@ -32,6 +32,7 @@ export const TEST_PORT = Number(process.env.KAPO_E2E_PORT ?? 3301);
 export const TEST_DATABASE_PATH =
   process.env.KAPO_E2E_DATABASE ?? './data/test-e2e.db';
 export const TEST_DIST_DIR = '.next-tests';
+const MOCK_OIDC_PORT = Number(process.env.KAPO_E2E_MOCK_OIDC_PORT ?? 3402);
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -50,23 +51,42 @@ export default defineConfig({
     actionTimeout: 15_000,
     navigationTimeout: 30_000,
   },
-  webServer: {
-    command: 'node tests/e2e/start-server.mjs',
-    url: `http://127.0.0.1:${TEST_PORT}/healthz`,
-    timeout: 300_000,
-    reuseExistingServer: false,
-    stdout: 'pipe',
-    stderr: 'pipe',
-    env: {
-      DATABASE_PATH: TEST_DATABASE_PATH,
-      UPLOAD_DIR: './data/test-e2e-uploads',
-      NEXT_DIST_DIR: TEST_DIST_DIR,
-      PORT: String(TEST_PORT),
-      KAPO_E2E_RESET_DB: '1',
-      KAPO_E2E_BUILD: process.env.KAPO_E2E_BUILD ?? 'auto',
-      KAPO_E2E_ADDONS: '1',
+  webServer: [
+    {
+      command: 'npx tsx tests/e2e/mock-oidc-server.ts',
+      url: `http://127.0.0.1:${MOCK_OIDC_PORT}/healthz`,
+      timeout: 30_000,
+      reuseExistingServer: false,
+      stdout: 'pipe',
+      stderr: 'pipe',
+      env: {
+        MOCK_OIDC_PORT: String(MOCK_OIDC_PORT),
+      },
     },
-  },
+    {
+      command: 'node tests/e2e/start-server.mjs',
+      url: `http://127.0.0.1:${TEST_PORT}/healthz`,
+      timeout: 300_000,
+      reuseExistingServer: false,
+      stdout: 'pipe',
+      stderr: 'pipe',
+      env: {
+        DATABASE_PATH: TEST_DATABASE_PATH,
+        UPLOAD_DIR: './data/test-e2e-uploads',
+        NEXT_DIST_DIR: TEST_DIST_DIR,
+        PORT: String(TEST_PORT),
+        KAPO_E2E_RESET_DB: '1',
+        KAPO_E2E_BUILD: process.env.KAPO_E2E_BUILD ?? 'auto',
+        KAPO_E2E_ADDONS: '1',
+        KAPO_PUBLIC_URL: `http://127.0.0.1:${TEST_PORT}`,
+        KAPO_OIDC_ISSUER: `http://localhost:${MOCK_OIDC_PORT}`,
+        KAPO_OIDC_CLIENT_ID: 'kapo-e2e',
+        KAPO_OIDC_CLIENT_SECRET: 'e2e-secret',
+        KAPO_OIDC_PROVIDER_NAME: 'PocketID',
+        KAPO_OIDC_ALLOW_INSECURE: '1',
+      },
+    },
+  ],
   projects: [
     {
       name: 'first-install',
@@ -76,7 +96,7 @@ export default defineConfig({
     {
       name: 'desktop',
       testMatch:
-        /(app|login|motion|views-reorder|project-filters|kanban-placeholder|inbox-tree|inbox-drag|a11y-keyboard|a11y-labels|contrast|drag-free|i18n|addons|inline-fields|settings-tabs|application-settings-tabs|mcp)\.spec\.ts/,
+        /(app|login|motion|views-reorder|project-filters|kanban-placeholder|inbox-tree|inbox-drag|a11y-keyboard|a11y-labels|contrast|drag-free|i18n|addons|inline-fields|settings-tabs|application-settings-tabs|mcp|sso|notifications)\.spec\.ts/,
       dependencies: ['first-install'],
       // Drag/reorder specs should measure stable rects; the motion spec opts
       // back into animation explicitly.

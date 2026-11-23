@@ -8,9 +8,43 @@ import { Notice } from '@/components/ui/Notice';
 import { postJson } from '@/lib/api-client';
 import { normalizeUsername } from '@/lib/validation';
 import { useI18n } from '@/i18n/client';
+import type { MessageKey } from '@/i18n/catalog';
 import styles from './AuthForm.module.css';
 
-export function LoginForm() {
+const SSO_ERROR_MESSAGE_KEYS = {
+  sso_unavailable: 'auth.ssoUnavailable',
+  sso_state_invalid: 'auth.ssoExpired',
+  sso_denied: 'auth.ssoDenied',
+  sso_failed: 'auth.ssoFailed',
+  email_required: 'auth.ssoEmailRequired',
+  email_invalid: 'auth.ssoEmailRequired',
+  email_not_verified: 'auth.ssoEmailNotVerified',
+  email_ambiguous: 'auth.ssoEmailAmbiguous',
+  account_conflict: 'auth.ssoAccountConflict',
+  account_not_found: 'auth.ssoAccountNotFound',
+  invalid_claims: 'auth.ssoFailed',
+} as const satisfies Record<string, MessageKey>;
+
+function ssoErrorMessageKey(code: string | null): MessageKey | null {
+  if (!code) return null;
+  return (
+    (SSO_ERROR_MESSAGE_KEYS as Record<string, MessageKey>)[code] ?? 'auth.ssoFailed'
+  );
+}
+
+export interface LoginFormProps {
+  ssoEnabled: boolean;
+  ssoProviderName: string;
+  passwordLoginEnabled: boolean;
+  errorCode: string | null;
+}
+
+export function LoginForm({
+  ssoEnabled,
+  ssoProviderName,
+  passwordLoginEnabled,
+  errorCode,
+}: LoginFormProps) {
   const { t } = useI18n();
   const usernameRef = useRef<HTMLInputElement>(null);
   const [username, setUsername] = useState('');
@@ -18,6 +52,11 @@ export function LoginForm() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const ssoErrorKey = ssoErrorMessageKey(errorCode);
+  const ssoError = ssoErrorKey
+    ? t(ssoErrorKey, { provider: ssoProviderName })
+    : null;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -56,57 +95,90 @@ export function LoginForm() {
   };
 
   return (
-    <form className={styles.form} onSubmit={handleSubmit} noValidate aria-label={t('auth.signInForm')}>
+    <div className={styles.form}>
       <h1 className={styles.heading}>{t('auth.signIn')}</h1>
 
-      {formError ? <Notice tone="error">{formError}</Notice> : null}
+      {ssoError ? <Notice tone="error">{ssoError}</Notice> : null}
 
-      <div className={styles.fields}>
-        <Field
-          label={t('auth.username')}
-          htmlFor="login-username"
-          error={fieldErrors.username}
-          required
-          labelWidth={190}
-        >
-          <Input
-            ref={usernameRef}
-            id="login-username"
-            name="username"
-            autoComplete="username"
-            autoCapitalize="none"
-            autoFocus
-            value={username}
-            onChange={(event) => setUsername(event.target.value)}
-            invalid={Boolean(fieldErrors.username)}
-            className={styles.input}
-          />
-        </Field>
-        <Field
-          label={t('auth.password')}
-          htmlFor="login-password"
-          error={fieldErrors.password}
-          required
-          labelWidth={190}
-        >
-          <Input
-            id="login-password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            invalid={Boolean(fieldErrors.password)}
-            className={styles.input}
-          />
-        </Field>
-      </div>
+      {ssoEnabled ? (
+        <a className={styles.ssoButton} href="/api/auth/pocketid/start">
+          {t('auth.continueWith', { provider: ssoProviderName })}
+        </a>
+      ) : null}
 
-      <div className={styles.actions}>
-        <Button type="submit" loading={submitting} className={styles.submit}>
-          {t('auth.signIn')}
-        </Button>
-      </div>
-    </form>
+      {!ssoEnabled && !passwordLoginEnabled ? (
+        <Notice tone="info">{t('auth.passwordLoginDisabled')}</Notice>
+      ) : null}
+
+      {ssoEnabled && !passwordLoginEnabled ? (
+        <p className={styles.description}>
+          {t('auth.ssoOnlyNote', { provider: ssoProviderName })}
+        </p>
+      ) : null}
+
+      {ssoEnabled && passwordLoginEnabled ? (
+        <div className={styles.divider} aria-hidden="true">
+          {t('auth.or')}
+        </div>
+      ) : null}
+
+      {passwordLoginEnabled ? (
+        <form
+          className={styles.form}
+          onSubmit={handleSubmit}
+          noValidate
+          aria-label={t('auth.signInForm')}
+        >
+          {formError ? <Notice tone="error">{formError}</Notice> : null}
+
+          <div className={styles.fields}>
+            <Field
+              label={t('auth.username')}
+              htmlFor="login-username"
+              error={fieldErrors.username}
+              required
+              labelWidth={190}
+            >
+              <Input
+                ref={usernameRef}
+                id="login-username"
+                name="username"
+                autoComplete="username"
+                autoCapitalize="none"
+                autoFocus
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                invalid={Boolean(fieldErrors.username)}
+                className={styles.input}
+              />
+            </Field>
+            <Field
+              label={t('auth.password')}
+              htmlFor="login-password"
+              error={fieldErrors.password}
+              required
+              labelWidth={190}
+            >
+              <Input
+                id="login-password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                invalid={Boolean(fieldErrors.password)}
+                className={styles.input}
+              />
+            </Field>
+          </div>
+
+          <div className={styles.actions}>
+            <Button type="submit" loading={submitting} className={styles.submit}>
+              {t('auth.signIn')}
+            </Button>
+          </div>
+        </form>
+      ) : null}
+    </div>
   );
 }

@@ -1,6 +1,7 @@
 import type { Database as BetterSqliteDatabase } from 'better-sqlite3';
 import type { AuditVia } from '@/lib/audit';
 import { newId, nowIso } from '@/server/db/util';
+import { notifyProjectWatchers } from './notifications';
 
 /**
  * Append-only activity history (build-spec §6 rule 10, product.md §4).
@@ -28,14 +29,16 @@ export interface AuditEventInput {
 }
 
 /** Records one event. Call inside the transaction that made the change. */
-export function recordAuditEvent(db: BetterSqliteDatabase, event: AuditEventInput): void {
+export function recordAuditEvent(db: BetterSqliteDatabase, event: AuditEventInput): string {
+  const id = newId();
+  const createdAt = event.createdAt ?? nowIso();
   db.prepare(
     `INSERT INTO audit_events
        (id, project_id, actor_id, action, field, old_value, new_value, target_id, detail, created_at,
         via_channel, via_agent, via_token_id)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
-    newId(),
+    id,
     event.projectId,
     event.actor?.id ?? null,
     event.action,
@@ -44,11 +47,32 @@ export function recordAuditEvent(db: BetterSqliteDatabase, event: AuditEventInpu
     event.newValue ?? null,
     event.targetId ?? null,
     event.detail ?? null,
-    event.createdAt ?? nowIso(),
+    createdAt,
     event.actor?.via?.channel ?? null,
     event.actor?.via?.agent ?? null,
     event.actor?.via?.tokenId ?? null,
   );
+
+  // Watch notifications are part of the same write path so no history entry can
+  // bypass them. A failure here is isolated: it must never roll back the change.
+  try {
+    notifyProjectWatchers(db, {
+      id,
+      projectId: event.projectId,
+      actorId: event.actor?.id ?? null,
+      action: event.action,
+      field: event.field ?? null,
+      oldValue: event.oldValue ?? null,
+      newValue: event.newValue ?? null,
+      targetId: event.targetId ?? null,
+      detail: event.detail ?? null,
+      createdAt,
+    });
+  } catch (error) {
+    console.error('[kapo:notifications] watch fan-out failed', error);
+  }
+
+  return id;
 }
 
 export interface ActivityActor {

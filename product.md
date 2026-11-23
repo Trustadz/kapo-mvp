@@ -61,7 +61,7 @@ Each view supplies configurable property slots and an ordering of displayed fiel
 
 ### 6. Users, roles, and privacy
 
-Accounts have **username, email, password, profile picture**, an application role, and project-level role assignments. Profiles allow users to change their passwords. A first-install Create account screen creates the first application Admin; subsequent account creation is available to application Admins through user management. Email is stored but does not imply email delivery or verification. There is no fixed account limit. At least one application Admin and one project Admin per project are mandatory at all times.
+Accounts have **username, email, password, profile picture**, an application role, and project-level role assignments. Profiles allow users to change their passwords. A first-install Create account screen creates the first application Admin; subsequent account creation is available to application Admins through user management. Email is stored but does not imply email delivery or verification. There is no fixed account limit. At least one application Admin and one project Admin per project are mandatory at all times. Sign-in may alternatively use PocketID/OIDC: an existing account is matched by email, a first-time SSO user becomes a Viewer, and an operator may disable password sign-in. When the account has no picture, PocketID's profile picture is imported.
 
 | Level | Role | Effective access |
 |:--|:--|:--|
@@ -118,7 +118,7 @@ Important invariants—including exactly one start/finish status per workflow, n
 
 Kapo must start through a simple **Docker Compose** deployment. Required application services, assets, and runtime dependencies are included in its Docker image(s); persistent state lives in explicitly mounted local volumes. No external SaaS is required for normal use. Deployment should minimize operational burden, number of containers, resource usage, and configuration steps. Updates require controlled data migrations and preserve user data and add-on values.
 
-Security defaults include salted password hashing, authenticated sessions, server-side authorization, safe file handling for profile pictures, and a documented route to HTTPS (typically via a reverse proxy). PWA installation on iOS/Android must be considered in deployment guidance. Responsiveness, data integrity, privacy, accessibility, and predictable behavior matter more than high-throughput optimization. The architecture should be compatible with future rolling backup management but need not implement it initially.
+Security defaults include salted password hashing, authenticated sessions, server-side authorization, safe file handling for profile pictures, and a documented route to HTTPS (typically via a reverse proxy). Optional PocketID/OIDC SSO uses authorization-code + PKCE and issues the same database-backed sessions. PWA installation on iOS/Android must be considered in deployment guidance. Responsiveness, data integrity, privacy, accessibility, and predictable behavior matter more than high-throughput optimization. The architecture should be compatible with future rolling backup management but need not implement it initially.
 
 ### 11. Initial scope and deferred work
 
