@@ -3,6 +3,12 @@
  * client components. Framework-free, like `src/lib/projects.ts`.
  */
 
+/**
+ * Core-owned fallback format. It is deliberately not an add-on provider: when
+ * no provider is active, the description is edited as plain text.
+ */
+export const PLAINTEXT_DESCRIPTION_FORMAT = 'text@1';
+
 export interface DescriptionProviderSummary {
   identifier: string;
   name: string;

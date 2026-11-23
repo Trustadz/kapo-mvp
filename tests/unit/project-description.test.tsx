@@ -31,6 +31,24 @@ describe('ProjectDescription', () => {
     expect(html).toContain('Add description');
   });
 
+
+  it('keeps the edit action available when no provider is active', () => {
+    const html = render({
+      provider: null,
+      record: {
+        body: 'Plain notes',
+        format: 'text@1',
+        plaintext: 'Plain notes',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+      canEdit: true,
+      unsupportedFormat: false,
+    });
+    expect(html).toContain('Plain notes');
+    expect(html).toContain('Edit description');
+    expect(html).not.toContain('No description provider is active');
+  });
+
   it('renders plaintext when the provider cannot read the stored format', () => {
     const html = render({
       provider,

@@ -182,6 +182,37 @@ describe('description capability', () => {
     expect(rewrittenPayload.description.record?.format).toBe('markdown@1');
   });
 
+
+  it('edits plain text when no provider is active and Markdown can reopen it', async () => {
+    const cleared = await appSettingsPut({ capabilities: { description: null } });
+    expect(cleared.status).toBe(200);
+
+    const saved = await descriptionPatch(household.home.id, {
+      body: 'Plain notes',
+      format: 'text@1',
+      plaintext: 'Plain notes',
+    });
+    expect(saved.status).toBe(200);
+    const payload = await json<DescriptionPayload>(saved);
+    expect(payload.description.provider).toBeNull();
+    expect(payload.description.record?.format).toBe('text@1');
+    expect(payload.description.unsupportedFormat).toBe(false);
+    expect(payload.description.canEdit).toBe(true);
+
+    const wrongFormat = await descriptionPatch(household.home.id, {
+      body: 'Rich attempt',
+      format: 'markdown@1',
+      plaintext: 'Rich attempt',
+    });
+    expect(wrongFormat.status).toBe(422);
+
+    await appSettingsPut({ capabilities: { description: 'description-markdown' } });
+    const reopened = await descriptionGet(household.home.id);
+    const reopenedPayload = await json<DescriptionPayload>(reopened);
+    expect(reopenedPayload.description.unsupportedFormat).toBe(false);
+    expect(reopenedPayload.description.record?.format).toBe('text@1');
+  });
+
   it('lets an Admin select or clear the exclusive provider', async () => {
     const initial = await appSettingsGet();
     const initialPayload = await json<{

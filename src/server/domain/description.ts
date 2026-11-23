@@ -1,7 +1,8 @@
 import type { Database as BetterSqliteDatabase } from 'better-sqlite3';
 import { AUDIT_ACTIONS, AUDIT_FIELDS } from '@/lib/audit';
-import type {
-  DescriptionCapabilitySettings,
+import {
+  PLAINTEXT_DESCRIPTION_FORMAT,
+  type DescriptionCapabilitySettings,
   DescriptionFormatUsage,
   DescriptionProviderSummary,
   ProjectDescriptionData,
@@ -172,7 +173,8 @@ export function getProjectDescriptionData(
     provider,
     record,
     canEdit,
-    unsupportedFormat: record !== null && (provider === null || !provider.reads.includes(record.format)),
+    unsupportedFormat:
+      record !== null && provider !== null && !provider.reads.includes(record.format),
   };
 }
 
@@ -260,13 +262,7 @@ export function saveProjectDescription(
   }
 
   const provider = getActiveDescriptionProvider(db);
-  if (!provider) {
-    throw new DomainError(
-      409,
-      'description_unavailable',
-      'No description provider is active. An Admin can choose one in Application settings.',
-    );
-  }
+  const writableFormats = provider ? provider.writes : [PLAINTEXT_DESCRIPTION_FORMAT];
 
   const issues: Record<string, string> = {};
   const body = textField(input.body, 'body', 'the description', issues);
@@ -274,8 +270,8 @@ export function saveProjectDescription(
   let format: string | null = null;
   if (typeof input.format !== 'string' || input.format.trim() === '') {
     issues.format = 'Choose a valid description format.';
-  } else if (!provider.writes.includes(input.format)) {
-    issues.format = 'The active provider cannot write this format.';
+  } else if (!writableFormats.includes(input.format)) {
+    issues.format = 'The current description mode cannot write this format.';
   } else {
     format = input.format;
   }

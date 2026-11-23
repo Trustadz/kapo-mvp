@@ -367,7 +367,6 @@ export const en = {
     saved: 'Description saved.',
     unsupportedFormat:
       'The active description provider cannot edit this format. Showing plain text.',
-    noProvider: 'No description provider is active. Showing plain text.',
     providerHeading: 'Description provider',
     providerHint:
       'Choose which add-on edits project descriptions. Existing content is kept; formats the new provider cannot read are shown as plain text.',
@@ -376,8 +375,6 @@ export const en = {
     providerSaved: 'Description provider saved.',
     providerWarning:
       'Existing descriptions using a format this provider cannot edit: {count}. They will be read-only plain text.',
-    providerWarningNone:
-      'With no provider active, every existing description is read-only plain text.',
     formatsInUse: 'Stored formats: {formats}',
     noDescriptions: 'No descriptions stored yet.',
   },

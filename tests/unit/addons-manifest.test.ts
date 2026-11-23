@@ -28,7 +28,7 @@ describe('add-on manifest', () => {
     const description = getAddon('description-markdown');
     expect(description?.capabilities).toEqual(['description']);
     expect(description?.formats).toEqual({
-      reads: ['markdown@1'],
+      reads: ['markdown@1', 'text@1'],
       writes: ['markdown@1'],
     });
   });

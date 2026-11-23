@@ -1,6 +1,7 @@
 'use client';
 
 import { markdownDescriptionProviderClient } from '../description-markdown';
+import { plainTextDescriptionProviderClient } from './plain-text';
 import type { DescriptionProviderClient } from './types';
 
 /**
@@ -18,6 +19,11 @@ export function getDescriptionProviderClient(
   identifier: string,
 ): DescriptionProviderClient | null {
   return providers.get(identifier) ?? null;
+}
+
+/** Core fallback used when no provider is selected. */
+export function getPlainTextDescriptionClient(): DescriptionProviderClient {
+  return plainTextDescriptionProviderClient;
 }
 
 export function listDescriptionProviderClients(): DescriptionProviderClient[] {

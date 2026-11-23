@@ -84,13 +84,17 @@ test('writes, searches, falls back and restores a description', async ({ page })
 
   await selectProvider(page, 'No provider (plain text only)');
   await page.goto(`/p/${projectId}`);
-  await expect(
-    page.getByText('No description provider is active. Showing plain text.'),
-  ).toBeVisible();
   await expect(page.getByText('Plankton notes for the basement')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Edit description' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Edit description' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Edit description' }).click();
+  await page.getByRole('textbox', { name: 'Description' }).fill('Plain text notes');
+  await page.getByRole('button', { name: 'Save description' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Description saved.' })).toBeVisible();
+  await expect(page.getByText('Plain text notes')).toBeVisible();
 
   await selectProvider(page, 'Markdown description');
   await page.goto(`/p/${projectId}`);
-  await expect(page.locator('strong').filter({ hasText: 'Plankton' })).toBeVisible();
+  await expect(page.getByText('Plain text notes')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Edit description' })).toBeVisible();
 });

@@ -15,7 +15,7 @@ export const descriptionMarkdownAddon: AddonDefinition = {
   defaultMode: 'always',
   capabilities: ['description'],
   formats: {
-    reads: ['markdown@1'],
+    reads: ['markdown@1', 'text@1'],
     writes: ['markdown@1'],
   },
   fields: [],

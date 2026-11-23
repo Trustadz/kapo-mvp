@@ -1,7 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { getDescriptionProviderClient } from '@/components/addons/description/registry';
+import {
+  getDescriptionProviderClient,
+  getPlainTextDescriptionClient,
+} from '@/components/addons/description/registry';
 import { Button, Card, Notice } from '@/components/ui';
 import { useI18n } from '@/i18n/client';
 import type { ProjectDescriptionData } from '@/lib/description';
@@ -35,10 +38,15 @@ export function ProjectDescription({
 
   const client = description.provider
     ? getDescriptionProviderClient(description.provider.identifier)
-    : null;
-  const unsupported = description.record !== null && description.unsupportedFormat;
-  const editable = canEdit && client !== null && !unsupported;
-  const showFallback = description.record !== null && (client === null || unsupported);
+    : getPlainTextDescriptionClient();
+  const unsupported =
+    description.record !== null && description.provider !== null && description.unsupportedFormat;
+  const editable =
+    canEdit && (description.provider === null || (client !== null && !unsupported));
+  const showFallback =
+    description.record !== null &&
+    description.provider !== null &&
+    (client === null || unsupported);
 
   const startEditing = () => {
     setDraft(description.record?.body ?? '');
@@ -106,25 +114,16 @@ export function ProjectDescription({
         </div>
       ) : description.record ? (
         <div className={styles.body}>
-          {client && !unsupported ? (
+          {description.provider && client && !unsupported ? (
             <client.Renderer value={description.record.body} />
           ) : (
             <p className={styles.fallback}>{description.record.plaintext}</p>
           )}
-          {showFallback ? (
-            <Notice tone="warning">
-              {description.provider
-                ? t('description.unsupportedFormat')
-                : t('description.noProvider')}
-            </Notice>
-          ) : null}
+          {showFallback ? <Notice tone="warning">{t('description.unsupportedFormat')}</Notice> : null}
         </div>
       ) : (
         <div className={styles.body}>
           <p className={styles.empty}>{t('description.empty')}</p>
-          {!description.provider ? (
-            <Notice tone="warning">{t('description.noProvider')}</Notice>
-          ) : null}
         </div>
       )}
     </Card>

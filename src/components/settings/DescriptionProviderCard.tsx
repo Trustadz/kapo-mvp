@@ -103,11 +103,9 @@ export function DescriptionProviderCard({ capability }: DescriptionProviderCardP
         </p>
       ) : null}
 
-      {unsupportedCount > 0 ? (
+      {provider && unsupportedCount > 0 ? (
         <Notice tone="warning">
-          {provider
-            ? t('description.providerWarning', { count: unsupportedCount })
-            : t('description.providerWarningNone')}
+          {t('description.providerWarning', { count: unsupportedCount })}
         </Notice>
       ) : null}
       {error ? <Notice tone="error">{error}</Notice> : null}

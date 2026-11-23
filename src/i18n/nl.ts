@@ -374,8 +374,6 @@ export const nl: Messages = {
     saved: 'Beschrijving opgeslagen.',
     unsupportedFormat:
       'De actieve beschrijvingsprovider kan dit formaat niet bewerken. De tekst wordt als platte tekst getoond.',
-    noProvider:
-      'Er is geen beschrijvingsprovider actief. De tekst wordt als platte tekst getoond.',
     providerHeading: 'Beschrijvingsprovider',
     providerHint:
       'Kies welke add-on projectbeschrijvingen bewerkt. Bestaande inhoud blijft bewaard; formaten die de nieuwe provider niet kan lezen, worden als platte tekst getoond.',
@@ -384,8 +382,6 @@ export const nl: Messages = {
     providerSaved: 'Beschrijvingsprovider opgeslagen.',
     providerWarning:
       'Bestaande beschrijvingen met een formaat dat deze provider niet kan bewerken: {count}. Deze worden alleen-lezen platte tekst.',
-    providerWarningNone:
-      'Zonder actieve provider is elke bestaande beschrijving alleen-lezen platte tekst.',
     formatsInUse: 'Opgeslagen formaten: {formats}',
     noDescriptions: 'Nog geen beschrijvingen opgeslagen.',
   },
