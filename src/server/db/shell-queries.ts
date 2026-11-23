@@ -7,6 +7,7 @@ import {
   loadAccessContext,
   type AccessUser,
 } from '../domain/permissions';
+import { countUnreadNotifications } from '../domain/notifications';
 
 /**
  * Read-only queries the application shell needs on every authenticated page.
@@ -21,6 +22,7 @@ export interface ShellData {
   favorites: FavoriteProject[];
   rootProjectId: string | null;
   installationName: string;
+  unreadNotifications: number;
 }
 
 function loadShellUser(
@@ -88,5 +90,6 @@ export function getShellData(
     favorites: getFavoriteProjects(userId, db),
     rootProjectId: visibleRootId,
     installationName: getInstallationName(db),
+    unreadNotifications: user ? countUnreadNotifications(db, user) : 0,
   };
 }

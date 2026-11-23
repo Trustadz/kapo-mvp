@@ -33,6 +33,7 @@ import {
 } from '@/lib/projects';
 import { availableAddonFieldRefs, isAddonFieldRef } from '@/lib/addons';
 import { listActivity, recordAuditEvent } from './audit';
+import { isProjectWatched } from './notifications';
 import { assertInboxExitAllowed } from './addon-hooks';
 import {
   getProjectAddonCardFields,
@@ -645,6 +646,7 @@ export function getProjectPageData(
       parent: parentLink,
       isRoot,
       favorite: favoriteRow !== undefined,
+      watching: isProjectWatched(db, user.id, projectId),
       effectiveRole: role as ProjectPageData['project']['effectiveRole'],
       canEdit,
       canAdmin,

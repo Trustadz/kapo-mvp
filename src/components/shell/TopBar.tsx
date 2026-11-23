@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Icon } from '@/components/ui/Icon';
 import type { AuthUser } from '@/lib/types';
+import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { AccountMenu } from './AccountMenu';
 import { CaptureForm } from './CaptureForm';
 import { useI18n } from '@/i18n/client';
@@ -11,13 +12,14 @@ import styles from './TopBar.module.css';
 export interface TopBarProps {
   user: AuthUser;
   rootProjectId: string | null;
+  unreadNotifications?: number;
 }
 
 /**
  * 64px top bar with global capture and Search (desktop), plus the compact
  * mobile header with search and the account avatar (build-spec §8).
  */
-export function TopBar({ user, rootProjectId }: TopBarProps) {
+export function TopBar({ user, rootProjectId, unreadNotifications = 0 }: TopBarProps) {
   const { t } = useI18n();
   const canCapture = user.appRole !== 'viewer';
 
@@ -34,10 +36,13 @@ export function TopBar({ user, rootProjectId }: TopBarProps) {
             </p>
           )}
         </div>
-        <Link href="/search" className={styles.searchLink}>
-          <Icon name="search" size={20} />
-          <span>{t('common.search')}</span>
-        </Link>
+        <div className={styles.desktopActions}>
+          <Link href="/search" className={styles.searchLink}>
+            <Icon name="search" size={20} />
+            <span>{t('common.search')}</span>
+          </Link>
+          <NotificationCenter initialUnreadCount={unreadNotifications} />
+        </div>
       </header>
 
       <header className={styles.mobileBar}>
@@ -52,6 +57,7 @@ export function TopBar({ user, rootProjectId }: TopBarProps) {
           <Link href="/search" className={styles.mobileIconButton} aria-label={t('common.search')}>
             <Icon name="search" size={22} />
           </Link>
+          <NotificationCenter initialUnreadCount={unreadNotifications} />
           <AccountMenu user={user} variant="compact" side="bottom" align="end" />
         </div>
       </header>

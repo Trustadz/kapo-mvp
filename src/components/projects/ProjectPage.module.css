@@ -16,10 +16,30 @@
   font-size: var(--font-size-body);
 }
 
-/* Spacing belongs to the <nav> only. Inner crumb groups get their own layout
-   class, so a bottom margin can never push the final crumb onto a second line. */
-.breadcrumbNav {
+/* The row owns the spacing. The nav shrinks so the mobile settings trigger can
+   share the breadcrumb line without pushing the final crumb onto a second line. */
+.breadcrumbRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
   margin-bottom: var(--space-2);
+}
+
+.breadcrumbNav {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.mobileSettings {
+  display: none;
+  flex: none;
+}
+
+.desktopSettings {
+  display: inline-flex;
+  flex: none;
 }
 
 .breadcrumbItem {
@@ -80,28 +100,6 @@
   align-items: center;
   gap: var(--space-2);
   flex: none;
-}
-
-.favoriteButton {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  height: var(--control-height);
-  padding: 0 var(--space-3);
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--color-text);
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.favoriteButton:hover {
-  background: var(--color-surface-alt);
-}
-
-.favoriteButton[aria-pressed='true'] {
-  color: var(--color-accent);
 }
 
 .iconButton {
@@ -536,11 +534,47 @@
   }
 
   .headerRow {
-    flex-direction: column;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+
+  .titleGroup {
+    flex: 1;
   }
 
   .headerActions {
+    flex-direction: column;
+    align-items: flex-end;
     align-self: flex-start;
+    gap: var(--space-1);
+  }
+
+  .headerActions .compactHeaderAction {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    gap: 0;
+    border-radius: var(--radius-pill);
+  }
+
+  .headerActions .compactHeaderAction .headerActionLabel {
+    display: none;
+  }
+
+  .mobileSettings {
+    display: inline-flex;
+  }
+
+  .desktopSettings {
+    display: none;
+  }
+
+  .mobileSettings .mobileSettingsButton {
+    width: 32px;
+    height: 32px;
+    border: 0;
+    background: transparent;
   }
 
   .detailRows {
