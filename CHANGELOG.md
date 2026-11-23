@@ -63,6 +63,12 @@
 - The child-collection view selector and Add action now share the filter row,
   and the button reads “Add new”.
 
+### Fixed
+
+- Installed PWAs now receive manifest changes (theme colour, name, icons) instead
+  of serving a frozen copy from the service worker cache. The manifest is no
+  longer precached or intercepted by `public/sw.js`.
+
 ### Security notes
 
 - Disabling a user in PocketID does not revoke an existing Kapo session (up to
@@ -78,7 +84,6 @@
 - Push notifications are intentionally not part of this change. The
   notification service is the single insertion point a future Web Push
   delivery layer can use.
-
 ## 0.4.1 — 2026-11-22
 
 ### Changed
