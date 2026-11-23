@@ -18,6 +18,14 @@
   selects use it.
 - The **reporter filter** now uses the same searchable avatar Combobox as the
   add-on user picker, replacing the native select.
+- **Focused project layout**: Project settings → Layout now offers a
+  “Children and history only” page that hides the Details and Properties
+  cards, leaving the child viewer and project history. Root uses this layout
+  by default; Root also no longer shows its redundant breadcrumb, page title
+  or Favorite control, while the project actions menu stays available.
+  Ordinary projects keep the full layout by default and can switch either way.
+  The choice is stored in `settings.layout_mode`; no schema migration is
+  needed.
 - **PocketID / OpenID Connect single sign-on**, configured with `KAPO_OIDC_*`
   environment variables rather than database settings, so the client secret is
   never stored in SQLite or its backups. The login page shows a **Continue with
@@ -87,6 +95,8 @@
 
 - Added [docs/markdown.md](docs/markdown.md), documenting the supported Markdown
   subset, link safety, and compact/collection-card behavior.
+- The child-collection view selector and Add action now share the filter row,
+  and the button reads “Add new”.
 
 ### Security notes
 

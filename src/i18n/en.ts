@@ -334,7 +334,7 @@ export const en = {
     childProjects: 'Child projects',
     collectionView: 'Collection view',
     collectionViewWith: 'Collection view: {view}',
-    addChild: 'Add child project',
+    addChild: 'Add new',
     noMatchFilters: 'No projects match these filters',
     clearFilters: 'Clear filters',
   },
@@ -870,6 +870,11 @@ export const en = {
     layoutTitle: 'Layout and views',
     layoutHint:
       'Choose where project fields appear, which views are available and which statuses are hidden. New child projects copy the current layout once; later changes here do not affect existing children.',
+    pageLayout: 'Page layout',
+    layoutFull: 'Details, properties and children',
+    layoutChildren: 'Children and history only',
+    layoutModeHint:
+      'The focused page hides Details and Properties; the child viewer and project history fill the page. Root uses it by default.',
     useAsTemplate: 'Use as child template',
     useAsTemplateLabel: 'Use this layout as the template for child projects',
     mainArea: 'Main area',

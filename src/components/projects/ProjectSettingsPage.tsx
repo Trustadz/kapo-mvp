@@ -34,12 +34,21 @@ import type {
 } from './types';
 import { PROJECT_FIELD_KEYS } from './types';
 import type { MemberCandidate } from './api';
-import type { ProjectAccessMode, ViewFieldKey, ViewFields } from '@/lib/projects';
+import type {
+  ProjectAccessMode,
+  ProjectLayoutMode,
+  ViewFieldKey,
+  ViewFields,
+} from '@/lib/projects';
 import type { AddonMode, ProjectAddonConfigView } from '@/lib/addons';
 
 import { ADDON_MODE_OPTIONS, serializeAddonFieldRef } from '@/lib/addons';
 
-import { DEFAULT_VIEW_FIELDS, VIEW_FIELD_KEYS } from '@/lib/projects';
+import {
+  DEFAULT_VIEW_FIELDS,
+  VIEW_FIELD_KEYS,
+  resolveProjectLayoutMode,
+} from '@/lib/projects';
 import { formatPersonName } from '@/lib/format';
 import { markFieldChanged } from '@/lib/changed-fields';
 import { useFieldChanged } from '@/lib/use-field-changed';
@@ -1583,6 +1592,7 @@ function FieldListEditor({
 }
 
 interface LayoutDraft {
+  layoutMode: ProjectLayoutMode;
   childPosition: 'below' | 'above';
   main: ProjectFieldKey[];
   sidebar: ProjectFieldKey[];
@@ -1595,6 +1605,7 @@ interface LayoutDraft {
 
 function layoutDraftFrom(data: ProjectPageData): LayoutDraft {
   return {
+    layoutMode: resolveProjectLayoutMode(data.settings, data.project.isRoot),
     childPosition: data.settings.child_position,
     main: data.layout.main,
     sidebar: data.layout.sidebar,
@@ -1608,6 +1619,7 @@ function layoutDraftFrom(data: ProjectPageData): LayoutDraft {
 
 function layoutSignature(draft: LayoutDraft): string {
   return JSON.stringify([
+    draft.layoutMode,
     draft.childPosition,
     draft.main,
     draft.sidebar,
@@ -1634,6 +1646,9 @@ export function LayoutTab({
 }) {
   const { t } = useI18n();
   const project = data.project;
+  const [layoutMode, setLayoutMode] = useState<ProjectLayoutMode>(() =>
+    resolveProjectLayoutMode(data.settings, project.isRoot),
+  );
   const [childPosition, setChildPosition] = useState(data.settings.child_position);
   const [main, setMain] = useState<ProjectFieldKey[]>(data.layout.main);
   const [sidebar, setSidebar] = useState<ProjectFieldKey[]>(data.layout.sidebar);
@@ -1677,6 +1692,7 @@ export function LayoutTab({
   useEffect(() => {
 
     const draft = layoutDraftFrom(data);
+    setLayoutMode(draft.layoutMode);
     setChildPosition(draft.childPosition);
     setMain(draft.main);
     setSidebar(draft.sidebar);
@@ -1690,6 +1706,7 @@ export function LayoutTab({
   }, [data.settings, data.layout]);
 
   const currentDraft: LayoutDraft = {
+    layoutMode,
     childPosition,
     main,
     sidebar,
@@ -1725,6 +1742,7 @@ export function LayoutTab({
     setError(null);
     setSaving(true);
     const result = await saveProjectSettings(project.id, {
+      layout_mode: layoutMode,
       child_position: childPosition,
       default_view: defaultView,
       enabled_views: enabledViews,
@@ -1749,6 +1767,25 @@ export function LayoutTab({
         {t('settings.layoutHint')}
       </p>
       {error ? <Notice tone="error">{error}</Notice> : null}
+
+      <FieldGroup legend={t('settings.pageLayout')} controlClassName={styles.radios}>
+        <Radio
+          name="layout-mode"
+          value="full"
+          label={t('settings.layoutFull')}
+          checked={layoutMode === 'full'}
+          onChange={() => setLayoutMode('full')}
+        />
+        <Radio
+          name="layout-mode"
+          value="children"
+          label={t('settings.layoutChildren')}
+          checked={layoutMode === 'children'}
+          onChange={() => setLayoutMode('children')}
+        />
+      </FieldGroup>
+      <p className={styles.cardHint}>{t('settings.layoutModeHint')}</p>
+
       <div className={styles.fields}>
 
         <Field label={t('settings.useAsTemplate')} htmlFor="layout-template">
@@ -1761,41 +1798,45 @@ export function LayoutTab({
         </Field>
       </div>
 
-      <FieldGroup
-        legend={t('settings.childProjectsAppear')}
-        changed={childPositionChanged}
-        controlClassName={styles.radios}
-      >
-        <Radio
-          name="child-position"
-          value="above"
-          label={t('settings.aboveDetails')}
-          checked={childPosition === 'above'}
-          onChange={() => setChildPosition('above')}
-        />
-        <Radio
-          name="child-position"
-          value="below"
-          label={t('settings.belowDetails')}
-          checked={childPosition === 'below'}
-          onChange={() => setChildPosition('below')}
-        />
-      </FieldGroup>
+      {layoutMode === 'full' ? (
+        <>
+          <FieldGroup
+            legend={t('settings.childProjectsAppear')}
+            changed={childPositionChanged}
+            controlClassName={styles.radios}
+          >
+            <Radio
+              name="child-position"
+              value="above"
+              label={t('settings.aboveDetails')}
+              checked={childPosition === 'above'}
+              onChange={() => setChildPosition('above')}
+            />
+            <Radio
+              name="child-position"
+              value="below"
+              label={t('settings.belowDetails')}
+              checked={childPosition === 'below'}
+              onChange={() => setChildPosition('below')}
+            />
+          </FieldGroup>
 
-      <div className={styles.layoutColumns}>
-        <FieldListEditor
-          label={t('settings.mainArea')}
-          fields={main}
-          options={projectFieldOptions}
-          onChange={setMain}
-        />
-        <FieldListEditor
-          label={t('settings.propertiesSidebar')}
-          fields={sidebar}
-          options={projectFieldOptions}
-          onChange={setSidebar}
-        />
-      </div>
+          <div className={styles.layoutColumns}>
+            <FieldListEditor
+              label={t('settings.mainArea')}
+              fields={main}
+              options={projectFieldOptions}
+              onChange={setMain}
+            />
+            <FieldListEditor
+              label={t('settings.propertiesSidebar')}
+              fields={sidebar}
+              options={projectFieldOptions}
+              onChange={setSidebar}
+            />
+          </div>
+        </>
+      ) : null}
 
       <div className={styles.viewFieldsBlock}>
         <h3 className={styles.subheading}>{t('settings.viewProperties')}</h3>
@@ -1876,6 +1917,7 @@ export function LayoutTab({
           onClick={() => {
 
             const draft = layoutDraftFrom(data);
+            setLayoutMode(draft.layoutMode);
             setChildPosition(draft.childPosition);
             setMain(draft.main);
             setSidebar(draft.sidebar);

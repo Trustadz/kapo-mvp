@@ -72,7 +72,7 @@ test('Card children filter live by title and reporter', async ({ page }) => {
   const list = page.getByRole('list', { name: 'Projects as cards' });
   const cards = list.getByRole('listitem');
   await expect(cards).toHaveCount(4);
-  await expect(page.getByRole('button', { name: 'Add child project' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add new' })).toBeVisible();
 
   const bar = filterBar(page);
   await bar.getByRole('searchbox', { name: 'Filter projects by title' }).fill('GARDEN');
@@ -83,7 +83,7 @@ test('Card children filter live by title and reporter', async ({ page }) => {
   // No match: compact empty state with a Clear filters action; Add stays.
   await bar.getByRole('searchbox', { name: 'Filter projects by title' }).fill('zzzz');
   await expect(page.getByText('No projects match these filters')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Add child project' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add new' })).toBeVisible();
   await page.getByRole('button', { name: 'Clear filters' }).click();
   await expect(cards).toHaveCount(4);
 
@@ -144,7 +144,7 @@ test('filter bar stacks cleanly on a mobile viewport', async ({ page }) => {
   await expect(bar).toBeVisible();
   await expect(bar.getByRole('searchbox', { name: 'Filter projects by title' })).toBeVisible();
   await expect(bar.getByRole('button', { name: 'Filter projects by reporter' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Add child project' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Add new' })).toBeVisible();
   await expect(page.getByRole('button', { name: /^Collection view:/ })).toBeVisible();
 
   const search = await bar
