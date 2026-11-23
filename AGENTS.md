@@ -9,6 +9,10 @@ specifies a narrower scope or a different workflow.
   `fix/<issue>-<slug>`, `docs/<slug>` or `chore/<slug>`. Keep unrelated work on
   its own branch or checkout. Preserve existing working files and stage only
   the intended paths.
+- Use a separate git worktree (workspace) under `data/worktrees/<slug>` for
+  additional or parallel work. Do not switch the root checkout off an active
+  feature branch; add the new branch as a worktree and leave the root checkout
+  where it is.
 - Before asking for local approval, run `npm run typecheck`, `npm test`, and
   `npm run build`. Run `npm run test:e2e` for changes that affect the UI, API,
   migrations, Docker, or the release workflow (install Chromium once with
