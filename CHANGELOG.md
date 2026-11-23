@@ -4,6 +4,31 @@
 
 ### Added
 
+- **PocketID / OpenID Connect single sign-on**, configured with `KAPO_OIDC_*`
+  environment variables rather than database settings, so the client secret is
+  never stored in SQLite or its backups. The login page shows a **Continue with
+  PocketID** button. An email that matches exactly one existing account and is
+  not reported as unverified links it and keeps its role; an unmatched email
+  creates a Viewer. A missing, explicitly unverified, ambiguous or already-linked
+  email is rejected. `sub` is stored as the permanent identity, so later email
+  changes do not move the account.
+- `KAPO_PASSWORD_LOGIN=disabled` hides and rejects password sign-in. Kapo keeps
+  password login enabled when OIDC is not configured, so a configuration
+  mistake cannot lock the household out. The first-run `/setup` Admin still
+  uses a local password.
+- `KAPO_OIDC_AUTO_PROVISION=0` refuses unknown emails instead of creating
+  Viewers. `KAPO_OIDC_ALLOW_INSECURE=1` exists only for local HTTP testing.
+- When an account has no Kapo avatar, the PocketID `picture` claim is imported
+  through the existing avatar validation: issuer origin only, no redirects,
+  five-second timeout, 2 MB cap, PNG/JPEG/WebP magic bytes. A locally uploaded
+  avatar is never overwritten; `KAPO_OIDC_IMPORT_AVATAR=0` disables the fetch.
+- New `user_identities` table (migration `005`) mapping the OIDC issuer and
+  subject to a local user. OIDC sign-in ends by creating the same
+  database-backed Kapo session as password login, so guards and API routes are
+  unchanged.
+- Integration and e2e coverage uses a local mock OIDC provider; no PocketID
+  container is required in CI.
+
 - **In-app notifications.** A bell in the desktop top bar (right of Search)
   and next to the avatar on mobile shows the unread count. The overflow panel
   lists the newest notifications with message, project/add-on origin, action
@@ -25,9 +50,16 @@
 - Per-user retention keeps the latest 200 notifications; older read rows are
   pruned on write. Notifications are removed with a purged project.
 
+### Security notes
+
+- Disabling a user in PocketID does not revoke an existing Kapo session (up to
+  30 days). Signing out of Kapo does not sign out of PocketID. Set
+  `SESSION_SECRET` when SSO is enabled to keep in-flight sign-ins valid across
+  restarts.
+
 ### Upgrade notes
 
-- Migration `005_notifications.sql` adds `project_watches` and
+- Migration `006_notifications.sql` adds `project_watches` and
   `notifications`. No manual action is required; existing projects, history
   and access are unchanged.
 - Push notifications are intentionally not part of this change. The

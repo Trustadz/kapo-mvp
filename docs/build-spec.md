@@ -18,6 +18,7 @@ and an older document disagree, this document wins; where it is silent, the Penp
 | Purge | Automatic by default, 30 days after entering trash; Admin-configurable retention/enabled. No manual purge UI. |
 | Theme | Light / Dark / System, stored per user, default System. |
 | Install seed | Empty first run (`/setup` creates first Admin). Mock household data only via `npm run db:seed`. |
+| SSO | Optional PocketID/OIDC sign-in configured by `KAPO_OIDC_*` environment variables. Existing users match by email (explicitly unverified emails are rejected) and keep their role; unmatched emails become Viewers. The `picture` claim is imported when the account has no avatar and `KAPO_OIDC_IMPORT_AVATAR` is on. Password login can be disabled with `KAPO_PASSWORD_LOGIN=disabled`. |
 
 ## 2. Repository layout
 
@@ -87,6 +88,9 @@ show_archived (0/1), created_at.
 
 `sessions` id, user_id, token_hash unique, expires_at, created_at. 30-day sliding expiry.
 Cookie `kapo_session`, httpOnly, sameSite lax, secure when `NODE_ENV=production` and HTTPS.
+
+`user_identities` id, user_id, provider (issuer URL), subject, email_at_link, created_at,
+last_login_at, unique `(provider, subject)` and `(provider, user_id)`; cascades on user delete.
 
 `projects` id (uuid), seq (integer, `KAP-<seq>` display id), title, reporter_id, parent_id
 (null only for Root), status_id (null only for Root), priority (integer, unique per parent,
@@ -164,6 +168,8 @@ requests (Origin/Host match) plus SameSite cookie. All mutations validate server
 ```
 POST /api/setup                       create first admin
 POST /api/auth/login | logout         session
+GET  /api/auth/pocketid/start         begin PocketID/OIDC sign-in
+GET  /api/auth/pocketid/callback      complete PocketID/OIDC sign-in
 GET  /api/me                          current user + prefs
 PATCH /api/me                         profile/landing/appearance/dashboard/show_archived
 POST /api/me/password                 change password
@@ -215,7 +221,12 @@ npm run db:reset       # drop + migrate + seed
 ```
 
 Environment: `DATABASE_PATH=./data/kapo.db`, `UPLOAD_DIR=./upload`,
-`SESSION_SECRET` optional (sessions are DB-backed random tokens).
+`SESSION_SECRET` optional (sessions are DB-backed random tokens; also signs the
+short-lived OIDC state cookie). PocketID SSO is configured with
+`KAPO_OIDC_ISSUER`, `KAPO_OIDC_CLIENT_ID`, `KAPO_OIDC_CLIENT_SECRET`,
+`KAPO_OIDC_SCOPES`, `KAPO_OIDC_PROVIDER_NAME`, `KAPO_OIDC_AUTO_PROVISION`,
+`KAPO_OIDC_IMPORT_AVATAR`, `KAPO_OIDC_ALLOW_INSECURE` and
+`KAPO_PASSWORD_LOGIN`.
 
 ## 10. Mock data (seed)
 

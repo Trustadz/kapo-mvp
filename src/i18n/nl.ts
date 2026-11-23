@@ -124,6 +124,27 @@ export const nl: Messages = {
     setupComplete: 'Deze installatie heeft al een account.',
     passwordRecovery:
       'Neem contact op met een applicatiebeheerder als je je wachtwoord kwijt bent.',
+    contactAdmin:
+      'Neem voor hulp bij je account contact op met een applicatiebeheerder.',
+    continueWith: 'Doorgaan met {provider}',
+    or: 'of',
+    passwordLoginDisabled: 'Inloggen met een wachtwoord is uitgeschakeld.',
+    ssoOnlyNote: 'Gebruik {provider} om in te loggen.',
+    ssoFailed: 'Inloggen met {provider} is niet gelukt. Probeer het opnieuw.',
+    ssoUnavailable:
+      'Eenmalig inloggen is nu niet beschikbaar. Probeer het opnieuw of neem contact op met een applicatiebeheerder.',
+    ssoExpired: 'Deze inlogpoging is verlopen. Probeer het opnieuw.',
+    ssoDenied: 'Inloggen is geannuleerd.',
+    ssoEmailRequired:
+      'PocketID heeft geen e-mailadres doorgegeven. Vraag een applicatiebeheerder om er een toe te voegen.',
+    ssoEmailNotVerified:
+      'PocketID heeft je e-mailadres niet geverifieerd. Verifieer het daar en probeer het opnieuw.',
+    ssoEmailAmbiguous:
+      'Meerdere accounts gebruiken dit e-mailadres. Neem contact op met een applicatiebeheerder.',
+    ssoAccountConflict:
+      'Dit PocketID-account is al gekoppeld aan een ander Kapo-account. Neem contact op met een applicatiebeheerder.',
+    ssoAccountNotFound:
+      'Geen Kapo-account gevonden voor dit e-mailadres. Vraag een applicatiebeheerder om er een aan te maken.',
   },
   shell: {
     skipToContent: 'Naar de inhoud',
