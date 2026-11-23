@@ -312,7 +312,7 @@ export const nl: Messages = {
     childProjects: 'Onderliggende projecten',
     collectionView: 'Weergave',
     collectionViewWith: 'Weergave: {view}',
-    addChild: 'Onderliggend project toevoegen',
+    addChild: 'Nieuw project',
     noMatchFilters: 'Geen projecten voldoen aan deze filters',
     clearFilters: 'Filters wissen',
   },

@@ -13,6 +13,11 @@
   The choice is stored in `settings.layout_mode`; no schema migration is
   needed.
 
+### Changed
+
+- The child-collection view selector and Add action now share the filter row,
+  and the button reads “Add new”.
+
 ## 0.4.1 — 2026-11-22
 
 ### Changed

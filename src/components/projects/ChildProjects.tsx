@@ -161,17 +161,16 @@ export function ChildProjects({
   return (
     <section aria-label={t('project.childProjects')}>
       <h2 className="visually-hidden">{t('project.childProjects')}</h2>
-      {hasChildren ? (
-        <ProjectFilterBar
-          filters={filters}
-          reporters={reporters}
-          onChange={setFilters}
-          matchingCount={matchingCount}
-          totalCount={collectionSize}
-        />
-      ) : null}
-
-      <div className={styles.sectionHeader}>
+      <div className={styles.collectionToolbar}>
+        {hasChildren ? (
+          <ProjectFilterBar
+            filters={filters}
+            reporters={reporters}
+            onChange={setFilters}
+            matchingCount={matchingCount}
+            totalCount={collectionSize}
+          />
+        ) : null}
         <div className={styles.sectionActions}>
           {hasChildren ? (
             <Menu

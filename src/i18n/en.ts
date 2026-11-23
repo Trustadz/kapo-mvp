@@ -307,7 +307,7 @@ export const en = {
     childProjects: 'Child projects',
     collectionView: 'Collection view',
     collectionViewWith: 'Collection view: {view}',
-    addChild: 'Add child project',
+    addChild: 'Add new',
     noMatchFilters: 'No projects match these filters',
     clearFilters: 'Clear filters',
   },
