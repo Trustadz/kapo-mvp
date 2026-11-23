@@ -197,7 +197,8 @@ How accounts are resolved:
   multiple Kapo accounts are rejected rather than guessed.
 - The first-run `/setup` screen always uses a local password and creates the
   first Admin; do not disable password login until that Admin can sign in with
-  PocketID.
+  PocketID. Make sure each Admin's Kapo email matches their PocketID email
+  first: an unmatched email creates a Viewer, not an Admin.
 
 To make PocketID the only sign-in method, set `KAPO_PASSWORD_LOGIN=disabled`.
 Kapo refuses that setting when OIDC is not configured, so a typo cannot lock
