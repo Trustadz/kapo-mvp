@@ -1,5 +1,6 @@
 import { setAppearanceCookie, setSessionCookie } from '@/server/auth/cookies';
 import { findUserByUsername } from '@/server/auth/current-user';
+import { getOidcConfig } from '@/server/auth/oidc';
 import { hashPassword, verifyPassword } from '@/server/auth/password';
 import { deleteExpiredSessions, createSession } from '@/server/auth/session';
 import {
@@ -30,6 +31,10 @@ export async function POST(request: Request) {
   if (!isSameOrigin(request)) return rejectCrossOrigin();
 
   const { t, locale } = await getI18n();
+
+  if (!getOidcConfig().passwordLoginEnabled) {
+    return jsonError(403, 'password_login_disabled', t('auth.passwordLoginDisabled'));
+  }
 
   const body = await readJsonBody(request);
   if (!body.ok) return body.response;

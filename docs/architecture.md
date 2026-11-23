@@ -164,6 +164,7 @@ authorization input. The Admin toggle lives in application settings
 | `audit_events` | `project_id` is the **log owner**, `target_id` is the affected project. A child creation writes an event into the child's log and one into the parent's log; routine child edits only touch the child's log. Append-only is an invariant of the table (§9), not just of UI: no code path updates or deletes events except the purge of that project's own log. |
 | `project_search` | FTS5 virtual table `(project_id UNINDEXED, title, body)`. It is an index, never a source of truth: rows are rebuilt from `projects` inside the same transaction as the write. `project_id` is UNINDEXED because queries always join it back to `projects` to apply permission and lifecycle filters; the FTS row is never returned directly to a client. |
 | `sessions` | Opaque random token, only its SHA-256 hash stored. DB-backed so logout and role changes are effective immediately; no signed-cookie forensics. |
+| `user_identities` | Maps an external OIDC `(provider, subject)` to one local user. `provider` is the issuer URL, so changing `KAPO_OIDC_ISSUER` cannot silently reuse old subject mappings; `UNIQUE (provider, user_id)` limits a user to one identity per provider. Local users and sessions remain authoritative. |
 | `settings` | Key/value because application settings are few, typed at the repository boundary, and expected to grow (add-on modes). |
 
 ### 3.1 SQL-level invariants
@@ -358,6 +359,18 @@ Verified against `src/server/auth/*`:
   user's sessions. There is no account-disable/delete feature in the MVP, so no other session
   revocation path exists.
 - `/setup` is enabled only while `users` is empty and creates the first admin and a session.
+- PocketID / OIDC SSO is configured by environment (`KAPO_OIDC_*`,
+  `KAPO_PASSWORD_LOGIN`). `GET /api/auth/pocketid/start` stores a signed,
+  httpOnly state/nonce/PKCE transaction cookie; `GET /api/auth/pocketid/callback`
+  exchanges the code, validates the ID token through `openid-client`, resolves
+  `(issuer, sub)` in `user_identities`, and then calls `createSession` exactly
+  like password login. First-time resolution matches an email claim (rejecting one
+  explicitly reported unverified) to exactly one existing user, preserving
+  their role, or auto-provisions a Viewer when `KAPO_OIDC_AUTO_PROVISION` is
+  on. A missing email or one explicitly reported unverified, an ambiguous
+  email, or a subject already linked elsewhere is rejected. The first-run
+  `/setup` Admin is never created by SSO. Password login is refused when
+  `KAPO_PASSWORD_LOGIN=disabled`, unless OIDC is not configured (lockout guard).
 - Auth helpers (`src/server/auth/current-user.ts`): `getSessionUser(): Promise<AuthUser | null>`,
   `requireUser()` / `requireAdmin()` / `requireAppRole()` (redirect for server components), plus
   `isFirstRun()`. Route handlers use `getSessionUser` and return a JSON 401 explicitly; they must
@@ -686,7 +699,8 @@ at least one such mutation manually.
 - HTTPS termination, proxy configuration, container orchestration beyond a single Compose service.
 - Restore automation/UI: restores are manual and documented; backup creation, retention, settings
   permissions and opening a backup for a known row are covered by unit/integration tests.
-- Email, password recovery delivery (not a feature), OAuth/SSO (not a feature).
+- Email, password recovery delivery (not a feature), SAML or multi-provider SSO (not a feature;
+  PocketID/OIDC SSO is supported through `KAPO_OIDC_*` environment variables).
 - Browser matrix beyond Chromium; Safari/iOS PWA install is manual.
 - End-to-end add-on behaviour: no add-on ships. The registry contract and the Inbox-exit hook gate
   are covered by unit/contract tests (registration validation, hook order, issue aggregation), but

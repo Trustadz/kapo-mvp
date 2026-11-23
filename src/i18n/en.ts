@@ -126,6 +126,26 @@ export const en = {
     invalidCredentials: 'Invalid username or password.',
     setupComplete: 'This installation already has an account.',
     passwordRecovery: 'For password recovery, contact an application Admin.',
+    contactAdmin: 'For account help, contact an application Admin.',
+    continueWith: 'Continue with {provider}',
+    or: 'or',
+    passwordLoginDisabled: 'Password sign-in is disabled.',
+    ssoOnlyNote: 'Use {provider} to sign in.',
+    ssoFailed: 'Could not sign in with {provider}. Try again.',
+    ssoUnavailable:
+      'Single sign-on is not available right now. Try again or contact an application Admin.',
+    ssoExpired: 'That sign-in attempt expired. Try again.',
+    ssoDenied: 'Sign-in was cancelled.',
+    ssoEmailRequired:
+      'PocketID did not provide an email address. Ask an application Admin to add one.',
+    ssoEmailNotVerified:
+      'PocketID has not verified your email address. Verify it there and try again.',
+    ssoEmailAmbiguous:
+      'More than one account uses this email. Contact an application Admin.',
+    ssoAccountConflict:
+      'This PocketID account is already linked to another Kapo account. Contact an application Admin.',
+    ssoAccountNotFound:
+      'No Kapo account matches this email. Ask an application Admin to create one.',
   },
   shell: {
     skipToContent: 'Skip to content',

@@ -11,6 +11,20 @@ services:
       # Change this to the address people type in the browser.
       KAPO_PUBLIC_URL: https://kapo.example.com
       TZ: Europe/Amsterdam
+      # --- PocketID SSO (optional) ---
+      # Uncomment and fill in to enable single sign-on. The callback URL in
+      # PocketID is https://kapo.example.com/api/auth/pocketid/callback.
+      # KAPO_OIDC_ISSUER: https://id.example.com
+      # KAPO_OIDC_CLIENT_ID: kapo
+      # KAPO_OIDC_CLIENT_SECRET: change-me
+      # KAPO_OIDC_PROVIDER_NAME: PocketID
+      # KAPO_OIDC_SCOPES: openid profile email
+      # Existing accounts match by email; new accounts are Viewers.
+      # KAPO_OIDC_AUTO_PROVISION: "1"
+      # Hide password sign-in only after SSO works; keep a break-glass plan.
+      # KAPO_PASSWORD_LOGIN: disabled
+      # Recommended with SSO: keeps in-flight sign-ins valid across restarts.
+      # SESSION_SECRET: change-me-to-a-long-random-value
     volumes:
       - ./data:/app/data
       - ./upload:/app/upload

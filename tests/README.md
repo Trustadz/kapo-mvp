@@ -43,6 +43,10 @@ suite runs locally before a PR; the CI gate does not run it yet.
   KAPO_E2E_PORT=3311 KAPO_E2E_DATABASE=./data/test-e2e-2.db npm run test:e2e
   ```
 - `data/kapo.db`, `data/projects.db` and `data/settings.db` are never opened.
+- The e2e suite also starts a dependency-free mock OIDC provider
+  (`tests/e2e/mock-oidc-server.ts`) on port 3402 and points
+  `KAPO_OIDC_ISSUER` at it, so the PocketID redirect flow is exercised without
+  a real PocketID container. `KAPO_E2E_MOCK_OIDC_PORT` overrides the port.
 
 ## Layout
 
@@ -53,20 +57,21 @@ tests/unit/      schema invariants, FTS helpers, auth primitives/CSRF/throttle,
                  add-on registry, HTTP conventions, Viewer shell rendering
 tests/domain/    build-spec §6 rules: permissions + access modes (inherit/
                  custom), project lifecycle, workflow, trash + purge, search
-tests/integration/ real route handlers: auth/setup, projects, accounts,
-                 dashboard/members, project admin surface, new features
-                 (workflow same-name replacement, view_fields, Tree bulk
-                 move, Trash grouping), add-on plumbing (value writes,
-                 modes/inheritance, explicit configuration, registry sync,
-                 search, purge hooks, layout/view field refs and card
+tests/integration/ real route handlers: auth/setup, PocketID/OIDC sign-in,
+                 projects, accounts, dashboard/members, project admin surface,
+                 new features (workflow same-name replacement, view_fields,
+                 Tree bulk move, Trash grouping), add-on plumbing (value
+                 writes, modes/inheritance, explicit configuration, registry
+                 sync, search, purge hooks, layout/view field refs and card
                  projection), the one-time copy-on-create snapshot, seed script
 tests/regressions/ architecture-review fix pass (AR-021…AR-052)
 tests/e2e/       first-install + seeded desktop journeys, including the
-                 Assignee add-on field-slot journey (Details, Properties,
-                 view meta, dialog edit and unavailable filtering), the
-                 focused Assignee add-on enable/save/persist journey, the
-                 project-settings copy-on-create/unsaved-changes guard, and the
-                 MCP enable → token → AI-provenance → revoke journey
+                 PocketID email-match/Viewer-provisioning flow, the Assignee
+                 add-on field-slot journey (Details, Properties, view meta,
+                 dialog edit and unavailable filtering), the focused Assignee
+                 add-on enable/save/persist journey, the project-settings
+                 copy-on-create/unsaved-changes guard, and the MCP enable →
+                 token → AI-provenance → revoke journey
 ```
 
 ## Known expected failures
