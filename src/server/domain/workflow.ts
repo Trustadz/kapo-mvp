@@ -1,8 +1,10 @@
 import type { Database as BetterSqliteDatabase } from 'better-sqlite3';
+import { AUDIT_ACTIONS, AUDIT_FIELDS } from '@/lib/audit';
 import type { Status } from '@/lib/types';
 import { DEFAULT_CHILD_WORKFLOW, insertWorkflow, type WorkflowStatusRow } from '@/server/db/bootstrap';
 import { parseJsonObject } from '@/server/db/util';
 import { assertInboxExitAllowed } from './addon-hooks';
+import { recordAuditEvent } from './audit';
 import { reindexProjectAddonSearch } from './project-addons';
 import { newId, nowIso } from '@/server/db/util';
 import {
@@ -476,21 +478,13 @@ export function replaceWorkflow(
       added.length > 0
         ? `Added status${added.length === 1 ? '' : 'es'}: ${added.join(', ')}`
         : 'Updated child workflow';
-    db.prepare(
-      `INSERT INTO audit_events
-         (id, project_id, actor_id, action, field, old_value, new_value, target_id, detail, created_at,
-          via_channel, via_agent, via_token_id)
-       VALUES (?, ?, ?, 'workflow.updated', NULL, NULL, NULL, NULL, ?, ?, ?, ?, ?)`,
-    ).run(
-      newId(),
-      parentId,
-      actor.id,
+    recordAuditEvent(db, {
+      projectId: parentId,
+      actor,
+      action: AUDIT_ACTIONS.workflowUpdated,
       detail,
-      timestamp,
-      actor.via?.channel ?? null,
-      actor.via?.agent ?? null,
-      actor.via?.tokenId ?? null,
-    );
+      createdAt: timestamp,
+    });
 
     return {
       workflow: getWorkflowData(db, parentId),
@@ -511,23 +505,16 @@ function recordChildStatusAudit(
   detail: string,
   timestamp: string,
 ): void {
-  db.prepare(
-    `INSERT INTO audit_events
-       (id, project_id, actor_id, action, field, old_value, new_value, target_id, detail, created_at,
-        via_channel, via_agent, via_token_id)
-     VALUES (?, ?, ?, 'project.status_changed', 'status', ?, ?, NULL, ?, ?, ?, ?, ?)`,
-  ).run(
-    newId(),
+  recordAuditEvent(db, {
     projectId,
-    actor.id,
+    actor,
+    action: AUDIT_ACTIONS.projectStatusChanged,
+    field: AUDIT_FIELDS.status,
     oldValue,
     newValue,
     detail,
-    timestamp,
-    actor.via?.channel ?? null,
-    actor.via?.agent ?? null,
-    actor.via?.tokenId ?? null,
-  );
+    createdAt: timestamp,
+  });
 }
 
 /** Maps a status id to its human name for audit/display purposes. */

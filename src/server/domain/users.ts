@@ -380,6 +380,87 @@ export async function createUser(
   };
 }
 
+export interface CreateSsoUserInput {
+  username: string;
+  email: string;
+  appRole: AppRole;
+  provider: string;
+  subject: string;
+}
+
+/**
+ * Creates an account for a first-time OIDC sign-in and links its external
+ * subject in one transaction. The account gets a random password hash that is
+ * never disclosed: password login remains available only if an Admin later
+ * resets it (useful as a break-glass path), and the hash keeps the normal
+ * password verification path well-defined for the NOT NULL column.
+ */
+export async function createSsoUser(
+  db: BetterSqliteDatabase,
+  input: CreateSsoUserInput,
+): Promise<AccountUser> {
+  const username = requireValidUsername(db, input.username);
+  const email = requireValidEmail(input.email);
+  const appRole = requireValidRole(input.appRole);
+  const passwordHash = await hashPassword(randomBytes(32).toString('base64url'));
+  const userId = newId();
+  const createdAt = nowIso();
+
+  try {
+    db.transaction(() => {
+      const existingEmail = db
+        .prepare('SELECT id FROM users WHERE email = ? COLLATE NOCASE LIMIT 1')
+        .get(email) as { id: string } | undefined;
+      if (existingEmail) {
+        throw new AccountError(
+          409,
+          'account_conflict',
+          'An account with this email already exists.',
+        );
+      }
+      db.prepare(
+        `INSERT INTO users (
+           id, username, email, password_hash, avatar, app_role, landing_page,
+           appearance, dashboard, show_archived, created_at
+         ) VALUES (?, ?, ?, ?, NULL, ?, 'home', 'system', ?, 0, ?)`,
+      ).run(
+        userId,
+        username,
+        email,
+        passwordHash,
+        appRole,
+        JSON.stringify(DEFAULT_DASHBOARD),
+        createdAt,
+      );
+      syncRootProjectRole(db, userId, appRole);
+      db.prepare(
+        `INSERT INTO user_identities (
+           id, user_id, provider, subject, email_at_link, created_at, last_login_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      ).run(newId(), userId, input.provider, input.subject, email, createdAt, createdAt);
+    })();
+  } catch (error) {
+    if (error instanceof AccountError) throw error;
+    if (isUniqueConstraintError(error)) {
+      throw new AccountError(
+        409,
+        'account_conflict',
+        'This account could not be linked. Try signing in again.',
+      );
+    }
+    throw error;
+  }
+
+  return {
+    id: userId,
+    username,
+    email,
+    avatar: null,
+    appRole,
+    createdAt,
+  };
+}
+
 export interface UpdateUserInput {
   id: string;
   username?: string;

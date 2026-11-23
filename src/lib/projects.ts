@@ -242,6 +242,7 @@ export interface ProjectPageHeader {
   parent: ProjectLink | null;
   isRoot: boolean;
   favorite: boolean;
+  watching: boolean;
   effectiveRole: ProjectRole;
   canEdit: boolean;
   canAdmin: boolean;
