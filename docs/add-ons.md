@@ -435,6 +435,9 @@ synthetic add-on. Wiring Assignee later only needs an `onValuesSaved` hook and a
 
 ## 4. Field types, values, validation
 
+Longtext values use Kapo's safe Markdown subset; see [markdown.md](markdown.md) for the supported
+syntax and limitations.
+
 The **type definitions** below are implemented in `types.ts` and enforced at registration where the
 registry can do so (shape of `options`/`optionsSource`, and `searchFields` must be `text`/`longtext`).
 The first add-on bundle also implements the generic value endpoint and field-type validation
@@ -937,16 +940,18 @@ inaccessible projects from search/dashboard.
 Assignee is specified in product.md §7 and shipped by issue #7 as the reference exercise for the
 contract: zero or one assignee per project, optional by default, application- and project-level
 availability, a required Inbox-exit gate, real **Details/Properties/view-property layout field
-slots** with a small edit dialog, and an **Assigned to me** dashboard widget definition. Building it
+slots** with inline editing (including the searchable people picker), and an **Assigned to me**
+dashboard widget definition. Building it
 added **no** `identifier === 'assignee'` branch to core; the definition lives only in
 `src/server/addons/assignee/` and registers through the manifest. Field-type-default compact values
 ship in all four collection views; the per-add-on `compactRenderer` bridge and dashboard-widget
 consumer remain FORWARD (§7/§9).
 
-It exercises every current type: the `user` field (zero-or-one), `hooks.validate` and
-`hooks.beforeLeaveInbox` (both wired at Inbox exit), the generic project-page editor and settings
-surfaces, `compactRenderer` (declared but still no core consumer), and `dashboardWidgets` (declared
-but still no consumer).
+It exercises every current type through the generic inline editors: the `user` field
+(zero-or-one) with the shared searchable combobox, `hooks.validate` and `hooks.beforeLeaveInbox`
+(both wired at Inbox exit), the generic project-page editor and settings surfaces,
+`compactRenderer` (declared but still no core consumer), and `dashboardWidgets` (declared but still
+no consumer).
 
 ### 12.1 Definition and registration
 

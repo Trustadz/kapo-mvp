@@ -5,9 +5,9 @@ import { expect, test, type Page } from '@playwright/test';
  * field-slot model.
  *
  * Add-on fields are placed in Details, Properties and a view like any core
- * field. There is no standalone Add-ons card; editing happens in a small dialog
- * opened from the field row. Unavailable add-ons hide their slots and values
- * without deleting either.
+ * field. There is no standalone Add-ons card; a user field opens the searchable
+ * people picker inline and saves immediately. Unavailable add-ons hide their
+ * slots and values without deleting either.
  */
 
 const PASSWORD = 'kapo1234';

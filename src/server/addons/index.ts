@@ -1,5 +1,6 @@
 import { registerAddon } from './registry';
 import { assigneeAddon } from './assignee';
+import { e2eFieldsAddon } from './fixtures';
 import type { AddonDefinition } from './types';
 
 /**
@@ -20,6 +21,7 @@ function registerSafely(definition: AddonDefinition): void {
 }
 
 registerSafely(assigneeAddon);
+if (process.env.KAPO_E2E_ADDONS === '1') registerSafely(e2eFieldsAddon);
 
 export type {
   AddonDefinition,

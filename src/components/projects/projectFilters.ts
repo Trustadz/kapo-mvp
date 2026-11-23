@@ -85,6 +85,7 @@ export interface ReporterFilterOption {
   id: string;
   /** Stored username; the UI formats it for display. */
   username: string;
+  avatar: string | null;
 }
 
 /**
@@ -95,12 +96,17 @@ export interface ReporterFilterOption {
 export function reporterFilterOptions(
   projects: readonly ProjectCard[],
 ): ReporterFilterOption[] {
-  const byId = new Map<string, string>();
+  const byId = new Map<string, { username: string; avatar: string | null }>();
   for (const project of projects) {
-    if (!byId.has(project.reporter.id)) byId.set(project.reporter.id, project.reporter.username);
+    if (!byId.has(project.reporter.id)) {
+      byId.set(project.reporter.id, {
+        username: project.reporter.username,
+        avatar: project.reporter.avatar,
+      });
+    }
   }
   return [...byId]
-    .map(([id, username]) => ({ id, username }))
+    .map(([id, reporter]) => ({ id, ...reporter }))
     .sort((a, b) => a.username.localeCompare(b.username) || a.id.localeCompare(b.id));
 }
 
