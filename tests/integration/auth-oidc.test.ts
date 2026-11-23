@@ -3,6 +3,11 @@ import { createHash } from 'node:crypto';
 import type { Database as BetterSqliteDatabase } from 'better-sqlite3';
 import { OIDC_TRANSACTION_COOKIE, SESSION_COOKIE } from '@/server/auth/cookies';
 import { resetOidcClientCacheForTests } from '@/server/auth/oidc';
+import {
+  AVATAR_ROUTE_PREFIX,
+  readAvatarFile,
+  saveAvatar,
+} from '@/server/domain/users';
 import { createTestDatabase, type TestDatabase } from '../helpers/db';
 import {
   cookieJar,
@@ -11,7 +16,11 @@ import {
   resetRequestContext,
 } from '../helpers/request-context';
 import { createRoot, createUser, type FixtureUser } from '../helpers/fixtures';
-import { startMockOidcServer, type MockOidcServer } from '../helpers/mock-oidc-server';
+import {
+  MOCK_AVATAR_PNG,
+  startMockOidcServer,
+  type MockOidcServer,
+} from '../helpers/mock-oidc-server';
 
 /**
  * End-to-end route-handler tests for PocketID/OIDC sign-in.
@@ -45,6 +54,7 @@ const ENV_KEYS = [
   'KAPO_OIDC_SCOPES',
   'KAPO_OIDC_PROVIDER_NAME',
   'KAPO_OIDC_AUTO_PROVISION',
+  'KAPO_OIDC_IMPORT_AVATAR',
   'KAPO_OIDC_ALLOW_INSECURE',
   'KAPO_PASSWORD_LOGIN',
   'KAPO_PUBLIC_URL',
@@ -95,6 +105,7 @@ beforeEach(() => {
     preferred_username: 'admin',
   });
   delete process.env.KAPO_OIDC_AUTO_PROVISION;
+  delete process.env.KAPO_OIDC_IMPORT_AVATAR;
   delete process.env.KAPO_PASSWORD_LOGIN;
 });
 
@@ -151,6 +162,13 @@ function sessionUser(): string | null {
 
 describe('PocketID sign-in', () => {
   it('links an existing account by email and keeps its Admin role', async () => {
+    oidc.setUser({
+      sub: 'sub-admin',
+      email: 'admin@example.com',
+      email_verified: true,
+      preferred_username: 'admin',
+      picture: `${oidc.url}/avatar`,
+    });
     const callbackUrl = await beginSignIn();
     const response = await finishSignIn(callbackUrl);
 
@@ -168,6 +186,14 @@ describe('PocketID sign-in', () => {
     expect(
       db.prepare('SELECT app_role FROM users WHERE id = ?').get(admin.id),
     ).toEqual({ app_role: 'admin' });
+
+    const avatar = db
+      .prepare('SELECT avatar FROM users WHERE id = ?')
+      .get(admin.id) as { avatar: string | null };
+    expect(avatar.avatar).toMatch(/^\/api\/me\/avatar\//);
+    expect(
+      readAvatarFile(avatar.avatar!.slice(AVATAR_ROUTE_PREFIX.length)),
+    ).toEqual(MOCK_AVATAR_PNG);
   });
 
   it('auto-provisions an unknown email as a Viewer with a Root grant', async () => {
@@ -176,6 +202,7 @@ describe('PocketID sign-in', () => {
       email: 'new-person@example.com',
       email_verified: true,
       preferred_username: 'New Person',
+      picture: `${oidc.url}/avatar`,
     });
 
     const callbackUrl = await beginSignIn();
@@ -192,6 +219,14 @@ describe('PocketID sign-in', () => {
     expect(created?.username).toBe('New-Person');
     expect(sessionUser()).toBe(created?.id);
 
+    const avatar = db
+      .prepare('SELECT avatar FROM users WHERE id = ?')
+      .get(created!.id) as { avatar: string | null };
+    expect(avatar.avatar).toMatch(/^\/api\/me\/avatar\//);
+    expect(
+      readAvatarFile(avatar.avatar!.slice(AVATAR_ROUTE_PREFIX.length)),
+    ).toEqual(MOCK_AVATAR_PNG);
+
     const root = db
       .prepare('SELECT id FROM projects WHERE parent_id IS NULL')
       .get() as { id: string };
@@ -200,6 +235,83 @@ describe('PocketID sign-in', () => {
         .prepare('SELECT role FROM project_roles WHERE project_id = ? AND user_id = ?')
         .get(root.id, created!.id),
     ).toEqual({ role: 'viewer' });
+  });
+
+  it('keeps an existing local avatar instead of overwriting it', async () => {
+    const existing = await createUser(db, {
+      username: 'has-avatar',
+      email: 'has-avatar@example.com',
+      appRole: 'user',
+    });
+    const original = saveAvatar(db, existing.id, MOCK_AVATAR_PNG, 'image/png');
+    oidc.setUser({
+      sub: 'sub-has-avatar',
+      email: 'has-avatar@example.com',
+      email_verified: true,
+      preferred_username: 'has-avatar',
+      picture: `${oidc.url}/avatar`,
+    });
+
+    const response = await finishSignIn(await beginSignIn());
+    expect(errorCode(response)).toBeNull();
+    expect(
+      db.prepare('SELECT avatar FROM users WHERE id = ?').get(existing.id),
+    ).toEqual({ avatar: original });
+  });
+
+  it('does not fetch a picture from another origin', async () => {
+    oidc.setUser({
+      sub: 'sub-foreign-picture',
+      email: 'foreign-picture@example.com',
+      email_verified: true,
+      preferred_username: 'foreign-picture',
+      picture: 'https://example.com/avatar.png',
+    });
+
+    const response = await finishSignIn(await beginSignIn());
+    expect(errorCode(response)).toBeNull();
+    expect(
+      db
+        .prepare('SELECT avatar FROM users WHERE email = ?')
+        .get('foreign-picture@example.com'),
+    ).toEqual({ avatar: null });
+  });
+
+  it('ignores a non-image picture response without blocking sign-in', async () => {
+    oidc.setUser({
+      sub: 'sub-bad-picture',
+      email: 'bad-picture@example.com',
+      email_verified: true,
+      preferred_username: 'bad-picture',
+      picture: `${oidc.url}/avatar-not-an-image`,
+    });
+
+    const response = await finishSignIn(await beginSignIn());
+    expect(errorCode(response)).toBeNull();
+    expect(
+      db
+        .prepare('SELECT avatar FROM users WHERE email = ?')
+        .get('bad-picture@example.com'),
+    ).toEqual({ avatar: null });
+  });
+
+  it('can disable avatar import', async () => {
+    process.env.KAPO_OIDC_IMPORT_AVATAR = '0';
+    oidc.setUser({
+      sub: 'sub-no-avatar-import',
+      email: 'no-avatar-import@example.com',
+      email_verified: true,
+      preferred_username: 'no-avatar-import',
+      picture: `${oidc.url}/avatar`,
+    });
+
+    const response = await finishSignIn(await beginSignIn());
+    expect(errorCode(response)).toBeNull();
+    expect(
+      db
+        .prepare('SELECT avatar FROM users WHERE email = ?')
+        .get('no-avatar-import@example.com'),
+    ).toEqual({ avatar: null });
   });
 
   it('reuses an existing identity even when the email changes', async () => {

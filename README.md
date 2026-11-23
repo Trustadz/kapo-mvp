@@ -102,6 +102,7 @@ Copy `.env.example` to `.env.local` if you need to override defaults:
 | `KAPO_OIDC_SCOPES` | `openid profile email` | Scopes requested from PocketID |
 | `KAPO_OIDC_PROVIDER_NAME` | `PocketID` | Label on the sign-in button |
 | `KAPO_OIDC_AUTO_PROVISION` | `1` | Create a Viewer for an unmatched email; `0` refuses new accounts |
+| `KAPO_OIDC_IMPORT_AVATAR` | `1` | Copy the PocketID `picture` when the account has no avatar; `0` disables |
 | `KAPO_OIDC_ALLOW_INSECURE` | unset | Local HTTP testing only; never enable in production |
 | `KAPO_PASSWORD_LOGIN` | `enabled` | Set to `disabled` to hide and reject password sign-in |
 | `SESSION_SECRET` | unset | Optional HMAC key for the short-lived OIDC state cookie |
@@ -178,6 +179,7 @@ database or its backups.
    # Optional:
    KAPO_OIDC_PROVIDER_NAME: PocketID
    KAPO_OIDC_AUTO_PROVISION: "1"
+   KAPO_OIDC_IMPORT_AVATAR: "1"
    SESSION_SECRET: <long random value>
    ```
 
@@ -188,6 +190,11 @@ How accounts are resolved:
 
 - The PocketID subject (`sub`) is the permanent link. Changing an email later
   does not move the account.
+- If the account has no Kapo avatar, the PocketID `picture` claim is downloaded
+  once and stored through the normal avatar pipeline. Kapo never overwrites a
+  picture the user uploaded itself. The URL must be on the issuer origin, is
+  fetched without redirects, and is limited to 2 MB / PNG, JPEG or WebP. Set
+  `KAPO_OIDC_IMPORT_AVATAR=0` to disable the fetch.
 - On first sign-in, an email that matches exactly one Kapo account and is not
   reported as unverified links that account and keeps its existing role. An
   Admin stays an Admin.
@@ -503,8 +510,10 @@ tests/                   Vitest and Playwright suites (owned by the tester)
   env-configured authorization-code + PKCE flow. The callback resolves an existing
   account by email or creates a Viewer, then issues the same database-backed
   `kapo_session`; no route or permission code changes. `user_identities` maps the
-  issuer and subject to a local user. Password login can be disabled with
-  `KAPO_PASSWORD_LOGIN=disabled`.
+  issuer and subject to a local user. When the account has no avatar, the
+  `picture` claim is fetched from the issuer origin and stored through the
+  existing avatar validation; local uploads are never overwritten. Password
+  login can be disabled with `KAPO_PASSWORD_LOGIN=disabled`.
 - Mutating API handlers must call `isSameOrigin(request)` (or use
   `rejectCrossOrigin()`) and return errors as
   `{ "error": { "code", "message", "fields"? } }` (`src/server/http.ts`).

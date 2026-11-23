@@ -18,6 +18,10 @@
   uses a local password.
 - `KAPO_OIDC_AUTO_PROVISION=0` refuses unknown emails instead of creating
   Viewers. `KAPO_OIDC_ALLOW_INSECURE=1` exists only for local HTTP testing.
+- When an account has no Kapo avatar, the PocketID `picture` claim is imported
+  through the existing avatar validation: issuer origin only, no redirects,
+  five-second timeout, 2 MB cap, PNG/JPEG/WebP magic bytes. A locally uploaded
+  avatar is never overwritten; `KAPO_OIDC_IMPORT_AVATAR=0` disables the fetch.
 - New `user_identities` table (migration `005`) mapping the OIDC issuer and
   subject to a local user. OIDC sign-in ends by creating the same
   database-backed Kapo session as password login, so guards and API routes are
