@@ -19,6 +19,7 @@ import { useToastMessage } from '@/components/ui/use-live-announcer';
 import { requestJson } from '@/lib/api-client';
 import { APP_ROLES, COLLECTION_VIEWS, type AppRole, type CollectionView } from '@/lib/types';
 import type { AddonApplicationConfig, AddonFieldValue, AddonMode } from '@/lib/addons';
+import type { DescriptionCapabilitySettings } from '@/lib/description';
 import { ADDON_MODE_OPTIONS } from '@/lib/addons';
 import { COLLECTION_VIEW_MESSAGE_KEYS, SHORT_ROLE_MESSAGE_KEYS } from '@/i18n/domain-labels';
 import { useI18n } from '@/i18n/client';
@@ -26,6 +27,7 @@ import type { BackupStatus } from '@/server/backup';
 import type { ApplicationSettings } from '@/server/domain/settings';
 import type { AccountUser } from '@/server/domain/users';
 import { AddonSettingsFields } from './AddonSettingsFields';
+import { DescriptionProviderCard } from './DescriptionProviderCard';
 import {
   addonsSaveBody,
   applicationSettingsReducer,
@@ -47,6 +49,7 @@ export interface ApplicationSettingsFormProps {
   settings: ApplicationSettings;
   backupStatus: BackupStatus;
   addons: AddonApplicationConfig[];
+  descriptionCapability: DescriptionCapabilitySettings;
   users: AccountUser[];
   defaultRole: AppRole;
 }
@@ -122,6 +125,7 @@ export function ApplicationSettingsForm({
   settings,
   backupStatus,
   addons,
+  descriptionCapability,
   users,
   defaultRole,
 }: ApplicationSettingsFormProps) {
@@ -138,7 +142,7 @@ export function ApplicationSettingsForm({
   const [savingTab, setSavingTab] = useState<ApplicationSettingsTab | null>(null);
   const { toast, notify, dismiss } = useToastMessage();
 
-  const tabs = applicationSettingsTabs(addons);
+  const tabs = applicationSettingsTabs(addons, descriptionCapability.providers.length > 0);
   const addonPatch = addonsSaveBody(state.addons, state.savedAddons, addons);
   const generalDirty = isGeneralDirty(state.general, state.savedGeneral);
   const backupDirty = isBackupDirty(state.backup, state.savedBackup);
@@ -339,6 +343,7 @@ export function ApplicationSettingsForm({
           >
             <AddonsPanel
               addons={addons}
+              descriptionCapability={descriptionCapability}
               drafts={state.addons}
               errors={addonErrors}
               formError={formErrors.addons ?? null}
@@ -664,6 +669,7 @@ function BackupsPanel({
 
 interface AddonsPanelProps {
   addons: AddonApplicationConfig[];
+  descriptionCapability: DescriptionCapabilitySettings;
   drafts: Record<string, AddonDraft>;
   errors: Record<string, string>;
   formError: string | null;
@@ -677,6 +683,7 @@ interface AddonsPanelProps {
 
 function AddonsPanel({
   addons,
+  descriptionCapability,
   drafts,
   errors,
   formError,
@@ -698,6 +705,8 @@ function AddonsPanel({
       <h2 className={styles.panelTitle}>{t('addons.applicationHeading')}</h2>
       {formError ? <Notice tone="error">{formError}</Notice> : null}
       <p className={styles.note}>{t('addons.applicationHint')}</p>
+
+      <DescriptionProviderCard capability={descriptionCapability} />
 
       {addons.map((addon) => {
         const draft = drafts[addon.identifier];

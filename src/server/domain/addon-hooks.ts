@@ -1,5 +1,5 @@
 import type { Database as BetterSqliteDatabase } from 'better-sqlite3';
-import { listAddons } from '@/server/addons';
+import { listPropertyAddons } from '@/server/addons';
 import type { AddonDefinition, AddonFieldValue, AddonValidationIssue } from '@/server/addons';
 import { parseJsonObject } from '@/server/db/util';
 import { getAddonMode } from './project-addons';
@@ -56,7 +56,7 @@ function runHook(
  * add-on rejects the transition.
  */
 export function assertInboxExitAllowed(db: BetterSqliteDatabase, projectId: string): void {
-  const addons = listAddons();
+  const addons = listPropertyAddons();
   if (addons.length === 0) return;
   const values = addonValuesFor(db, projectId);
   const issues: AddonValidationIssue[] = [];

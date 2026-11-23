@@ -1,3 +1,4 @@
+import type { ProjectDescriptionData } from './description';
 import type { AppRole, CollectionView, ProjectRole, Status } from './types';
 import {
   isAddonFieldRef,
@@ -279,6 +280,8 @@ export interface ProjectPageData {
   layout: ProjectLayoutTemplate;
   /** Registered add-ons that are effectively available for this project. */
   addons: ProjectAddonEditorData;
+  /** Core description record plus the active provider. */
+  description: ProjectDescriptionData;
   showArchived: boolean;
 }
 

@@ -94,6 +94,7 @@ function daysAgo(days: number, hour: number, minute: number): string {
 export function clearDatabase(db: BetterSqliteDatabase): void {
   db.exec(`
     DELETE FROM project_search;
+    DELETE FROM project_descriptions;
     DELETE FROM audit_events;
     DELETE FROM favorites;
     DELETE FROM project_roles;
@@ -119,6 +120,7 @@ export function clearDatabase(db: BetterSqliteDatabase): void {
     DELETE FROM trash_actions;
     DELETE FROM users;
     DELETE FROM settings;
+    DELETE FROM addon_capabilities;
     DELETE FROM addons;
   `);
 }

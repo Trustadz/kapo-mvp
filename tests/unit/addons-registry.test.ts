@@ -4,6 +4,8 @@ import {
   clearAddonsForTests,
   getAddon,
   listAddons,
+  listCapabilityProviders,
+  listPropertyAddons,
   registerAddon,
 } from '@/server/addons/registry';
 
@@ -180,6 +182,67 @@ describe('field validation', () => {
       registerAddon(addon({ fields: [field({ key: 'notes' })], searchFields: ['notes', 'ghost'] })),
     ).toThrow(/unknown search field "ghost"/);
     expect(listAddons()).toEqual([]);
+  });
+});
+
+
+describe('capability definitions', () => {
+  it('accepts a description provider with format compatibility', () => {
+    registerAddon(
+      addon({
+        identifier: 'description-markdown',
+        capabilities: ['description'],
+        formats: { reads: ['markdown@1'], writes: ['markdown@1'] },
+        fields: [],
+      }),
+    );
+    expect(listCapabilityProviders('description').map((entry) => entry.identifier)).toEqual([
+      'description-markdown',
+    ]);
+    expect(listPropertyAddons()).toEqual([]);
+  });
+
+  it('rejects a description provider without formats', () => {
+    expect(() =>
+      registerAddon(
+        addon({
+          identifier: 'description-broken',
+          capabilities: ['description'],
+          fields: [],
+        }),
+      ),
+    ).toThrow(/declares no formats/);
+  });
+
+  it('rejects a format it writes but does not read', () => {
+    expect(() =>
+      registerAddon(
+        addon({
+          identifier: 'description-broken',
+          capabilities: ['description'],
+          formats: { reads: ['markdown@1'], writes: ['html@1'] },
+          fields: [],
+        }),
+      ),
+    ).toThrow(/does not declare that it reads it/);
+  });
+
+  it('rejects an unknown capability', () => {
+    expect(() =>
+      registerAddon(
+        addon({
+          identifier: 'description-broken',
+          capabilities: ['made-up' as never],
+          fields: [],
+        }),
+      ),
+    ).toThrow(/unknown capability/);
+  });
+
+  it('keeps definitions without capabilities as property add-ons', () => {
+    registerAddon(addon());
+    expect(listPropertyAddons().map((entry) => entry.identifier)).toEqual(['assignee']);
+    expect(listCapabilityProviders('description')).toEqual([]);
   });
 });
 

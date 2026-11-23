@@ -20,6 +20,38 @@
 export const ADDON_MODES = ['required', 'always', 'optional', 'unavailable'] as const;
 
 export type AddonMode = (typeof ADDON_MODES)[number];
+
+/**
+ * Typed contributions an add-on can make to Kapo. A definition without an
+ * explicit `capabilities` list is a property add-on, matching the original
+ * field-only contract.
+ *
+ * This first slice implements `description`; the remaining values are reserved
+ * so later work does not need to widen this union under pressure.
+ */
+export const ADDON_CAPABILITIES = [
+  'property',
+  'description',
+  'comments',
+  'project-icon',
+  'filter',
+  'dashboard-widget',
+  'automation',
+  'custom-fields',
+] as const;
+
+export type AddonCapability = (typeof ADDON_CAPABILITIES)[number];
+
+/**
+ * Format compatibility declared by an exclusive content provider. Format ids
+ * are provider-owned and versioned (for example `markdown@1`). A provider must
+ * be able to read every format it writes.
+ */
+export interface AddonFormats {
+  readonly reads: readonly string[];
+  readonly writes: readonly string[];
+}
+
 export type AddonFieldType = 'boolean' | 'number' | 'text' | 'longtext' | 'date' | 'select' | 'user';
 export type AddonFieldValue = string | number | boolean | null;
 
@@ -167,6 +199,16 @@ export interface AddonDefinition {
   version: string;
   /** Product default stored by the registry→`addons` table sync (default `optional`). */
   defaultMode?: AddonMode;
+  /**
+   * Typed contributions. Omitted means `['property']`, preserving the shipped
+   * field-only add-on contract.
+   */
+  capabilities?: readonly AddonCapability[];
+  /**
+   * Required for exclusive content providers (currently `description`). Core
+   * stores the format id and plaintext; it never parses the rich body.
+   */
+  formats?: AddonFormats;
   fields: AddonFieldDefinition[];
   /**
    * Optional application-wide settings, rendered under

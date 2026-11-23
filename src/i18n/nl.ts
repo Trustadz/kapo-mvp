@@ -412,6 +412,7 @@ export const nl: Messages = {
       '{actor} heeft een onderliggend project naar de prullenbak verplaatst',
     inboxReleased: '{actor} heeft het uit de Inbox vrijgegeven',
     workflowUpdated: '{actor} heeft de workflow voor onderliggende projecten gewijzigd',
+    descriptionUpdated: '{actor} heeft de beschrijving bijgewerkt',
     updatedField: '{actor} heeft {field} bijgewerkt',
     updatedProject: '{actor} heeft het project bijgewerkt',
     valuesFromTo: 'Van: {old} · Naar: {new}',
@@ -427,6 +428,26 @@ export const nl: Messages = {
     detailWorkflowUpdated: 'Workflow voor onderliggende projecten bijgewerkt',
     detailAddedStatus: 'Status toegevoegd: {names}',
     detailAddedStatuses: 'Statussen toegevoegd: {names}',
+  },
+  description: {
+    heading: 'Beschrijving',
+    empty: 'Nog geen beschrijving.',
+    add: 'Beschrijving toevoegen',
+    edit: 'Beschrijving bewerken',
+    save: 'Beschrijving opslaan',
+    saved: 'Beschrijving opgeslagen.',
+    unsupportedFormat:
+      'De actieve beschrijvingsprovider kan dit formaat niet bewerken. De tekst wordt als platte tekst getoond.',
+    providerHeading: 'Beschrijvingsprovider',
+    providerHint:
+      'Kies welke add-on projectbeschrijvingen bewerkt. Bestaande inhoud blijft bewaard; formaten die de nieuwe provider niet kan lezen, worden als platte tekst getoond.',
+    providerLabel: 'Actieve provider',
+    providerNone: 'Geen provider (alleen platte tekst)',
+    providerSaved: 'Beschrijvingsprovider opgeslagen.',
+    providerWarning:
+      'Bestaande beschrijvingen met een formaat dat deze provider niet kan bewerken: {count}. Deze worden alleen-lezen platte tekst.',
+    formatsInUse: 'Opgeslagen formaten: {formats}',
+    noDescriptions: 'Nog geen beschrijvingen opgeslagen.',
   },
   markdown: {
     edit: 'Bewerken',

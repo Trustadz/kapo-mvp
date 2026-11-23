@@ -24,6 +24,7 @@ import { ActivityPanel } from './ActivityPanel';
 import { AddonFieldEditor } from './AddonFieldEditor';
 import { InlineProjectTitle } from './InlineProjectTitle';
 import { ChildProjects } from './ChildProjects';
+import { ProjectDescription } from './ProjectDescription';
 import {
   readShowInboxPreference,
   writeShowInboxPreference,
@@ -612,6 +613,17 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
 
       <div className={styles.workspace}>
         {childBefore ? childSection : null}
+
+        {!compactLayout ? (
+          <ProjectDescription
+            key={`${data.description.provider?.identifier ?? 'none'}-${data.description.record?.updatedAt ?? 'empty'}`}
+            projectId={project.id}
+            description={data.description}
+            canEdit={canEdit && !project.trashed}
+            notify={notify}
+            onSaved={refresh}
+          />
+        ) : null}
 
         {!compactLayout ? (
           <div className={styles.overview}>

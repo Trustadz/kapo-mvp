@@ -4,7 +4,7 @@ import {
   type ProjectLayoutTemplate,
 } from '@/lib/projects';
 import { parseJsonObject } from '@/server/db/util';
-import { listAddons } from '@/server/addons';
+import { listPropertyAddons } from '@/server/addons';
 import { parseProjectSettings } from './projects';
 import {
   reindexAllProjectAddonSearch,
@@ -142,7 +142,7 @@ export function snapshotInheritanceOnce(
   }
 
   const prepared = prepareSnapshots(db);
-  const registeredAddons = listAddons().length;
+  const registeredAddons = listPropertyAddons().length;
 
   db.transaction(() => {
     const update = db.prepare('UPDATE projects SET settings = ? WHERE id = ?');

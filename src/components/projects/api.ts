@@ -12,6 +12,7 @@ import type {
 import type { ProjectRole, Status } from '@/lib/types';
 import type { ProjectAccessMode } from '@/lib/projects';
 import type { AddonFieldValue, ProjectAddonConfigView } from '@/lib/addons';
+import type { ProjectDescriptionData } from '@/lib/description';
 
 /** Client-side calls to the project APIs; every error carries the §7 shape. */
 
@@ -260,4 +261,25 @@ export function reorderInboxRequest(
   body: { targetId: string; edge: 'before' | 'after' },
 ): Promise<ApiResult<{ project: ProjectCard }>> {
   return postJson(`/api/inbox/${projectId}/reorder`, body);
+}
+
+
+export interface DescriptionSaveBody {
+  body: string;
+  format: string;
+  plaintext: string;
+  metadata?: Record<string, unknown>;
+  mentions?: string[];
+}
+
+/** PATCH /api/projects/:id/description — save through the active provider. */
+export function saveProjectDescription(
+  projectId: string,
+  body: DescriptionSaveBody,
+): Promise<ApiResult<{ description: ProjectDescriptionData }>> {
+  return requestJson(`/api/projects/${projectId}/description`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
 }

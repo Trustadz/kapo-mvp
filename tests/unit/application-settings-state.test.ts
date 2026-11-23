@@ -75,6 +75,12 @@ function initial(): ApplicationSettingsState {
 describe('application settings tabs', () => {
   it('offers General and Backups, adding Add-ons only when the registry is non-empty', () => {
     expect(applicationSettingsTabs([])).toEqual(['general', 'backups', 'users']);
+    expect(applicationSettingsTabs([], true)).toEqual([
+      'general',
+      'backups',
+      'addons',
+      'users',
+    ]);
     expect(applicationSettingsTabs(addons)).toEqual([
       'general',
       'backups',

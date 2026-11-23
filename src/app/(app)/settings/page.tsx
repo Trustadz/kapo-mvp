@@ -4,6 +4,7 @@ import { requireAdmin } from '@/server/auth/current-user';
 import { getBackupStatus } from '@/server/backup';
 import { getDb } from '@/server/db/connection';
 import { listAddonApplicationConfigs } from '@/server/domain/project-addons';
+import { getDescriptionCapabilitySettings } from '@/server/domain/description';
 import { getApplicationSettings, getDefaultAccountRole } from '@/server/domain/settings';
 import { listUsers } from '@/server/domain/users';
 import { getI18n } from '@/i18n/server';
@@ -20,6 +21,7 @@ export default async function ApplicationSettingsPage() {
   const db = getDb();
   const settings = getApplicationSettings(db);
   const addons = listAddonApplicationConfigs(db);
+  const descriptionCapability = getDescriptionCapabilitySettings(db);
   const backupStatus = getBackupStatus(db);
   const users = listUsers(db);
   const defaultRole = getDefaultAccountRole(db);
@@ -37,6 +39,7 @@ export default async function ApplicationSettingsPage() {
         settings={settings}
         backupStatus={backupStatus}
         addons={addons}
+        descriptionCapability={descriptionCapability}
         users={users}
         defaultRole={defaultRole}
       />
