@@ -148,27 +148,44 @@ test('places the bell between Search and the avatar on mobile', async ({ page })
   const settings = page.getByRole('button', { name: 'Project actions' });
   const favorite = page.getByRole('button', { name: 'Favorite', exact: true });
   const watch = page.getByRole('button', { name: /^(Watch|Watching)$/ });
+  const title = page.getByRole('heading', { level: 1, name: 'Home improvement' });
   await expect(breadcrumb).toBeVisible();
   await expect(settings).toBeVisible();
   await expect(favorite).toBeVisible();
   await expect(watch).toBeVisible();
+  await expect(title).toBeVisible();
 
   const breadcrumbBox = await breadcrumb.boundingBox();
   const settingsBox = await settings.boundingBox();
   const favoriteBox = await favorite.boundingBox();
   const watchBox = await watch.boundingBox();
+  const titleBox = await title.boundingBox();
   expect(breadcrumbBox).not.toBeNull();
   expect(settingsBox).not.toBeNull();
   expect(favoriteBox).not.toBeNull();
   expect(watchBox).not.toBeNull();
+  expect(titleBox).not.toBeNull();
   expect(settingsBox!.x).toBeGreaterThan(breadcrumbBox!.x + breadcrumbBox!.width);
   expect(settingsBox!.y + settingsBox!.height / 2).toBeCloseTo(
     breadcrumbBox!.y + breadcrumbBox!.height / 2,
     0,
   );
+
+  // The actions are stacked beside the title, not on a row of their own.
+  expect(favoriteBox!.x).toBeGreaterThan(titleBox!.x + titleBox!.width);
+  expect(Math.abs(favoriteBox!.y - titleBox!.y)).toBeLessThanOrEqual(4);
+  expect(watchBox!.y).toBeGreaterThan(favoriteBox!.y);
+  expect(watchBox!.y).toBeLessThan(favoriteBox!.y + favoriteBox!.height + 8);
+  expect(favoriteBox!.width).toBeLessThanOrEqual(30);
   expect(favoriteBox!.height).toBeLessThanOrEqual(30);
+  expect(watchBox!.width).toBeLessThanOrEqual(30);
   expect(watchBox!.height).toBeLessThanOrEqual(30);
-  expect(favoriteBox!.x + favoriteBox!.width).toBeLessThan(watchBox!.x);
+
+  // Both compact controls share the right edge of the settings trigger.
+  expect(favoriteBox!.x + favoriteBox!.width).toBeCloseTo(
+    settingsBox!.x + settingsBox!.width,
+    0,
+  );
   expect(watchBox!.x + watchBox!.width).toBeCloseTo(
     settingsBox!.x + settingsBox!.width,
     0,

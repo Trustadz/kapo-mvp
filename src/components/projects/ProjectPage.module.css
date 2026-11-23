@@ -534,20 +534,32 @@
   }
 
   .headerRow {
-    flex-direction: column;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: var(--space-3);
+  }
+
+  .titleGroup {
+    flex: 1;
   }
 
   .headerActions {
-    align-self: stretch;
-    justify-content: flex-end;
+    flex-direction: column;
+    align-items: flex-end;
+    align-self: flex-start;
     gap: var(--space-1);
   }
 
   .headerActions .compactHeaderAction {
-    height: 28px;
-    padding: 0 var(--space-2);
-    font-size: var(--font-size-small);
-    gap: var(--space-1);
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    gap: 0;
+    border-radius: var(--radius-pill);
+  }
+
+  .headerActions .compactHeaderAction .headerActionLabel {
+    display: none;
   }
 
   .mobileSettings {

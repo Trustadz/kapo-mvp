@@ -589,17 +589,19 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
                     variant="ghost"
                     size="sm"
                     className={styles.compactHeaderAction}
+                    aria-label={t('project.favorite')}
                     aria-pressed={project.favorite}
                     onClick={() => void toggleFavorite()}
                     disabled={favoriteSaving}
                     icon={<Icon name="star" size={18} filled={project.favorite} />}
                   >
-                    {t('project.favorite')}
+                    <span className={styles.headerActionLabel}>{t('project.favorite')}</span>
                   </Button>
                   <Button
                     variant="ghost"
                     size="sm"
                     className={styles.compactHeaderAction}
+                    aria-label={project.watching ? t('project.watching') : t('project.watch')}
                     aria-pressed={project.watching}
                     onClick={() => void toggleWatch()}
                     disabled={watchSaving}
@@ -611,7 +613,9 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
                       />
                     }
                   >
-                    {project.watching ? t('project.watching') : t('project.watch')}
+                    <span className={styles.headerActionLabel}>
+                      {project.watching ? t('project.watching') : t('project.watch')}
+                    </span>
                   </Button>
                 </>
               ) : null}
