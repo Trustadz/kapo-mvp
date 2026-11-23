@@ -75,7 +75,7 @@
   width: 218px;
   justify-content: flex-start;
   height: var(--input-height);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-control-border);
   font-weight: 400;
   color: var(--color-text);
 }

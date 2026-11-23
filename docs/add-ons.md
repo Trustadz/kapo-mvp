@@ -372,6 +372,9 @@ Required.
 
 ## 4. Field types, values, validation
 
+Longtext values use Kapo's safe Markdown subset; see [markdown.md](markdown.md) for the supported
+syntax and limitations.
+
 The **type definitions** below are implemented in `types.ts` and enforced at registration where the
 registry can do so (shape of `options`/`optionsSource`, and `searchFields` must be `text`/`longtext`).
 The first add-on bundle also implements the generic value endpoint and field-type validation

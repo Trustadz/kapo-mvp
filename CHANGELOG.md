@@ -16,6 +16,8 @@
 - A reusable **Combobox** primitive for searchable single-selects with optional
   avatars and descriptions. The add-on user field and `optionsSource: 'users'`
   selects use it.
+- The **reporter filter** now uses the same searchable avatar Combobox as the
+  add-on user picker, replacing the native select.
 
 ### Changed
 
@@ -28,8 +30,18 @@
   card meta keeps longtext as stripped plain text. The per-field PATCH
   semantics, permissions, audit entries and APIs are unchanged; the old add-on
   edit dialog and its styles are removed.
+- The project page now groups **Details, Properties and the collection view** in
+  one white workspace instead of separate cards, with a divider between Details
+  and Properties.
+- Form controls (search, status, reporter/add-on comboboxes and inputs) share
+  the same softer border treatment. Mobile Activity history uses tighter side
+  padding, and the drag instructions are visually hidden while remaining
+  available to screen readers.
 - The Markdown editor is available for add-on longtext values only; no schema
   migration or release/version change is included.
+
+- Added [docs/markdown.md](docs/markdown.md), documenting the supported Markdown
+  subset, link safety, and compact/collection-card behavior.
 
 ## 0.4.1 — 2026-11-22
 

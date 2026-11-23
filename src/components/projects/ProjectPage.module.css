@@ -299,7 +299,7 @@
   width: 100%;
   min-height: var(--input-height);
   padding: 0 var(--space-2);
-  border-color: var(--color-border);
+  border-color: var(--color-control-border);
   background: var(--color-surface);
 }
 
