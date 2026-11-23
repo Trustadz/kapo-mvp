@@ -17,6 +17,7 @@ type Params = { id: string };
 const SETTING_KEYS = [
   'inherit_layout',
   'child_position',
+  'layout_mode',
   'default_view',
   'enabled_views',
   'hidden_statuses',

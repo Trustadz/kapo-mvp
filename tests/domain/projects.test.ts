@@ -12,6 +12,7 @@ import {
   updateProjectSettings,
 } from '@/server/domain/projects';
 import { DomainError } from '@/server/domain/permissions';
+import { resolveProjectLayoutMode } from '@/lib/projects';
 import { createTestDatabase, type TestDatabase } from '../helpers/db';
 import {
   createProject as createFixtureProject,
@@ -1016,5 +1017,59 @@ describe('layout template defaults (issue #17)', () => {
     });
     const own = getProjectPageData(db, actor(fixture.admin), created.id)!;
     expect(own.layout).toEqual({ main: ['updated'], sidebar: ['parent'] });
+  });
+});
+
+describe('project layout mode', () => {
+  let fixture: Fixture;
+
+  beforeAll(async () => {
+    fixture = await makeFixture('layout-mode');
+  });
+
+  it('defaults ordinary projects to full and Root to children + history', () => {
+    const home = getProjectPageData(db, actor(fixture.admin), fixture.homeId)!;
+    expect(home.settings.layout_mode).toBeNull();
+    expect(resolveProjectLayoutMode(home.settings, false)).toBe('full');
+
+    const root = getProjectPageData(db, actor(fixture.admin), fixture.rootId)!;
+    expect(root.settings.layout_mode).toBeNull();
+    expect(resolveProjectLayoutMode(root.settings, true)).toBe('children');
+  });
+
+  it('stores the selected mode and copies it to new children', () => {
+    updateProjectSettings(db, actor(fixture.admin), fixture.homeId, {
+      layout_mode: 'children',
+    });
+    const home = getProjectPageData(db, actor(fixture.admin), fixture.homeId)!;
+    expect(home.settings.layout_mode).toBe('children');
+
+    const created = createProject(db, actor(fixture.admin), {
+      parentId: fixture.homeId,
+      title: 'Focused child',
+    });
+    const child = getProjectPageData(db, actor(fixture.admin), created.id)!;
+    expect(child.settings.layout_mode).toBe('children');
+  });
+
+  it('does not copy Root’s focused default to a new Root child', () => {
+    updateProjectSettings(db, actor(fixture.admin), fixture.rootId, {
+      layout_mode: 'children',
+    });
+    const created = createProject(db, actor(fixture.admin), {
+      parentId: fixture.rootId,
+      title: 'Root focused child',
+    });
+    const child = getProjectPageData(db, actor(fixture.admin), created.id)!;
+    expect(child.settings.layout_mode).toBeNull();
+    expect(resolveProjectLayoutMode(child.settings, false)).toBe('full');
+  });
+
+  it('rejects an unknown layout mode', () => {
+    expect(() =>
+      updateProjectSettings(db, actor(fixture.admin), fixture.homeId, {
+        layout_mode: 'minimal',
+      }),
+    ).toThrow(DomainError);
   });
 });

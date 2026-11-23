@@ -68,6 +68,13 @@
   gap: var(--space-2);
 }
 
+/* Root hides its redundant breadcrumb, title and Favorite; keep the project
+   actions menu reachable without reserving a title row. */
+.rootHeader {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .headerRow {
   display: flex;
   align-items: flex-start;
@@ -219,13 +226,18 @@
   color: var(--color-text);
 }
 
-.sectionHeader {
+/* Filter controls and the view/Add actions share one toolbar row; the filter
+   group keeps its own semantic grouping. */
+.collectionToolbar {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-4);
+  gap: var(--space-2);
   flex-wrap: wrap;
   margin-bottom: var(--space-3);
+}
+
+.collectionToolbar .filterBar {
+  flex: 1 1 auto;
 }
 
 .sectionActions {
@@ -233,6 +245,7 @@
   align-items: center;
   gap: var(--space-3);
   flex-wrap: wrap;
+  margin-left: auto;
 }
 
 /* Child collection filter bar (issue #55) ------------------------------- */
@@ -242,7 +255,6 @@
   align-items: center;
   gap: var(--space-2);
   flex-wrap: wrap;
-  margin-bottom: var(--space-3);
 }
 
 .filterSearch {
@@ -506,6 +518,11 @@
     font-size: 26px;
   }
 
+  .collectionToolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .filterBar {
     flex-direction: column;
     align-items: stretch;
@@ -522,10 +539,6 @@
 
   .filterCount {
     white-space: normal;
-  }
-
-  .sectionHeader {
-    align-items: flex-start;
   }
 
   .sectionActions {

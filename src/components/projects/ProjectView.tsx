@@ -14,6 +14,7 @@ import {
   type AddonFieldDefinition,
 } from '@/lib/addons';
 import { PROJECT_FIELD_MESSAGE_KEYS } from '@/i18n/domain-labels';
+import { resolveProjectLayoutMode } from '@/lib/projects';
 import { useI18n } from '@/i18n/client';
 import { useToastMessage } from '@/components/ui/use-live-announcer';
 import { markFieldChanged } from '@/lib/changed-fields';
@@ -280,6 +281,8 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
     showInboxState.projectId === data.project.id ? showInboxState.show : false;
 
   const project = data.project;
+  const layoutMode = resolveProjectLayoutMode(data.settings, project.isRoot);
+  const compactLayout = layoutMode === 'children';
   const statusChanged = useFieldChanged(project.id, 'status');
   const refresh = () => router.refresh();
 
@@ -292,6 +295,9 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
   const canAdmin = project.canAdmin;
   const canEdit = project.canEdit;
   const childPositionAbove = data.settings.child_position === 'above';
+  // The focused layout always puts the child viewer directly under the header,
+  // with Activity last; child_position only applies to the full page.
+  const childBefore = compactLayout || childPositionAbove;
 
   const openMove = (projectId: string, destinationId?: string) => {
     const known =
@@ -534,98 +540,116 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
 
   return (
     <div className={styles.page}>
-      <div>
-        <div className={styles.breadcrumbRow}>
-          <nav
-            className={`${styles.breadcrumb} ${styles.breadcrumbNav}`}
-            aria-label={t('project.breadcrumb')}
-          >
-            {project.isRoot ? (
-              <span>{t('project.projectsBreadcrumb')}</span>
-            ) : data.breadcrumb.length === 0 ? (
-              <span>{t('project.projectsBreadcrumb')}</span>
-            ) : (
-              <>
-                {data.breadcrumb.map((ancestor) => (
-                  <span key={ancestor.id} className={styles.breadcrumbItem}>
-                    <Link href={`/p/${ancestor.id}`} className={styles.breadcrumbLink}>
-                      {ancestor.title}
-                    </Link>
-                    <span className={styles.breadcrumbSeparator}>/</span>
-                  </span>
-                ))}
-                <span aria-current="page">{project.title}</span>
-              </>
-            )}
-          </nav>
-          <div className={styles.mobileSettings}>
-            <ProjectSettingsMenu
-              items={menuItems}
-              label={t('project.actions')}
-              triggerClassName={styles.mobileSettingsButton}
-            />
-          </div>
-        </div>
-        <header className={styles.header}>
-          <div className={styles.headerRow}>
-            <div className={styles.titleGroup}>
-              <div className={styles.titleRow}>
-                <h1 className={styles.title}>{project.title}</h1>
-                {project.trashed ? (
-                  <Badge tone="danger">{t('project.inTrash')}</Badge>
-                ) : null}
-                {project.archived ? (
-                  <Badge tone="archived">{t('common.archived')}</Badge>
-                ) : null}
-                {project.inbox && !project.trashed ? (
-                  <Badge tone="warning">{t('common.inboxBadge')}</Badge>
-                ) : null}
-              </div>
+      {project.isRoot ? (
+        <>
+          {/* Root's name and place are already in the app shell; keep an
+              accessible page heading without repeating them on screen. */}
+          <h1 className="visually-hidden">{project.title}</h1>
+          <header className={styles.rootHeader}>
+            <div className={styles.mobileSettings}>
+              <ProjectSettingsMenu
+                items={menuItems}
+                label={t('project.actions')}
+                triggerClassName={styles.mobileSettingsButton}
+              />
             </div>
-            <div className={styles.headerActions}>
-              {!project.trashed ? (
+            <div className={styles.desktopSettings}>
+              <ProjectSettingsMenu items={menuItems} label={t('project.actions')} />
+            </div>
+          </header>
+        </>
+      ) : (
+        <div>
+          <div className={styles.breadcrumbRow}>
+            <nav
+              className={`${styles.breadcrumb} ${styles.breadcrumbNav}`}
+              aria-label={t('project.breadcrumb')}
+            >
+              {data.breadcrumb.length === 0 ? (
+                <span>{t('project.projectsBreadcrumb')}</span>
+              ) : (
                 <>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={styles.compactHeaderAction}
-                    aria-label={t('project.favorite')}
-                    aria-pressed={project.favorite}
-                    onClick={() => void toggleFavorite()}
-                    disabled={favoriteSaving}
-                    icon={<Icon name="star" size={18} filled={project.favorite} />}
-                  >
-                    <span className={styles.headerActionLabel}>{t('project.favorite')}</span>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={styles.compactHeaderAction}
-                    aria-label={project.watching ? t('project.watching') : t('project.watch')}
-                    aria-pressed={project.watching}
-                    onClick={() => void toggleWatch()}
-                    disabled={watchSaving}
-                    icon={
-                      <Icon
-                        name={project.watching ? 'visibility' : 'visibility_off'}
-                        size={18}
-                        filled={project.watching}
-                      />
-                    }
-                  >
-                    <span className={styles.headerActionLabel}>
-                      {project.watching ? t('project.watching') : t('project.watch')}
+                  {data.breadcrumb.map((ancestor) => (
+                    <span key={ancestor.id} className={styles.breadcrumbItem}>
+                      <Link href={`/p/${ancestor.id}`} className={styles.breadcrumbLink}>
+                        {ancestor.title}
+                      </Link>
+                      <span className={styles.breadcrumbSeparator}>/</span>
                     </span>
-                  </Button>
+                  ))}
+                  <span aria-current="page">{project.title}</span>
                 </>
-              ) : null}
-              <div className={styles.desktopSettings}>
-                <ProjectSettingsMenu items={menuItems} label={t('project.actions')} />
-              </div>
+              )}
+            </nav>
+            <div className={styles.mobileSettings}>
+              <ProjectSettingsMenu
+                items={menuItems}
+                label={t('project.actions')}
+                triggerClassName={styles.mobileSettingsButton}
+              />
             </div>
           </div>
-        </header>
-      </div>
+          <header className={styles.header}>
+            <div className={styles.headerRow}>
+              <div className={styles.titleGroup}>
+                <div className={styles.titleRow}>
+                  <h1 className={styles.title}>{project.title}</h1>
+                  {project.trashed ? (
+                    <Badge tone="danger">{t('project.inTrash')}</Badge>
+                  ) : null}
+                  {project.archived ? (
+                    <Badge tone="archived">{t('common.archived')}</Badge>
+                  ) : null}
+                  {project.inbox && !project.trashed ? (
+                    <Badge tone="warning">{t('common.inboxBadge')}</Badge>
+                  ) : null}
+                </div>
+              </div>
+              <div className={styles.headerActions}>
+                {!project.trashed ? (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={styles.compactHeaderAction}
+                      aria-label={t('project.favorite')}
+                      aria-pressed={project.favorite}
+                      onClick={() => void toggleFavorite()}
+                      disabled={favoriteSaving}
+                      icon={<Icon name="star" size={18} filled={project.favorite} />}
+                    >
+                      <span className={styles.headerActionLabel}>{t('project.favorite')}</span>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={styles.compactHeaderAction}
+                      aria-label={project.watching ? t('project.watching') : t('project.watch')}
+                      aria-pressed={project.watching}
+                      onClick={() => void toggleWatch()}
+                      disabled={watchSaving}
+                      icon={
+                        <Icon
+                          name={project.watching ? 'visibility' : 'visibility_off'}
+                          size={18}
+                          filled={project.watching}
+                        />
+                      }
+                    >
+                      <span className={styles.headerActionLabel}>
+                        {project.watching ? t('project.watching') : t('project.watch')}
+                      </span>
+                    </Button>
+                  </>
+                ) : null}
+                <div className={styles.desktopSettings}>
+                  <ProjectSettingsMenu items={menuItems} label={t('project.actions')} />
+                </div>
+              </div>
+            </div>
+          </header>
+        </div>
+      )}
 
       {project.trashed ? (
         <Notice tone="warning" title={t('project.trashNoticeTitle')}>
@@ -651,8 +675,9 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
         </Notice>
       ) : null}
 
-      {childPositionAbove ? childSection : null}
+      {childBefore ? childSection : null}
 
+      {!compactLayout ? (
       <div className={styles.overview}>
         <Card className={styles.detailsCard} as="section" aria-labelledby="details-heading">
           <h2 id="details-heading" className={styles.cardTitle}>
@@ -700,8 +725,9 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
           </div>
         </Card>
       </div>
+      ) : null}
 
-      {!childPositionAbove ? childSection : null}
+      {childBefore ? null : childSection}
 
       <ActivityPanel
         projectId={project.id}
