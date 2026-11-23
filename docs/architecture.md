@@ -369,8 +369,12 @@ Verified against `src/server/auth/*`:
   their role, or auto-provisions a Viewer when `KAPO_OIDC_AUTO_PROVISION` is
   on. A missing email or one explicitly reported unverified, an ambiguous
   email, or a subject already linked elsewhere is rejected. The first-run
-  `/setup` Admin is never created by SSO. Password login is refused when
-  `KAPO_PASSWORD_LOGIN=disabled`, unless OIDC is not configured (lockout guard).
+  `/setup` Admin is never created by SSO. When the resolved user has no avatar
+  and `KAPO_OIDC_IMPORT_AVATAR` is on, the `picture` claim is fetched only from
+  the issuer origin (no redirects, five-second timeout, 2 MB cap) and passed
+  through `saveAvatar`'s magic-byte validation; failure never blocks sign-in.
+  Password login is refused when `KAPO_PASSWORD_LOGIN=disabled`, unless OIDC is
+  not configured (lockout guard).
 - Auth helpers (`src/server/auth/current-user.ts`): `getSessionUser(): Promise<AuthUser | null>`,
   `requireUser()` / `requireAdmin()` / `requireAppRole()` (redirect for server components), plus
   `isFirstRun()`. Route handlers use `getSessionUser` and return a JSON 401 explicitly; they must

@@ -21,6 +21,7 @@ async function main(): Promise<void> {
     },
   });
 
+  server.setUser({ ...server.getUser(), picture: `${server.url}/avatar` });
   console.log(`[mock-oidc] listening on ${server.url}`);
 
   for (const signal of ['SIGINT', 'SIGTERM'] as const) {
