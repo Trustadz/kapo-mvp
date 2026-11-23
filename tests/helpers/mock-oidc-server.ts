@@ -20,7 +20,14 @@ export interface MockOidcUser {
   email_verified?: boolean;
   preferred_username?: string;
   name?: string;
+  picture?: string;
 }
+
+/** A valid 1x1 PNG used by the mock avatar endpoint and tests. */
+export const MOCK_AVATAR_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+  'base64',
+);
 
 export interface MockOidcServer {
   url: string;
@@ -141,6 +148,7 @@ export async function startMockOidcServer(
             'email_verified',
             'preferred_username',
             'name',
+            'picture',
           ],
         });
         return;
@@ -148,6 +156,22 @@ export async function startMockOidcServer(
 
       if (request.method === 'GET' && url.pathname === '/jwks') {
         json(response, 200, { keys: [publicJwk] });
+        return;
+      }
+
+      if (request.method === 'GET' && url.pathname === '/avatar') {
+        response.writeHead(200, {
+          'content-type': 'image/png',
+          'content-length': String(MOCK_AVATAR_PNG.length),
+          'cache-control': 'no-store',
+        });
+        response.end(MOCK_AVATAR_PNG);
+        return;
+      }
+
+      if (request.method === 'GET' && url.pathname === '/avatar-not-an-image') {
+        response.writeHead(200, { 'content-type': 'text/plain' });
+        response.end('not an image');
         return;
       }
 
@@ -207,6 +231,7 @@ export async function startMockOidcServer(
           email_verified: record.user.email_verified ?? true,
           preferred_username: record.user.preferred_username ?? 'user',
           ...(record.user.name ? { name: record.user.name } : {}),
+          ...(record.user.picture ? { picture: record.user.picture } : {}),
         });
         json(response, 200, {
           access_token: `mock-access-${randomBytes(12).toString('base64url')}`,
@@ -229,6 +254,7 @@ export async function startMockOidcServer(
           email_verified: currentUser.email_verified ?? true,
           preferred_username: currentUser.preferred_username ?? 'user',
           ...(currentUser.name ? { name: currentUser.name } : {}),
+          ...(currentUser.picture ? { picture: currentUser.picture } : {}),
         });
         return;
       }
@@ -245,6 +271,7 @@ export async function startMockOidcServer(
           email_verified: body.email_verified ?? true,
           preferred_username: body.preferred_username,
           name: body.name,
+          picture: body.picture,
         };
         json(response, 200, { ok: true });
         return;

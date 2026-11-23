@@ -61,7 +61,7 @@ Each view supplies configurable property slots and an ordering of displayed fiel
 
 ### 6. Users, roles, and privacy
 
-Accounts have **username, email, password, profile picture**, an application role, and project-level role assignments. Profiles allow users to change their passwords. A first-install Create account screen creates the first application Admin; subsequent account creation is available to application Admins through user management. Email is stored but does not imply email delivery or verification. There is no fixed account limit. At least one application Admin and one project Admin per project are mandatory at all times. Sign-in may alternatively use PocketID/OIDC: an existing account is matched by email, a first-time SSO user becomes a Viewer, and an operator may disable password sign-in.
+Accounts have **username, email, password, profile picture**, an application role, and project-level role assignments. Profiles allow users to change their passwords. A first-install Create account screen creates the first application Admin; subsequent account creation is available to application Admins through user management. Email is stored but does not imply email delivery or verification. There is no fixed account limit. At least one application Admin and one project Admin per project are mandatory at all times. Sign-in may alternatively use PocketID/OIDC: an existing account is matched by email, a first-time SSO user becomes a Viewer, and an operator may disable password sign-in. When the account has no picture, PocketID's profile picture is imported.
 
 | Level | Role | Effective access |
 |:--|:--|:--|

@@ -21,6 +21,7 @@ const ENV_KEYS = [
   'KAPO_OIDC_SCOPES',
   'KAPO_OIDC_PROVIDER_NAME',
   'KAPO_OIDC_AUTO_PROVISION',
+  'KAPO_OIDC_IMPORT_AVATAR',
   'KAPO_OIDC_ALLOW_INSECURE',
   'KAPO_PASSWORD_LOGIN',
   'KAPO_PUBLIC_URL',
@@ -55,6 +56,7 @@ describe('getOidcConfig', () => {
     expect(config.enabled).toBe(false);
     expect(config.passwordLoginEnabled).toBe(true);
     expect(config.autoProvision).toBe(true);
+    expect(config.importAvatar).toBe(true);
     expect(config.providerName).toBe('PocketID');
     expect(config.scopes).toBe('openid profile email');
   });
@@ -114,11 +116,16 @@ describe('getOidcConfig', () => {
     expect(getOidcConfig().passwordLoginEnabled).toBe(false);
   });
 
-  it('defaults auto-provisioning on and accepts an explicit off switch', () => {
+  it('defaults auto-provisioning and avatar import on, with explicit off switches', () => {
     setEnv({});
     expect(getOidcConfig().autoProvision).toBe(true);
+    expect(getOidcConfig().importAvatar).toBe(true);
+
     setEnv({ KAPO_OIDC_AUTO_PROVISION: '0' });
     expect(getOidcConfig().autoProvision).toBe(false);
+
+    setEnv({ KAPO_OIDC_IMPORT_AVATAR: '0' });
+    expect(getOidcConfig().importAvatar).toBe(false);
   });
 });
 
@@ -153,12 +160,14 @@ describe('mapOidcClaims', () => {
         email: ' Person@Example.com ',
         email_verified: true,
         preferred_username: 'person',
+        picture: 'https://id.example.com/avatar/person',
       }),
     ).toEqual({
       subject: 'abc',
       email: 'Person@Example.com',
       emailVerified: true,
       preferredUsername: 'person',
+      picture: 'https://id.example.com/avatar/person',
     });
   });
 

@@ -7,6 +7,7 @@ import {
   setSessionCookie,
 } from '@/server/auth/cookies';
 import { countUsers } from '@/server/auth/current-user';
+import { fetchOidcAvatar } from '@/server/auth/oidc-avatar';
 import {
   appBaseUrl,
   getOidcClient,
@@ -19,7 +20,7 @@ import { verifyOidcTransaction } from '@/server/auth/oidc-state';
 import { createSession, deleteExpiredSessions } from '@/server/auth/session';
 import { getDb } from '@/server/db/connection';
 import { resolveOidcUser } from '@/server/domain/identities';
-import { resolveLandingHref } from '@/server/domain/users';
+import { resolveLandingHref, saveAvatar } from '@/server/domain/users';
 
 export const dynamic = 'force-dynamic';
 
@@ -74,6 +75,24 @@ export async function GET(request: Request): Promise<NextResponse> {
     const { user } = await resolveOidcUser(db, config.issuer, claims, {
       autoProvision: config.autoProvision,
     });
+
+    // Best effort: import the provider's picture only when Kapo has no avatar
+    // yet, so a local upload is never overwritten. Failure never blocks login.
+    if (config.importAvatar && !user.avatar && claims.picture) {
+      try {
+        const avatar = await fetchOidcAvatar(claims.picture, {
+          issuer: config.issuer,
+          allowInsecure: config.allowInsecure,
+          accessToken: tokens.access_token,
+        });
+        if (avatar) saveAvatar(db, user.id, avatar.buffer, avatar.mime);
+      } catch (error) {
+        console.warn(
+          '[oidc] avatar import skipped:',
+          error instanceof Error ? error.message : error,
+        );
+      }
+    }
 
     deleteExpiredSessions(db);
     const session = createSession(db, user.id);

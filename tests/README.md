@@ -57,7 +57,7 @@ tests/unit/      schema invariants, FTS helpers, auth primitives/CSRF/throttle,
                  add-on registry, HTTP conventions, Viewer shell rendering
 tests/domain/    build-spec §6 rules: permissions + access modes (inherit/
                  custom), project lifecycle, workflow, trash + purge, search
-tests/integration/ real route handlers: auth/setup, PocketID/OIDC sign-in,
+tests/integration/ real route handlers: auth/setup, PocketID/OIDC sign-in and avatar import,
                  projects, accounts, dashboard/members, project admin surface,
                  new features (workflow same-name replacement, view_fields,
                  Tree bulk move, Trash grouping), add-on plumbing (value
@@ -66,7 +66,7 @@ tests/integration/ real route handlers: auth/setup, PocketID/OIDC sign-in,
                  projection), the one-time copy-on-create snapshot, seed script
 tests/regressions/ architecture-review fix pass (AR-021…AR-052)
 tests/e2e/       first-install + seeded desktop journeys, including the
-                 PocketID email-match/Viewer-provisioning flow, the Assignee
+                 PocketID email-match/Viewer-provisioning/avatar-import flow, the Assignee
                  add-on field-slot journey (Details, Properties, view meta,
                  dialog edit and unavailable filtering), the focused Assignee
                  add-on enable/save/persist journey, the project-settings

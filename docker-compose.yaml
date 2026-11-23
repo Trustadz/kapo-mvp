@@ -21,6 +21,8 @@ services:
       # KAPO_OIDC_SCOPES: openid profile email
       # Existing accounts match by email; new accounts are Viewers.
       # KAPO_OIDC_AUTO_PROVISION: "1"
+      # Copy the PocketID picture when the account has no Kapo avatar yet.
+      # KAPO_OIDC_IMPORT_AVATAR: "1"
       # Hide password sign-in only after SSO works; keep a break-glass plan.
       # KAPO_PASSWORD_LOGIN: disabled
       # Recommended with SSO: keeps in-flight sign-ins valid across restarts.

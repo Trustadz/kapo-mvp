@@ -13,6 +13,8 @@ import * as client from 'openid-client';
  *   KAPO_OIDC_SCOPES          default "openid profile email"
  *   KAPO_OIDC_PROVIDER_NAME   button label, default "PocketID"
  *   KAPO_OIDC_AUTO_PROVISION  default on; unmatched emails become Viewers
+ *   KAPO_OIDC_IMPORT_AVATAR   default on; copy the picture claim when a user
+ *                             has no avatar yet
  *   KAPO_OIDC_ALLOW_INSECURE  local testing only: allow an http:// issuer
  *   KAPO_PASSWORD_LOGIN       set to "disabled" to hide/disable password login
  *   KAPO_PUBLIC_URL           absolute public origin used for the callback URL
@@ -36,6 +38,7 @@ export interface OidcConfig {
   providerName: string;
   passwordLoginEnabled: boolean;
   autoProvision: boolean;
+  importAvatar: boolean;
   allowInsecure: boolean;
   publicUrl: string | null;
 }
@@ -104,6 +107,7 @@ export function getOidcConfig(): OidcConfig {
   const providerName =
     process.env.KAPO_OIDC_PROVIDER_NAME?.trim() || DEFAULT_PROVIDER_NAME;
   const autoProvision = isTruthyFlag(process.env.KAPO_OIDC_AUTO_PROVISION, true);
+  const importAvatar = isTruthyFlag(process.env.KAPO_OIDC_IMPORT_AVATAR, true);
   const allowInsecure = isTruthyFlag(process.env.KAPO_OIDC_ALLOW_INSECURE, false);
   const requestedPasswordLogin = !isDisabledFlag(process.env.KAPO_PASSWORD_LOGIN);
   const rawPublicUrl = process.env.KAPO_PUBLIC_URL?.trim() ?? '';
@@ -149,6 +153,7 @@ export function getOidcConfig(): OidcConfig {
     providerName,
     passwordLoginEnabled,
     autoProvision,
+    importAvatar,
     allowInsecure,
     publicUrl,
   };
@@ -199,6 +204,8 @@ export interface OidcClaims {
   email: string | null;
   emailVerified: boolean | null;
   preferredUsername: string | null;
+  /** PocketID profile picture URL; fetched separately, never trusted as content. */
+  picture: string | null;
 }
 
 /** Reads the handful of claims Kapo needs without trusting their shape. */
@@ -216,6 +223,7 @@ export function mapOidcClaims(claims: Record<string, unknown>): OidcClaims {
       typeof claims.preferred_username === 'string'
         ? claims.preferred_username.trim()
         : null,
+    picture: typeof claims.picture === 'string' ? claims.picture.trim() : null,
   };
 }
 

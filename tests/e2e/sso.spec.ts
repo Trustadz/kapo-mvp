@@ -11,6 +11,7 @@ import { expect, test } from '@playwright/test';
 
 const MOCK_OIDC_PORT = Number(process.env.KAPO_E2E_MOCK_OIDC_PORT ?? 3402);
 const MOCK_OIDC_URL = `http://127.0.0.1:${MOCK_OIDC_PORT}`;
+const MOCK_OIDC_ISSUER_URL = `http://localhost:${MOCK_OIDC_PORT}`;
 
 test.describe('PocketID sign-in', () => {
   test('signs an existing Admin in by matching the email', async ({ page }) => {
@@ -24,6 +25,10 @@ test.describe('PocketID sign-in', () => {
     await page.waitForURL((url) => url.pathname === '/');
     await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible();
     await expect(page.getByRole('button', { name: /admin/i })).toBeVisible();
+    // The mock provider's picture claim is imported into local avatar storage.
+    await expect(
+      page.locator('img[src^="/api/me/avatar/"]').first(),
+    ).toBeVisible();
   });
 
   test('provisions an unknown email as a read-only Viewer', async ({
@@ -37,6 +42,7 @@ test.describe('PocketID sign-in', () => {
         email_verified: true,
         preferred_username: 'sso-viewer',
         name: 'SSO Viewer',
+        picture: `${MOCK_OIDC_ISSUER_URL}/avatar`,
       },
     });
     expect(setUser.ok()).toBe(true);
@@ -45,6 +51,9 @@ test.describe('PocketID sign-in', () => {
     await page.getByRole('link', { name: 'Continue with PocketID' }).click();
     await page.waitForURL((url) => url.pathname === '/');
     await expect(page.getByRole('button', { name: /sso-viewer/i })).toBeVisible();
+    await expect(
+      page.locator('img[src^="/api/me/avatar/"]').first(),
+    ).toBeVisible();
 
     // A Viewer cannot open Admin-only application settings.
     await page.goto('/settings');
