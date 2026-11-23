@@ -25,6 +25,7 @@ import {
 import { VIEW_FIELD_MESSAGE_KEYS } from '@/i18n/domain-labels';
 import { useI18n, type I18nContextValue } from '@/i18n/client';
 import { formatPersonName } from '@/lib/format';
+import { stripMarkdown } from '@/lib/markdown';
 import {
   dropZoneAt,
   insertionIndexAt,
@@ -297,8 +298,11 @@ function addonCompactValue(
   if (field.type === 'date' && typeof field.value === 'string') return formatDate(field.value);
   if (field.type === 'number' && typeof field.value === 'number') return formatNumber(field.value);
   // User and select labels are resolved on the server; text/number/date keep
-  // their raw value in `displayValue`.
-  return field.displayValue ?? String(field.value);
+  // their raw value in `displayValue`. Longtext is Markdown, so compact meta
+  // gets a plain-text projection instead of block markup inside a card row.
+  const text = field.displayValue ?? String(field.value);
+  if (field.type === 'longtext') return stripMarkdown(text) || t('addons.notSet');
+  return text;
 }
 
 interface ViewMetaPart {
@@ -952,7 +956,7 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
           )
         : null}
       {ctx.canEdit ? (
-        <p className={styles.hint} id="kanban-drag-hint">
+        <p className="visually-hidden" id="kanban-drag-hint">
           {t('views.kanbanHint')}
         </p>
       ) : null}
@@ -1148,7 +1152,7 @@ export function CardView({ ctx }: { ctx: CollectionViewContext }) {
         ))}
       </ul>
       {ctx.canEdit ? (
-        <p className={styles.hint} id="card-drag-hint">
+        <p className="visually-hidden" id="card-drag-hint">
           {t('views.cardHint')}
         </p>
       ) : null}
@@ -1536,7 +1540,7 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
           </thead>
           <tbody ref={tbodyRef}>{rows}</tbody>
         </table>
-        <p className={styles.hint} id="tree-drag-hint">
+        <p className="visually-hidden" id="tree-drag-hint">
           {t('views.treeHint')}
         </p>
         {ctx.contextIds && ctx.contextIds.size > 0 ? (
@@ -1767,7 +1771,7 @@ export function ListView({ ctx }: { ctx: CollectionViewContext }) {
         })}
       </ul>
       {ctx.canEdit ? (
-        <p className={styles.hint} id="list-drag-hint">
+        <p className="visually-hidden" id="list-drag-hint">
           {t('views.listHint')}
         </p>
       ) : null}

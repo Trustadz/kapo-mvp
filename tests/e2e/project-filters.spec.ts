@@ -87,18 +87,19 @@ test('Card children filter live by title and reporter', async ({ page }) => {
   await page.getByRole('button', { name: 'Clear filters' }).click();
   await expect(cards).toHaveCount(4);
 
-  // Reporter filter is combined with the title filter.
-  await bar.getByRole('combobox', { name: 'Filter projects by reporter' }).selectOption({
-    label: 'Maya',
-  });
+  // Reporter filter uses the same searchable avatar combobox as Assignee and is
+  // combined with the title filter.
+  await bar.getByRole('button', { name: 'Filter projects by reporter' }).click();
+  await bar.getByRole('combobox', { name: 'Search reporters' }).fill('Maya');
+  await expect(bar.locator('[title="Maya"]')).toBeVisible();
+  await bar.getByRole('option', { name: 'Maya' }).click();
   await expect(cards).toHaveCount(2);
   await expect(cards.filter({ hasText: 'Install hall shelf' })).toHaveCount(1);
   await expect(cards.filter({ hasText: 'Fix kitchen tap' })).toHaveCount(1);
   await expect(bar.getByRole('status')).toContainText('2 of 4 projects');
 
-  await bar.getByRole('combobox', { name: 'Filter projects by reporter' }).selectOption({
-    label: 'All reporters',
-  });
+  await bar.getByRole('button', { name: 'Filter projects by reporter' }).click();
+  await bar.getByRole('option', { name: 'All reporters' }).click();
   await expect(cards).toHaveCount(4);
 });
 
@@ -142,7 +143,7 @@ test('filter bar stacks cleanly on a mobile viewport', async ({ page }) => {
   const bar = filterBar(page);
   await expect(bar).toBeVisible();
   await expect(bar.getByRole('searchbox', { name: 'Filter projects by title' })).toBeVisible();
-  await expect(bar.getByRole('combobox', { name: 'Filter projects by reporter' })).toBeVisible();
+  await expect(bar.getByRole('button', { name: 'Filter projects by reporter' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Add new' })).toBeVisible();
   await expect(page.getByRole('button', { name: /^Collection view:/ })).toBeVisible();
 
@@ -150,7 +151,7 @@ test('filter bar stacks cleanly on a mobile viewport', async ({ page }) => {
     .getByRole('searchbox', { name: 'Filter projects by title' })
     .boundingBox();
   const reporter = await bar
-    .getByRole('combobox', { name: 'Filter projects by reporter' })
+    .getByRole('button', { name: 'Filter projects by reporter' })
     .boundingBox();
   expect(search).not.toBeNull();
   expect(reporter).not.toBeNull();

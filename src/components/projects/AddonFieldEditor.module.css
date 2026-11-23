@@ -1,0 +1,144 @@
+.wrapper,
+.editor,
+.selectField,
+.booleanField {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: min-content;
+  max-width: 100%;
+}
+
+.staticValue {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.empty {
+  color: var(--color-muted);
+}
+
+.editTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+  min-height: 28px;
+  padding: 2px 6px;
+  margin: -2px -6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: text;
+}
+
+.editTrigger:hover,
+.editTrigger:focus-visible {
+  background: var(--color-surface-alt);
+  border-color: var(--color-border);
+}
+
+.editTrigger:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.valueText {
+  min-width: 2ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.valueTextEmpty {
+  color: var(--color-muted);
+}
+
+.editIcon {
+  flex: none;
+  color: var(--color-muted);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.editTrigger:hover .editIcon,
+.editTrigger:focus-visible .editIcon {
+  opacity: 1;
+}
+
+.inlineInput {
+  width: 12rem;
+  max-width: 100%;
+}
+
+.inlineSelect {
+  width: 10rem;
+}
+
+.error {
+  color: var(--color-danger);
+  font-size: var(--font-size-small);
+  overflow-wrap: anywhere;
+}
+
+.longtextValue {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  min-width: 0;
+  max-width: 100%;
+  text-align: left;
+}
+
+.longtextEdit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+
+.longtextEdit:hover,
+.longtextEdit:focus-visible {
+  background: var(--color-surface-alt);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.longtextEdit:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.longtextPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: min(440px, 100%);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.propertyPanel {
+  width: min(360px, calc(100vw - 48px));
+}
+
+.panelActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}

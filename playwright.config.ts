@@ -77,6 +77,7 @@ export default defineConfig({
         PORT: String(TEST_PORT),
         KAPO_E2E_RESET_DB: '1',
         KAPO_E2E_BUILD: process.env.KAPO_E2E_BUILD ?? 'auto',
+        KAPO_E2E_ADDONS: '1',
         KAPO_PUBLIC_URL: `http://127.0.0.1:${TEST_PORT}`,
         KAPO_OIDC_ISSUER: `http://localhost:${MOCK_OIDC_PORT}`,
         KAPO_OIDC_CLIENT_ID: 'kapo-e2e',
@@ -95,7 +96,7 @@ export default defineConfig({
     {
       name: 'desktop',
       testMatch:
-        /(app|login|motion|views-reorder|project-filters|kanban-placeholder|project-layout-mode|inbox-tree|inbox-drag|a11y-keyboard|a11y-labels|contrast|drag-free|i18n|addons|description|settings-tabs|application-settings-tabs|mcp|sso|notifications)\.spec\.ts/,
+        /(app|login|motion|views-reorder|project-filters|kanban-placeholder|project-layout-mode|inbox-tree|inbox-drag|a11y-keyboard|a11y-labels|contrast|drag-free|i18n|addons|description|inline-fields|settings-tabs|application-settings-tabs|mcp|sso|notifications)\.spec\.ts/,
       dependencies: ['first-install'],
       // Drag/reorder specs should measure stable rects; the motion spec opts
       // back into animation explicitly.

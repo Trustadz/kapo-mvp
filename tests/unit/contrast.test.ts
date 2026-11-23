@@ -135,6 +135,8 @@ const PAIRS: Pair[] = [
   pair('dark', 'danger action fill on surface', 'color-danger-action', 'color-surface', LARGE_OR_UI),
 
   // Control boundaries.
+  pair('light', 'control border on surface', 'color-control-border', 'color-surface', LARGE_OR_UI),
+  pair('dark', 'control border on surface', 'color-control-border', 'color-surface', LARGE_OR_UI),
   pair('light', 'input border on surface', 'color-input-border', 'color-surface', LARGE_OR_UI),
   pair('light', 'input border on canvas', 'color-input-border', 'color-canvas', LARGE_OR_UI),
   pair('light', 'input border on surface-alt', 'color-input-border', 'color-surface-alt', LARGE_OR_UI),

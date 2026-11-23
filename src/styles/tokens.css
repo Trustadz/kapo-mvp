@@ -51,6 +51,8 @@
   /* lines */
   --color-border: #dddcd5;
   --color-input-border: #868c85;
+  /* Softer than input-border but still 3:1 on the white surface. */
+  --color-control-border: #8f968e;
 
   /* text */
   --color-text: #173629;
@@ -149,6 +151,7 @@
   /* lines */
   --color-border: #48534a;
   --color-input-border: #7b8d80;
+  --color-control-border: #7b8d80;
 
   /* text */
   --color-text: #e9eee7;

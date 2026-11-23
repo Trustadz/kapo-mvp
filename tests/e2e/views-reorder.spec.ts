@@ -15,8 +15,9 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 test.describe.configure({ mode: 'serial' });
 
 // The seeded Home improvement page is taller than the default 720px viewport;
-// keep both drag endpoints visible without auto-scroll.
-test.use({ viewport: { width: 1440, height: 1100 } });
+// keep both drag endpoints fully visible without auto-scroll (the unified
+// workspace pushes the last Card beyond 1100px).
+test.use({ viewport: { width: 1440, height: 1400 } });
 
 const PASSWORD = 'kapo1234';
 

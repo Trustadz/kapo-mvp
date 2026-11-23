@@ -12,6 +12,7 @@ export { Badge, type BadgeProps, type BadgeTone } from './Badge';
 export { Button, LinkButton, type ButtonProps, type ButtonSize, type ButtonVariant, type LinkButtonProps } from './Button';
 export { Card, CardHeader, type CardHeaderProps, type CardProps } from './Card';
 export { Checkbox, type CheckboxProps } from './Checkbox';
+export { Combobox, type ComboboxOption, type ComboboxProps } from './Combobox';
 export { Dialog, type DialogProps } from './Dialog';
 export { EmptyState, type EmptyStateProps } from './EmptyState';
 export { Field, FieldGroup, type FieldGroupProps, type FieldProps } from './Field';

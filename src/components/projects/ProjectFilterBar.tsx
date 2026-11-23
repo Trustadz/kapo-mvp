@@ -1,6 +1,6 @@
 'use client';
 
-import { Icon, Input, Select } from '@/components/ui';
+import { Combobox, Icon, Input } from '@/components/ui';
 import { formatPersonName } from '@/lib/format';
 import { useI18n } from '@/i18n/client';
 import {
@@ -48,21 +48,25 @@ export function ProjectFilterBar({
           onChange={(event) => onChange({ ...filters, title: event.target.value })}
         />
       </div>
-      <Select
+      <Combobox
         className={styles.filterReporter}
-        aria-label={t('filters.byReporterAria')}
+        label={t('filters.byReporterAria')}
+        searchLabel={t('filters.searchReporter')}
+        listLabel={t('filters.reporters')}
+        placeholder={t('filters.allReporters')}
+        emptyLabel={t('filters.noReporters')}
+        align="start"
         value={filters.reporterId ?? ''}
-        onChange={(event) =>
-          onChange({ ...filters, reporterId: event.target.value || null })
-        }
-      >
-        <option value="">{t('filters.allReporters')}</option>
-        {reporters.map((reporter) => (
-          <option key={reporter.id} value={reporter.id}>
-            {formatPersonName(reporter.username)}
-          </option>
-        ))}
-      </Select>
+        onChange={(value) => onChange({ ...filters, reporterId: value || null })}
+        options={[
+          { value: '', label: t('filters.allReporters') },
+          ...reporters.map((reporter) => ({
+            value: reporter.id,
+            label: formatPersonName(reporter.username),
+            avatar: reporter.avatar,
+          })),
+        ]}
+      />
       {active ? (
         <span className={styles.filterCount} role="status" aria-live="polite" aria-atomic="true">
           {plural('plurals.filterCount', totalCount, {
