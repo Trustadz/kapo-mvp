@@ -62,6 +62,8 @@ function fieldLabel(field: string, t: I18nContextValue['t']): string {
       return t('project.priority');
     case 'archived':
       return t('project.archivedField');
+    case 'description':
+      return t('description.heading');
     default:
       return field;
   }
@@ -121,6 +123,8 @@ function describe(
         main: t('activity.inboxReleased', { actor }),
         detail: t('activity.detailReleased'),
       };
+    case 'project.description_updated':
+      return { main: t('activity.descriptionUpdated', { actor }), detail: null };
     case 'project.addon_value_changed':
       // Add-on values store their human field label in `field` (the raw ids
       // live in `detail`), so no core add-on branch is needed here.

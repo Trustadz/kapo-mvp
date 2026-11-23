@@ -22,6 +22,7 @@ import { ActivityPanel } from './ActivityPanel';
 import { AddonFieldDialog, formatAddonFieldValue } from './AddonFieldDialog';
 import { AddonUserPicker } from './AddonUserPicker';
 import { ChildProjects } from './ChildProjects';
+import { ProjectDescription } from './ProjectDescription';
 import {
   readShowInboxPreference,
   writeShowInboxPreference,
@@ -582,6 +583,15 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
           </div>
         </Notice>
       ) : null}
+
+      <ProjectDescription
+        key={`${data.description.provider?.identifier ?? 'none'}-${data.description.record?.updatedAt ?? 'empty'}`}
+        projectId={project.id}
+        description={data.description}
+        canEdit={canEdit && !project.trashed}
+        notify={notify}
+        onSaved={refresh}
+      />
 
       {childPositionAbove ? childSection : null}
 

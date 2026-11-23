@@ -6,6 +6,10 @@ import {
   updateApplicationAddons,
 } from '@/server/domain/project-addons';
 import {
+  getDescriptionCapabilitySettings,
+  setDescriptionProvider,
+} from '@/server/domain/description';
+import {
   getApplicationSettings,
   updateApplicationSettings,
   type UpdateApplicationSettingsInput,
@@ -25,6 +29,7 @@ export const GET = apiRoute(async ({ db, user }) => {
   return jsonOk({
     settings: getApplicationSettings(db),
     addons: listAddonApplicationConfigs(db),
+    capabilities: { description: getDescriptionCapabilitySettings(db) },
   });
 });
 
@@ -49,7 +54,8 @@ export const PUT = apiRoute(
 
     const hasSettings = Object.keys(input).length > 0;
     const hasAddons = 'addons' in data;
-    if (!hasSettings && !hasAddons) {
+    const hasCapabilities = 'capabilities' in data;
+    if (!hasSettings && !hasAddons && !hasCapabilities) {
       return jsonError(400, 'no_changes', 'No supported settings were provided.');
     }
 
@@ -57,8 +63,36 @@ export const PUT = apiRoute(
     const addons = hasAddons
       ? updateApplicationAddons(db, data.addons)
       : listAddonApplicationConfigs(db);
+    let descriptionCapability = getDescriptionCapabilitySettings(db);
+    if (hasCapabilities) {
+      const capabilities = data.capabilities;
+      if (typeof capabilities !== 'object' || capabilities === null || Array.isArray(capabilities)) {
+        return jsonError(422, 'validation_failed', 'Check the capability settings.', {
+          capabilities: 'Choose a description provider.',
+        });
+      }
+      const patch = capabilities as Record<string, unknown>;
+      const unknown = Object.keys(patch).filter((key) => key !== 'description');
+      if (unknown.length > 0) {
+        return jsonError(422, 'validation_failed', 'Check the capability settings.', {
+          capabilities: 'This capability is not supported.',
+        });
+      }
+      if ('description' in patch) {
+        descriptionCapability = setDescriptionProvider(db, patch.description);
+      } else {
+        return jsonError(422, 'validation_failed', 'Check the capability settings.', {
+          capabilities: 'Choose a description provider.',
+        });
+      }
+    }
     if (hasSettings) rescheduleBackupScheduler();
-    return jsonOk({ settings, backupStatus: getBackupStatus(db), addons });
+    return jsonOk({
+      settings,
+      backupStatus: getBackupStatus(db),
+      addons,
+      capabilities: { description: descriptionCapability },
+    });
   },
   { mutation: true },
 );

@@ -88,11 +88,12 @@ export function addonDraftsFromConfigs(
 
 export function applicationSettingsTabs(
   addons: readonly AddonApplicationConfig[],
+  hasCapabilities = false,
 ): ApplicationSettingsTab[] {
   return [
     'general',
     'backups',
-    ...(addons.length > 0 ? (['addons'] as const) : []),
+    ...(addons.length > 0 || hasCapabilities ? (['addons'] as const) : []),
     'users',
   ];
 }

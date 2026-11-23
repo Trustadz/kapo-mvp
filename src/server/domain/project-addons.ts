@@ -18,6 +18,7 @@ import {
   ADDON_MODES,
   getAddon,
   listAddons,
+  listPropertyAddons,
   type AddonDefinition,
   type AddonFieldDefinition,
   type AddonFieldValue,
@@ -288,7 +289,7 @@ export function resolveProjectAddons(
     .get(projectId) as { settings: string } | undefined;
   if (!row) return [];
   const own = parseProjectAddonConfigs(row.settings);
-  return listAddons().map((definition) =>
+  return listPropertyAddons().map((definition) =>
     resolveOwnFromConfig(
       definition,
       getAddonMode(db, definition.identifier),
@@ -308,7 +309,7 @@ export function resolveLegacyProjectAddons(
 ): readonly ResolvedAddonConfig[] {
   const chain = loadProjectChain(db, projectId);
   if (!chain) return [];
-  return listAddons().map((definition) =>
+  return listPropertyAddons().map((definition) =>
     resolveFromChain(chain, definition, getAddonMode(db, definition.identifier)),
   );
 }
@@ -353,7 +354,7 @@ export function syncAddonRegistryAndSearch(db: BetterSqliteDatabase): string[] {
 /* ------------------------------------------------------------------------- */
 
 export function listAddonApplicationConfigs(db: BetterSqliteDatabase): AddonApplicationConfig[] {
-  return listAddons().map((definition) => {
+  return listPropertyAddons().map((definition) => {
     const row = db
       .prepare('SELECT mode, settings FROM addons WHERE identifier = ?')
       .get(definition.identifier) as { mode: AddonMode; settings: string } | undefined;
@@ -530,7 +531,7 @@ export function getProjectAddonSettings(
   }
   const chain = loadProjectChain(db, projectId);
   if (!chain) throw new DomainError(404, 'not_found', 'Project not found.');
-  return listAddons().map((definition) => {
+  return listPropertyAddons().map((definition) => {
     const mode = getAddonMode(db, definition.identifier);
     const own = ownAddonConfig(chain[0]?.settings, definition.identifier);
     const resolved = resolveOwnFromConfig(definition, mode, own);
@@ -1044,7 +1045,8 @@ export function writeAddonValues(
 
 /**
  * Rebuilds one project's FTS body from the add-ons that are effectively
- * available. Hidden/unavailable values never reach the index.
+ * available plus the core description plaintext. Hidden/unavailable values
+ * never reach the index.
  */
 export function reindexProjectAddonSearch(db: BetterSqliteDatabase, projectId: string): void {
   const row = db
@@ -1052,14 +1054,23 @@ export function reindexProjectAddonSearch(db: BetterSqliteDatabase, projectId: s
     .get(projectId) as { title: string; addon_data: string } | undefined;
   if (!row) return;
   const searchable: Record<string, readonly string[]> = {};
-  for (const definition of listAddons()) {
+  for (const definition of listPropertyAddons()) {
     const fields = definition.searchFields ?? [];
     if (fields.length === 0) continue;
     const resolved = resolveAddonConfig(db, projectId, definition.identifier);
     if (!resolved.available) continue;
     searchable[definition.identifier] = fields;
   }
-  const body = searchBodyFromAddonValues(parseJsonObject(row.addon_data), searchable);
+  const description = db
+    .prepare('SELECT plaintext FROM project_descriptions WHERE project_id = ?')
+    .get(projectId) as { plaintext: string } | undefined;
+  const body = [
+    searchBodyFromAddonValues(parseJsonObject(row.addon_data), searchable),
+    description?.plaintext ?? '',
+  ]
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
+    .join('\n');
   indexProject(db, { projectId, title: row.title, body });
 }
 

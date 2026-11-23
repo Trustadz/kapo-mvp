@@ -1,5 +1,6 @@
 import { registerAddon } from './registry';
 import { assigneeAddon } from './assignee';
+import { descriptionMarkdownAddon } from './description-markdown';
 import type { AddonDefinition } from './types';
 
 /**
@@ -20,14 +21,17 @@ function registerSafely(definition: AddonDefinition): void {
 }
 
 registerSafely(assigneeAddon);
+registerSafely(descriptionMarkdownAddon);
 
 export type {
+  AddonCapability,
   AddonDefinition,
   AddonDashboardWidget,
   AddonFieldDefinition,
   AddonFieldOption,
   AddonFieldType,
   AddonFieldValue,
+  AddonFormats,
   AddonHooks,
   AddonMode,
   AddonProjectConfig,
@@ -36,10 +40,12 @@ export type {
   AddonWidgetItem,
   ResolvedAddonConfig,
 } from './types';
-export { ADDON_MODES } from './types';
+export { ADDON_CAPABILITIES, ADDON_MODES } from './types';
 export {
   clearAddonsForTests,
   getAddon,
   listAddons,
+  listCapabilityProviders,
+  listPropertyAddons,
   registerAddon,
 } from './registry';

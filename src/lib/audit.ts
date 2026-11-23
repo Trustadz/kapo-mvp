@@ -19,6 +19,7 @@ export const AUDIT_ACTIONS = {
   childCreated: 'project.child_created',
   childTrashed: 'project.child_trashed',
   addonValueChanged: 'project.addon_value_changed',
+  descriptionUpdated: 'project.description_updated',
   workflowUpdated: 'workflow.updated',
 } as const;
 
@@ -30,6 +31,7 @@ export const AUDIT_FIELDS = {
   parent: 'parent',
   priority: 'priority',
   archived: 'archived',
+  description: 'description',
 } as const;
 
 export type AuditField = (typeof AUDIT_FIELDS)[keyof typeof AUDIT_FIELDS];

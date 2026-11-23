@@ -1,4 +1,10 @@
-import { ADDON_MODES, type AddonDefinition } from './types';
+import {
+  ADDON_CAPABILITIES,
+  ADDON_MODES,
+  type AddonCapability,
+  type AddonDefinition,
+  type AddonFormats,
+} from './types';
 
 /**
  * Add-on registry. Registration is intentionally strict so a malformed add-on
@@ -8,12 +14,87 @@ import { ADDON_MODES, type AddonDefinition } from './types';
  */
 
 const IDENTIFIER_PATTERN = /^[a-z][a-z0-9-]*$/;
+const FORMAT_ID_PATTERN = /^[a-z][a-z0-9+.-]*@\d+$/;
 const TEXT_FIELD_TYPES: ReadonlySet<string> = new Set(['text', 'longtext']);
 
 const addons = new Map<string, AddonDefinition>();
 
 function isAddonMode(value: unknown): value is (typeof ADDON_MODES)[number] {
   return typeof value === 'string' && (ADDON_MODES as readonly string[]).includes(value);
+}
+
+function isAddonCapability(value: unknown): value is AddonCapability {
+  return typeof value === 'string' && (ADDON_CAPABILITIES as readonly string[]).includes(value);
+}
+
+/** Omitted capabilities preserve the original property-only contract. */
+export function capabilitiesOf(definition: AddonDefinition): readonly AddonCapability[] {
+  return definition.capabilities ?? ['property'];
+}
+
+function assertValidFormats(identifier: string, formats: AddonFormats): void {
+  if (!formats || typeof formats !== 'object') {
+    throw new Error(`Add-on "${identifier}" has an invalid formats declaration.`);
+  }
+  for (const direction of ['reads', 'writes'] as const) {
+    const values = formats[direction];
+    if (!Array.isArray(values) || values.length === 0) {
+      throw new Error(`Add-on "${identifier}" must declare at least one format it ${direction}.`);
+    }
+    const seen = new Set<string>();
+    for (const value of values) {
+      if (typeof value !== 'string' || !FORMAT_ID_PATTERN.test(value)) {
+        throw new Error(
+          `Add-on "${identifier}" has an invalid ${direction} format "${String(value)}".`,
+        );
+      }
+      if (seen.has(value)) {
+        throw new Error(`Add-on "${identifier}" declares format "${value}" twice.`);
+      }
+      seen.add(value);
+    }
+  }
+  for (const write of formats.writes) {
+    if (!formats.reads.includes(write)) {
+      throw new Error(
+        `Add-on "${identifier}" writes format "${write}" but does not declare that it reads it.`,
+      );
+    }
+  }
+}
+
+function assertValidCapabilities(definition: AddonDefinition): void {
+  if (definition.capabilities !== undefined) {
+    if (!Array.isArray(definition.capabilities)) {
+      throw new Error(`Add-on "${definition.identifier}" has an invalid capabilities list.`);
+    }
+    const seen = new Set<string>();
+    for (const capability of definition.capabilities) {
+      if (!isAddonCapability(capability)) {
+        throw new Error(
+          `Add-on "${definition.identifier}" declares unknown capability "${String(capability)}".`,
+        );
+      }
+      if (seen.has(capability)) {
+        throw new Error(
+          `Add-on "${definition.identifier}" declares capability "${capability}" more than once.`,
+        );
+      }
+      seen.add(capability);
+    }
+  }
+
+  const capabilities = capabilitiesOf(definition);
+  if (capabilities.includes('description')) {
+    if (!definition.formats) {
+      throw new Error(
+        `Add-on "${definition.identifier}" is a description provider but declares no formats.`,
+      );
+    }
+    assertValidFormats(definition.identifier, definition.formats);
+  } else if (definition.formats) {
+    assertValidFormats(definition.identifier, definition.formats);
+  }
 }
 
 function assertValidDefinition(definition: AddonDefinition): void {
@@ -36,6 +117,7 @@ function assertValidDefinition(definition: AddonDefinition): void {
   if (addons.has(definition.identifier)) {
     throw new Error(`Add-on "${definition.identifier}" is already registered.`);
   }
+  assertValidCapabilities(definition);
 
   const fieldKeys = new Set<string>();
   for (const field of definition.fields) {
@@ -96,6 +178,16 @@ export function getAddon(identifier: string): AddonDefinition | undefined {
 
 export function listAddons(): AddonDefinition[] {
   return [...addons.values()];
+}
+
+/** Add-ons that contribute project properties (the shipped field contract). */
+export function listPropertyAddons(): AddonDefinition[] {
+  return listAddons().filter((definition) => capabilitiesOf(definition).includes('property'));
+}
+
+/** Registered providers for one capability, in registration order. */
+export function listCapabilityProviders(capability: AddonCapability): AddonDefinition[] {
+  return listAddons().filter((definition) => capabilitiesOf(definition).includes(capability));
 }
 
 /** Test/development helper; the product itself never clears the registry. */

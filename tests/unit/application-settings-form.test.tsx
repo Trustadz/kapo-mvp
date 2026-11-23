@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { AddonApplicationConfig } from '@/lib/addons';
+import type { DescriptionCapabilitySettings } from '@/lib/description';
 import type { BackupStatus } from '@/server/backup';
 import type { ApplicationSettings } from '@/server/domain/settings';
 import type { AccountUser } from '@/server/domain/users';
@@ -37,6 +38,20 @@ const users: AccountUser[] = [
     createdAt: '2026-01-01T00:00:00.000Z',
   },
 ];
+
+const descriptionCapability: DescriptionCapabilitySettings = {
+  activeProvider: 'description-markdown',
+  providers: [
+    {
+      identifier: 'description-markdown',
+      name: 'Markdown description',
+      version: '1.0.0',
+      reads: ['markdown@1'],
+      writes: ['markdown@1'],
+    },
+  ],
+  formatsInUse: [],
+};
 
 const backupStatus: BackupStatus = {
   enabled: true,
@@ -93,12 +108,14 @@ const addons: AddonApplicationConfig[] = [
 function render(
   formAddons: AddonApplicationConfig[] = addons,
   formSettings: ApplicationSettings = settings,
+  capability: DescriptionCapabilitySettings = descriptionCapability,
 ): string {
   return renderToStaticMarkup(
     <ApplicationSettingsForm
       settings={formSettings}
       backupStatus={backupStatus}
       addons={formAddons}
+      descriptionCapability={capability}
       users={users}
       defaultRole="user"
     />,
@@ -154,11 +171,35 @@ describe('application settings tabs', () => {
   });
 
   it('hides the Add-ons tab and panel when the registry is empty', () => {
-    const html = render([]);
+    const html = render([], settings, {
+      activeProvider: null,
+      providers: [],
+      formatsInUse: [],
+    });
     expect(html.match(/role="tab"/g)).toHaveLength(3);
     expect(html).not.toContain('application-settings-tab-addons');
     expect(html).not.toContain('application-settings-panel-addons');
     expect(html).not.toContain('Add-on settings');
+  });
+});
+
+
+describe('description provider settings', () => {
+  it('shows the provider card when a capability exists without property add-ons', () => {
+    const html = render([], settings);
+    expect(html).toContain('application-settings-tab-addons');
+    expect(html).toContain('Description provider');
+    expect(html).toContain('id="description-provider"');
+    expect(html).toContain('Markdown description');
+  });
+
+  it('warns about stored formats the selected provider cannot edit', () => {
+    const html = render([], settings, {
+      ...descriptionCapability,
+      formatsInUse: [{ format: 'html@1', count: 2 }],
+    });
+    expect(html).toContain('using a format this provider cannot edit');
+    expect(html).toContain('read-only plain text');
   });
 });
 

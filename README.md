@@ -471,6 +471,11 @@ editor; add-on search indexing; audit/activity integration; and isolated
 `src/server/domain/project-addons.ts` for the core plumbing. Add-ons never
 bypass core invariants (permissions, workflow remapping, trash read-only).
 
+Capability add-ons fill core-owned slots instead of adding arbitrary panels.
+The first is the **Markdown description** provider: core owns the description
+record and its plaintext fallback, while the add-on supplies the editor and
+renderer. Admins choose the active provider under Settings → Add-ons.
+
 ### AI access (MCP)
 
 Kapo ships an opt-in **MCP server** so a user's own local AI client (for

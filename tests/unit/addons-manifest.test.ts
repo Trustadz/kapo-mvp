@@ -23,4 +23,13 @@ describe('add-on manifest', () => {
   it('does not expose a second registration of assignee', () => {
     expect(listAddons().filter((entry) => entry.identifier === 'assignee')).toHaveLength(1);
   });
+
+  it('registers the Markdown description capability provider', () => {
+    const description = getAddon('description-markdown');
+    expect(description?.capabilities).toEqual(['description']);
+    expect(description?.formats).toEqual({
+      reads: ['markdown@1'],
+      writes: ['markdown@1'],
+    });
+  });
 });

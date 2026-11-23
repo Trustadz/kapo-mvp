@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Project descriptions** with a swappable provider. Core owns the durable
+  description record and a mandatory plaintext fallback; the built-in
+  **Markdown description** provider supplies the editor (with Edit/Preview
+  tabs) and renderer. Admins choose the active provider under Settings →
+  Add-ons. Descriptions are permission-checked, audited, searchable through
+  their plaintext and read-only for Viewers and trashed projects.
+- **Capability protocol** for compiled-in add-ons: capabilities and declared
+  read/write formats. The first capability is `description`; Add-ons without a
+  capability declaration remain property add-ons.
+
+### Upgrade notes
+
+- Migration `006` adds the `project_descriptions` and `addon_capabilities`
+  tables. Existing projects start without a description and no data migration
+  is needed. The only registered description provider is active by default;
+  an Admin can choose another provider or plain-text-only mode in Settings.
+
 ## 0.4.1 — 2026-11-22
 
 ### Changed

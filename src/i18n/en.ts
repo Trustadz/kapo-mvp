@@ -342,6 +342,7 @@ export const en = {
     childTrashedFallback: '{actor} moved a child project to Trash',
     inboxReleased: '{actor} released it from Inbox',
     workflowUpdated: '{actor} changed child workflow',
+    descriptionUpdated: '{actor} updated the description',
     updatedField: '{actor} updated the {field}',
     updatedProject: '{actor} updated the project',
     valuesFromTo: 'From: {old} · To: {new}',
@@ -356,6 +357,36 @@ export const en = {
     detailWorkflowUpdated: 'Updated child workflow',
     detailAddedStatus: 'Added status: {names}',
     detailAddedStatuses: 'Added statuses: {names}',
+  },
+  description: {
+    heading: 'Description',
+    empty: 'No description yet.',
+    add: 'Add description',
+    edit: 'Edit description',
+    save: 'Save description',
+    saved: 'Description saved.',
+    unsupportedFormat:
+      'The active description provider cannot edit this format. Showing plain text.',
+    noProvider: 'No description provider is active. Showing plain text.',
+    providerHeading: 'Description provider',
+    providerHint:
+      'Choose which add-on edits project descriptions. Existing content is kept; formats the new provider cannot read are shown as plain text.',
+    providerLabel: 'Active provider',
+    providerNone: 'No provider (plain text only)',
+    providerSaved: 'Description provider saved.',
+    providerWarning:
+      'Existing descriptions using a format this provider cannot edit: {count}. They will be read-only plain text.',
+    providerWarningNone:
+      'With no provider active, every existing description is read-only plain text.',
+    formatsInUse: 'Stored formats: {formats}',
+    noDescriptions: 'No descriptions stored yet.',
+  },
+  markdown: {
+    edit: 'Edit',
+    preview: 'Preview',
+    tabsAria: 'Markdown editor mode',
+    hint: 'Simple Markdown: **bold**, *italic*, `code`, [links](https://example.com) and lists.',
+    emptyPreview: 'Nothing to preview yet.',
   },
   addons: {
     title: 'Add-ons',

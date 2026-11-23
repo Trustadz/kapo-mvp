@@ -348,6 +348,7 @@ export const nl: Messages = {
       '{actor} heeft een onderliggend project naar de prullenbak verplaatst',
     inboxReleased: '{actor} heeft het uit de Inbox vrijgegeven',
     workflowUpdated: '{actor} heeft de workflow voor onderliggende projecten gewijzigd',
+    descriptionUpdated: '{actor} heeft de beschrijving bijgewerkt',
     updatedField: '{actor} heeft {field} bijgewerkt',
     updatedProject: '{actor} heeft het project bijgewerkt',
     valuesFromTo: 'Van: {old} · Naar: {new}',
@@ -363,6 +364,37 @@ export const nl: Messages = {
     detailWorkflowUpdated: 'Workflow voor onderliggende projecten bijgewerkt',
     detailAddedStatus: 'Status toegevoegd: {names}',
     detailAddedStatuses: 'Statussen toegevoegd: {names}',
+  },
+  description: {
+    heading: 'Beschrijving',
+    empty: 'Nog geen beschrijving.',
+    add: 'Beschrijving toevoegen',
+    edit: 'Beschrijving bewerken',
+    save: 'Beschrijving opslaan',
+    saved: 'Beschrijving opgeslagen.',
+    unsupportedFormat:
+      'De actieve beschrijvingsprovider kan dit formaat niet bewerken. De tekst wordt als platte tekst getoond.',
+    noProvider:
+      'Er is geen beschrijvingsprovider actief. De tekst wordt als platte tekst getoond.',
+    providerHeading: 'Beschrijvingsprovider',
+    providerHint:
+      'Kies welke add-on projectbeschrijvingen bewerkt. Bestaande inhoud blijft bewaard; formaten die de nieuwe provider niet kan lezen, worden als platte tekst getoond.',
+    providerLabel: 'Actieve provider',
+    providerNone: 'Geen provider (alleen platte tekst)',
+    providerSaved: 'Beschrijvingsprovider opgeslagen.',
+    providerWarning:
+      'Bestaande beschrijvingen met een formaat dat deze provider niet kan bewerken: {count}. Deze worden alleen-lezen platte tekst.',
+    providerWarningNone:
+      'Zonder actieve provider is elke bestaande beschrijving alleen-lezen platte tekst.',
+    formatsInUse: 'Opgeslagen formaten: {formats}',
+    noDescriptions: 'Nog geen beschrijvingen opgeslagen.',
+  },
+  markdown: {
+    edit: 'Bewerken',
+    preview: 'Voorbeeld',
+    tabsAria: 'Markdown-editiemodus',
+    hint: 'Eenvoudige Markdown: **vet**, *cursief*, `code`, [links](https://example.com) en lijsten.',
+    emptyPreview: 'Nog niets om te tonen.',
   },
   addons: {
     title: 'Add-ons',
