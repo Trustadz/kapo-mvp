@@ -177,7 +177,7 @@ test.describe('keyboard navigation and focus order', () => {
     ).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(menu).toHaveCount(0);
-    await expect(page.getByLabel('Project status')).toBeFocused();
+    await expect(page.getByRole('button', { name: 'Add description' })).toBeFocused();
   });
 
   test('submenus open with ArrowRight and close with ArrowLeft/Escape', async ({ page }) => {

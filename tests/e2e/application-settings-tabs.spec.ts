@@ -145,11 +145,6 @@ test('switching tabs keeps drafts and each tab saves only its own fields', async
 
 test('add-on cards use a mode dropdown and omit empty settings areas', async ({ page }) => {
   await login(page);
-  // An earlier spec leaves the shared add-on mode as Always on; normalise it so
-  // this test can exercise the optional-mode enable control.
-  await page.request.put('/api/settings', {
-    data: { addons: { assignee: { mode: 'optional' } } },
-  });
   await page.goto('/settings');
   const addonsTab = page.getByRole('tab', { name: 'Add-ons' });
   await addonsTab.click();
