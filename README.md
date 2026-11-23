@@ -96,9 +96,20 @@ Copy `.env.example` to `.env.local` if you need to override defaults:
 | `KAPO_MIGRATIONS_DIR` | `./src/server/db/migrations` | SQL migration directory |
 | `KAPO_FORCE_SECURE_COOKIES` | unset | Force `Secure` cookies behind TLS proxies |
 | `KAPO_BACKUP_DIR` | `/backup` (Docker), `./data/backups` (dev fallback) | Rolling-backup destination |
+| `KAPO_OIDC_ISSUER` | unset | PocketID/OIDC issuer URL; enables SSO when set with a client id |
+| `KAPO_OIDC_CLIENT_ID` | unset | OIDC client id from PocketID |
+| `KAPO_OIDC_CLIENT_SECRET` | unset | Client secret; leave empty for a public PKCE client |
+| `KAPO_OIDC_SCOPES` | `openid profile email` | Scopes requested from PocketID |
+| `KAPO_OIDC_PROVIDER_NAME` | `PocketID` | Label on the sign-in button |
+| `KAPO_OIDC_AUTO_PROVISION` | `1` | Create a Viewer for an unmatched email; `0` refuses new accounts |
+| `KAPO_OIDC_IMPORT_AVATAR` | `1` | Copy the PocketID `picture` when the account has no avatar; `0` disables |
+| `KAPO_OIDC_ALLOW_INSECURE` | unset | Local HTTP testing only; never enable in production |
+| `KAPO_PASSWORD_LOGIN` | `enabled` | Set to `disabled` to hide and reject password sign-in |
+| `SESSION_SECRET` | unset | Optional HMAC key for the short-lived OIDC state cookie |
 
 Sessions are random, database-backed tokens (`sessions.token_hash` stores only a
-SHA-256 hash), so no session secret is required.
+SHA-256 hash), so no session secret is required. `SESSION_SECRET` is optional
+and only signs the short-lived OIDC state cookie when SSO is enabled.
 
 ## Run on a server (Docker Compose)
 
@@ -146,6 +157,75 @@ What the Compose file provides:
   container and no manual `chown`.
 - A single replica: do not run multiple containers or Compose replicas against
   the same `data/` folder.
+
+### Single sign-on with PocketID
+
+Kapo can use [PocketID](https://pocket-id.org) — or any standards-compliant
+OIDC provider — as an alternative or sole sign-in method. Configuration lives in
+container environment variables, so the client secret is never stored in the
+database or its backups.
+
+1. In PocketID, open **Administration → OIDC Clients → Add OIDC Client**.
+   Create a **confidential** client named `Kapo` with callback URL
+   `https://kapo.example.com/api/auth/pocketid/callback`. Request the scopes
+   `openid profile email`. On the client's **Access** tab, allow the household
+   users or groups.
+2. Add the values to the `kapo` service in `docker-compose.yaml`:
+
+   ```yaml
+   KAPO_OIDC_ISSUER: https://id.example.com
+   KAPO_OIDC_CLIENT_ID: kapo
+   KAPO_OIDC_CLIENT_SECRET: <client secret>
+   # Optional:
+   KAPO_OIDC_PROVIDER_NAME: PocketID
+   KAPO_OIDC_AUTO_PROVISION: "1"
+   KAPO_OIDC_IMPORT_AVATAR: "1"
+   SESSION_SECRET: <long random value>
+   ```
+
+3. Run `docker compose up -d` and open `/login`. A **Continue with PocketID**
+   button appears next to the password form.
+
+How accounts are resolved:
+
+- The PocketID subject (`sub`) is the permanent link. Changing an email later
+  does not move the account.
+- If the account has no Kapo avatar, the PocketID `picture` claim is downloaded
+  once and stored through the normal avatar pipeline. Kapo never overwrites a
+  picture the user uploaded itself. The URL must be on the issuer origin, is
+  fetched without redirects, and is limited to 2 MB / PNG, JPEG or WebP. Set
+  `KAPO_OIDC_IMPORT_AVATAR=0` to disable the fetch.
+- On first sign-in, an email that matches exactly one Kapo account and is not
+  reported as unverified links that account and keeps its existing role. An
+  Admin stays an Admin.
+- An unmatched email creates a new **Viewer** account with a generated
+  username. Set `KAPO_OIDC_AUTO_PROVISION=0` to refuse instead.
+- A missing or explicitly unverified email is rejected. Emails shared by
+  multiple Kapo accounts are rejected rather than guessed.
+- The first-run `/setup` screen always uses a local password and creates the
+  first Admin; do not disable password login until that Admin can sign in with
+  PocketID. Make sure each Admin's Kapo email matches their PocketID email
+  first: an unmatched email creates a Viewer, not an Admin.
+
+To make PocketID the only sign-in method, set `KAPO_PASSWORD_LOGIN=disabled`.
+Kapo refuses that setting when OIDC is not configured, so a typo cannot lock
+the household out. To restore the password form, change the variable to
+`enabled` (or remove it) and restart. The `/setup` screen is unaffected.
+
+Things to know:
+
+- `KAPO_PUBLIC_URL` must be the exact public origin; the callback URL is built
+  from it. The issuer must also be reachable from the Kapo container, not only
+  from the browser.
+- Signing out of Kapo does not sign out of PocketID. Existing Kapo sessions are
+  not revoked when a PocketID user is disabled; Kapo sessions last up to 30
+  days. Disable the Kapo account or keep the PocketID client's access list
+  current if that matters.
+- `KAPO_OIDC_ALLOW_INSECURE=1` exists only for local HTTP testing. PocketID
+  should use HTTPS in production.
+- PocketID's own client access list is the first gate; Kapo additionally
+  rejects a missing email claim and an explicitly unverified email. Keep PocketID email changes
+  admin-controlled because first-time linking matches on email.
 
 ### Container image
 
@@ -426,6 +506,14 @@ tests/                   Vitest and Playwright suites (owned by the tester)
 - Helpers in `src/server/auth`: `getSessionUser()`, `requireUser()`,
   `requireAdmin()`, `requireRole()`, `requireAppRole()`, `hashPassword()`, `verifyPassword()`,
   session and cookie utilities.
+- PocketID/OIDC SSO (`src/server/auth/oidc.ts`, `/api/auth/pocketid/start|callback`):
+  env-configured authorization-code + PKCE flow. The callback resolves an existing
+  account by email or creates a Viewer, then issues the same database-backed
+  `kapo_session`; no route or permission code changes. `user_identities` maps the
+  issuer and subject to a local user. When the account has no avatar, the
+  `picture` claim is fetched from the issuer origin and stored through the
+  existing avatar validation; local uploads are never overwritten. Password
+  login can be disabled with `KAPO_PASSWORD_LOGIN=disabled`.
 - Mutating API handlers must call `isSameOrigin(request)` (or use
   `rejectCrossOrigin()`) and return errors as
   `{ "error": { "code", "message", "fields"? } }` (`src/server/http.ts`).
@@ -552,6 +640,11 @@ curl -i http://localhost:3100/login        # 200 sign-in card
   foundation only defines `UPLOAD_DIR`; Docker uses the separate `/app/upload` mount.
 - There is no email delivery or recovery flow: password resets are performed by
   an application Admin, matching the product specification.
+- PocketID SSO matches an existing account by email on first sign-in; an
+  explicitly unverified email is rejected. Keep
+  PocketID email changes admin-controlled and prefer HTTPS for the issuer. Kapo
+  sessions survive a PocketID disable for up to 30 days; do not treat SSO as
+  immediate central revocation without an additional session policy.
 
 ## Releases
 
@@ -615,7 +708,8 @@ gh workflow run container.yml --ref main -f bump=major
 | [design-handoff.md](design-handoff.md) | Penpot page map, interactions and shared patterns |
 | [docs/build-spec.md](docs/build-spec.md) | Engineering contract: routes, schema, domain rules, tokens, scopes |
 | [docs/architecture.md](docs/architecture.md) | Implemented architecture, invariants, deployment, testing |
-| [docs/add-ons.md](docs/add-ons.md) | **Developer guide for building add-ons** (registry contract, modes, fields, hooks, search, widgets, worked Assignee example) |
+| [docs/add-ons.md](docs/add-ons.md) | **Developer guide for building add-ons** (current registry contract, modes, fields, hooks, search, widgets, worked Assignee example) |
+| [docs/add-on-platform.md](docs/add-on-platform.md) | **Target add-on platform** (locked decisions, capability model, content envelope, work plan) |
 | [docs/architecture-review.md](docs/architecture-review.md) | Architecture review log (findings, resolutions, forward work) |
 | [docs/design-review-app.md](docs/design-review-app.md) | Design fidelity review against Penpot |
 | [docs/product-review.md](docs/product-review.md) | Product-owner acceptance review and scope compliance |

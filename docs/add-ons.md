@@ -16,6 +16,9 @@ widgets, per-add-on project-page slots and project-level "required" (§2.3). Sec
 **FORWARD** remain the target contract for those surfaces.
 **Companion documents:** [architecture.md](architecture.md), [build-spec.md](build-spec.md) §5/§6/§12,
 [product.md](../product.md) §7.
+**Target platform:** [add-on-platform.md](add-on-platform.md) locks the target capability model and
+decisions. This guide documents the **currently shipped** field-only contract; where the two disagree
+about future work, the target document wins until this guide is rewritten.
 
 Precedence: `docs/build-spec.md` wins over this guide where they conflict. `src/server/addons/types.ts`
 is the registry source of truth; if this document and the file disagree, the file wins and this
@@ -367,6 +370,66 @@ code removal). `Unavailable` is a stored mode, not a deletion.
 for unregistered identifiers. `/settings` → Add-ons is the Admin mode surface. The hook runner and
 the value endpoint resolve the stored mode, so Required semantics now work once an Admin selects
 Required.
+
+### 3.5 Notification endpoint (implemented)
+
+Notifications are core, not an add-on, but add-ons can emit them. The generic
+contract lives in `src/server/addons/types.ts` and is delivered by
+`src/server/domain/notifications.ts`; core owns storage, read state, the badge,
+the panel and the full `/notifications` page.
+
+```ts
+export interface AddonNotificationInput {
+  recipients: readonly string[];          // user ids
+  message: string;                        // plain-text fallback
+  kind?: string;                          // defaults to addon.<identifier>
+  translations?: Record<string, string>;  // e.g. { en, nl }, {placeholder} vars
+  data?: Record<string, string | number | boolean | null>;
+  href?: string | null;                   // internal path; defaults to /p/:id
+  sourceEventId?: string | null;          // dedupe against the watch notification
+}
+export type AddonNotify = (input: AddonNotificationInput) => void;
+
+export interface AddonValueChange {
+  fieldKey: string;
+  from: AddonFieldValue;
+  to: AddonFieldValue;
+  auditEventId: string;
+}
+```
+
+`AddonHooks.onValuesSaved` is the shipped invocation point. It runs **after** the
+add-on value transaction commits and receives `{ projectId, projectTitle,
+actorId, mode, before, values, changes, notify }`. `changes` carries the audit
+event id for each changed field, so an add-on can pass `sourceEventId` and let
+core skip a duplicate when the recipient already got the generic watch
+notification for that same event.
+
+Rules:
+
+- **Recipients are permission-filtered.** A notification is never delivered to a
+  user who cannot currently read the linked project; the request is skipped
+  silently. An add-on cannot use notifications to expose a project or to grant
+  access.
+- **Synchronous and local.** The hook runs in the request after commit and must
+  stay fast, with no network I/O and no long scans. A throw is logged and
+  isolated; the value write still stands. Because it is post-commit, it cannot
+  roll the write back.
+- **Presentation is core-owned.** `message` is the fallback for API clients and
+  unknown kinds; `translations` lets an add-on localize its own copy. `data`
+  values are scalar-only and are interpolated into `{placeholder}` variables.
+  `href` must be an internal path; protocol-relative and external URLs are
+  rejected. `origin` is the add-on name, and `originType` is `addon`.
+- **No new route.** Add-ons do not add HTTP endpoints; the hook is the endpoint.
+  The add-on is still responsible for deciding *which* users should receive a
+  notification and for not notifying the actor unless that is intentional.
+- **Retention and purge.** Notifications are capped per recipient (latest 200,
+  old read rows pruned on write) and are deleted with a purged project.
+
+The shipped Assignee add-on is intentionally unchanged in this iteration: it
+does not notify assignees yet, so the endpoint is exercised by tests with a
+synthetic add-on. Wiring Assignee later only needs an `onValuesSaved` hook and a
+`notify({ recipients: [newAssigneeId], … })` call.
 
 ---
 
@@ -817,10 +880,11 @@ add-on with the same identifier sees its old values again.
 
 ## 11. Lifecycle hooks and failure isolation
 
-**Hooks implemented today:** `validate`, `beforeLeaveInbox` and `onProjectPurge`. Both validation
-hooks are invoked together by `assertInboxExitAllowed` on Inbox exit (§4.1/§4.2) and by the value
-save endpoint. `onProjectPurge` runs inside the purge transaction before the core cascade; a throwing
-purge hook is logged and isolated. Migrations, mode-change and install hooks are still FORWARD
+**Hooks implemented today:** `validate`, `beforeLeaveInbox`, `onProjectPurge` and
+`onValuesSaved`. Both validation hooks are invoked together by `assertInboxExitAllowed` on Inbox
+exit (§4.1/§4.2) and by the value save endpoint. `onProjectPurge` runs inside the purge transaction
+before the core cascade; a throwing purge hook is logged and isolated. `onValuesSaved` runs after
+the value transaction commits and can call the core notification sink (§3.5). Migrations, mode-change and install hooks are still FORWARD
 (§3.3). The dashboard widget loader (`AddonDashboardWidget.load`) still has **no consumer** (§9).
 
 ```
@@ -828,6 +892,7 @@ startup        -> manifest registers each add-on in a per-add-on try/catch: IMPL
                   sync addons rows + reindex search: IMPLEMENTED
                   compatibility check + add-on migrations: FORWARD
 value save     -> core type-check -> hooks.validate -> merge/audit/FTS -> commit: IMPLEMENTED
+                  -> hooks.onValuesSaved -> core notify (post-commit, isolated): IMPLEMENTED
 inbox exit     -> hooks.beforeLeaveInbox then hooks.validate -> clear inbox/status/audit -> commit: IMPLEMENTED
                   (gate runs before the caller's transaction starts)
 mode change    -> update mode + reindex: IMPLEMENTED; onModeChange hook: FORWARD
@@ -842,9 +907,11 @@ Isolation rules (target) and current reality:
 2. **Transactional hooks.** The Inbox gate runs before the caller's write transaction.
    `onProjectPurge` runs inside the purge transaction and is isolated per add-on; future
    in-transaction hooks (`onModeChange`, `onInstall`) must roll back on throw and be isolated too.
-3. **Post-commit work is not a hook.** Notifications/external calls and anything fallible belong
-   outside the transaction; add-ons must not add network I/O inside hooks (it blocks SQLite's writer
-   and the Node event loop).
+3. **Post-commit notification hook.** `onValuesSaved` runs after the value transaction commits and
+   may call the core `notify` sink. It is synchronous and local: no network I/O, no long scans, and
+   a throw is logged and isolated. External calls and anything fallible still belong outside the
+   request path; they must not be added to a hook (it blocks SQLite's writer and the Node event
+   loop).
 4. **Read-side failures are local.** FORWARD: there is no add-on widget/renderer consumer, so there
    is nothing to isolate yet. The intended behaviour is dashboard-widget error + Retry and a compact
    renderer fallback plus logged identifier.

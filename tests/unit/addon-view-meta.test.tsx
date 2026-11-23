@@ -75,6 +75,7 @@ function context(
     access: 'custom',
     inherit_layout: false,
     child_position: 'below',
+    layout_mode: null,
     default_view: view,
     enabled_views: ['kanban', 'card', 'tree', 'list'],
     hidden_statuses: [],

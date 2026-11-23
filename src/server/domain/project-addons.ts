@@ -23,6 +23,7 @@ import {
   type AddonFieldDefinition,
   type AddonFieldValue,
   type AddonMode,
+  type AddonNotificationInput,
   type AddonProjectConfig,
   type AddonValidationIssue,
   type ResolvedAddonConfig,
@@ -31,6 +32,7 @@ import { indexProject, searchBodyFromAddonValues } from '@/server/db/search';
 import { nowIso, parseJsonObject } from '@/server/db/util';
 import { formatPersonName } from '@/lib/format';
 import { recordAuditEvent } from './audit';
+import { deliverAddonNotifications } from './notifications';
 import {
   DomainError,
   canAdminProject,
@@ -1001,6 +1003,7 @@ export function writeAddonValues(
     if (existing[key] !== value) changed.push({ field, from: existing[key] ?? null, to: value });
   }
 
+  const auditEventIds = new Map<string, string>();
   if (changed.length > 0) {
     db.transaction(() => {
       const data = parseJsonObject(row.addon_data);
@@ -1017,7 +1020,7 @@ export function writeAddonValues(
           from: change.from,
           to: change.to,
         });
-        recordAuditEvent(db, {
+        const auditEventId = recordAuditEvent(db, {
           projectId,
           actor: user,
           action: AUDIT_ACTIONS.addonValueChanged,
@@ -1026,9 +1029,50 @@ export function writeAddonValues(
           newValue: displayValue(db, change.field, change.to),
           detail,
         });
+        auditEventIds.set(change.field.key, auditEventId);
       }
       reindexProjectAddonSearch(db, projectId);
     })();
+  }
+
+  // The add-on notification endpoint runs after the value transaction commits.
+  // It is intentionally isolated: a broken add-on must not fail the save.
+  if (changed.length > 0 && definition.hooks?.onValuesSaved) {
+    const notifications: AddonNotificationInput[] = [];
+    try {
+      definition.hooks.onValuesSaved({
+        projectId,
+        projectTitle: row.title,
+        actorId: user.id,
+        mode: resolved.mode,
+        before: existing,
+        values: next,
+        changes: changed.map((change) => ({
+          fieldKey: change.field.key,
+          from: (change.from ?? null) as AddonFieldValue,
+          to: change.to as AddonFieldValue,
+          auditEventId: auditEventIds.get(change.field.key) ?? '',
+        })),
+        notify: (notification) => notifications.push(notification),
+      });
+    } catch (error) {
+      console.error(
+        `[kapo:addons] "${definition.identifier}" onValuesSaved hook failed`,
+        error,
+      );
+    }
+    if (notifications.length > 0) {
+      deliverAddonNotifications(
+        db,
+        {
+          projectId,
+          actorId: user.id,
+          addonIdentifier: identifier,
+          addonName: definition.name,
+        },
+        notifications,
+      );
+    }
   }
 
   return {

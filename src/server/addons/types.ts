@@ -79,6 +79,38 @@ export interface AddonValidationIssue {
   message: string;
 }
 
+/**
+ * One notification an add-on asks the core to deliver. The core owns storage,
+ * read state and presentation; the add-on owns the copy. `recipients` are
+ * user ids and are filtered against the project's current access, so an add-on
+ * cannot notify a non-member. `message` is the plain-text fallback;
+ * `translations` can provide locale-specific templates such as `{ en, nl }`,
+ * and `data` supplies `{placeholder}` values.
+ */
+export interface AddonNotificationInput {
+  recipients: readonly string[];
+  message: string;
+  kind?: string;
+  translations?: Record<string, string>;
+  data?: Record<string, string | number | boolean | null>;
+  /** Internal path; defaults to the linked project page. */
+  href?: string | null;
+  /** Optional audit event id, used to deduplicate a watch notification. */
+  sourceEventId?: string | null;
+}
+
+/** The post-commit notification endpoint passed to add-on hooks. */
+export type AddonNotify = (input: AddonNotificationInput) => void;
+
+/** One add-on field that changed during a saved value write. */
+export interface AddonValueChange {
+  fieldKey: string;
+  from: AddonFieldValue;
+  to: AddonFieldValue;
+  /** The audit event written for this change, for notification deduplication. */
+  auditEventId: string;
+}
+
 export interface AddonWidgetItem {
   id: string;
   label: string;
@@ -119,6 +151,25 @@ export interface AddonHooks {
   onProjectPurge?(ctx: {
     projectIds: readonly string[];
     exec(sql: string): void;
+  }): void;
+  /**
+   * Runs after the add-on value transaction commits. Use `notify` to raise
+   * notifications; the callback is synchronous and must stay fast and local
+   * (no network, no long scans). A throw is logged and isolated, and the value
+   * write still stands. Recipients who cannot read the project are skipped.
+   *
+   * This is post-commit work, not validation: it must never block the save or
+   * assume its database writes roll back with it.
+   */
+  onValuesSaved?(ctx: {
+    projectId: string;
+    projectTitle: string;
+    actorId: string;
+    mode: AddonMode;
+    before: Record<string, AddonFieldValue>;
+    values: Record<string, AddonFieldValue>;
+    changes: readonly AddonValueChange[];
+    notify: AddonNotify;
   }): void;
 }
 
