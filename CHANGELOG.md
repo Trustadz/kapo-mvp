@@ -86,6 +86,10 @@
   plain-text fallback.
 - Per-user retention keeps the latest 200 notifications; older read rows are
   pruned on write. Notifications are removed with a purged project.
+- **Move a child to Trash from every collection view.** The Kanban, Card, Tree
+  and List overflow menus now offer **Move to Trash…** when the viewer is a
+  project Admin on that child. It uses the same confirmation dialog as the
+  project page and refreshes the collection after trashing.
 
 ### Changed
 

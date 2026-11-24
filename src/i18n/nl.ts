@@ -496,6 +496,7 @@ export const nl: Messages = {
     statusFor: 'Status voor {title}',
     movedTo: '‘{title}’ verplaatst naar {status}.',
     reordered: '‘{title}’ opnieuw gerangschikt.',
+    trashed: '‘{title}’ naar de prullenbak verplaatst.',
     releaseTo: 'Vrijgeven naar {status}',
     released: '‘{title}’ vrijgegeven naar de startstatus.',
     noCompleteStatus: 'Deze workflow heeft geen voltooiingsstatus.',

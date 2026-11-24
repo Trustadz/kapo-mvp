@@ -177,6 +177,9 @@ export function ProjectActionsMenu({
   })();
 
   const items: MenuItem[] = [];
+  // Trashing needs project Admin on the child itself (AR-045), which the page
+  // exposes per card: a project may be readable here without being trashable.
+  const canTrash = project.canAdmin === true && !project.trashed;
   if (ctx.canEdit) {
     for (const status of sortStatuses(ctx.statuses)) {
       if (status.id === project.statusId) continue;
@@ -219,8 +222,18 @@ export function ProjectActionsMenu({
         onSelect: () => ctx.openMoveDialog(project.id),
       });
     }
-    items.push({ id: 'sep-open', separator: true });
   }
+  if (canTrash) {
+    if (items.length > 0) items.push({ id: 'sep-trash', separator: true });
+    items.push({
+      id: 'trash',
+      label: t('project.moveToTrash'),
+      icon: 'delete',
+      danger: true,
+      onSelect: () => ctx.openTrashDialog(project.id),
+    });
+  }
+  if (items.length > 0) items.push({ id: 'sep-open', separator: true });
   items.push({
     id: 'open',
     label: t('views.openProject'),
@@ -1194,6 +1207,10 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
   const selectable = ctx.descendants.filter(
     (project) => project.canAdmin && !isContext(project.id),
   );
+  // A viewer with Admin on a custom descendant can trash that row even when
+  // the parent project itself is read-only, so the Actions column follows the
+  // per-row capability rather than only the parent's edit capability.
+  const showActions = ctx.canEdit || selectable.length > 0;
   const selectableIds = new Set(selectable.map((project) => project.id));
   const selectedProjects = ctx.descendants.filter(
     (project) => selected.has(project.id) && !isContext(project.id),
@@ -1441,7 +1458,7 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
               />
             )}
           </td>
-          {ctx.canEdit ? (
+          {showActions ? (
             <td className={styles.treeActionCell}>
               {contextRow ? null : (
                 <span data-no-drag="">
@@ -1513,7 +1530,7 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
               <th scope="col" className={styles.treeStatusHeader}>
                 {t('views.columnStatus')}
               </th>
-              {ctx.canEdit ? (
+              {showActions ? (
                 <th scope="col" className={styles.treeActionHeader}>
                   <span className="visually-hidden">{t('views.columnActions')}</span>
                 </th>

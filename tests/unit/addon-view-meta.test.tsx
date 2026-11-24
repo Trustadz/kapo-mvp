@@ -98,6 +98,7 @@ function context(
     refresh: () => {},
     notify: () => {},
     openMoveDialog: () => {},
+    openTrashDialog: () => {},
     openCreateDialog: () => {},
   };
 }
