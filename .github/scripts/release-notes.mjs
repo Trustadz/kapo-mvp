@@ -1,12 +1,14 @@
 import { readFileSync, writeFileSync } from 'node:fs'
+import { readFragments, renderFragments } from './changelog.mjs'
 
 /**
  * Writes the GitHub Release body for a published Kapo version.
  *
  * The body combines:
  *   1. the curated `## Unreleased` (or `## <version>`) block from CHANGELOG.md,
- *      which carries upgrade notes operators must read before pulling, and
- *   2. GitHub's generated PR list, grouped by `.github/release.yml`.
+ *      which carries upgrade notes operators must read before pulling,
+ *   2. the pending `changelog.d/` fragments for this release, and
+ *   3. GitHub's generated PR list, grouped by `.github/release.yml`.
  *
  * Usage: VERSION=0.4.1 PREVIOUS_TAG=v0.4.0 GITHUB_REPOSITORY=owner/repo \
  *        GITHUB_TOKEN=... node .github/scripts/release-notes.mjs notes.md
@@ -83,7 +85,7 @@ async function generatedNotes() {
 
   if (!response.ok) {
     console.error(
-      `::warning::Could not generate PR notes (HTTP ${response.status}); using the curated CHANGELOG section only.`,
+      `::warning::Could not generate PR notes (HTTP ${response.status}); using the curated changelog and fragments only.`,
     )
     return ''
   }
@@ -92,17 +94,30 @@ async function generatedNotes() {
   return (data.body ?? '').trim()
 }
 
+function fragmentSection() {
+  try {
+    return renderFragments(readFragments())
+  } catch (error) {
+    fail(`Could not read changelog fragments: ${error.message}`)
+  }
+}
+
 const curated = changelogSection()
+const fragments = fragmentSection()
+const curatedWithFragments = [curated, fragments].filter(Boolean).join('\n\n')
 const generated = await generatedNotes()
-const parts = [curated, generated].filter(Boolean)
+const parts = [curatedWithFragments, generated].filter(Boolean)
 
 if (parts.length === 0) {
-  fail('No release notes were produced: CHANGELOG.md has no section and generated notes are empty.')
+  fail('No release notes were produced: CHANGELOG.md has no section, changelog.d/ is empty and generated notes are empty.')
 }
 
 writeFileSync(outputPath, `${parts.join('\n\n---\n\n')}\n`)
+const sources = []
+if (curated) sources.push('the curated CHANGELOG section')
+if (fragments) sources.push('changelog fragments')
+if (generated) sources.push('the generated PR list')
 console.log(
   `Wrote release notes for v${version}` +
-    `${curated ? ' with the curated CHANGELOG section' : ''}` +
-    `${generated ? ' and the generated PR list' : ''}.`,
+    `${sources.length > 0 ? ` with ${sources.join(' and ')}` : ''}.`,
 )

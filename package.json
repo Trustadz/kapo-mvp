@@ -17,7 +17,10 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:reset": "tsx scripts/reset.ts",
     "db:migrate": "tsx scripts/migrate.ts",
-    "db:purge": "tsx scripts/purge.ts"
+    "db:purge": "tsx scripts/purge.ts",
+    "changelog:check": "node .github/scripts/changelog.mjs check",
+    "changelog:render": "node .github/scripts/changelog.mjs render",
+    "changelog:release": "node .github/scripts/changelog.mjs release"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.8",
