@@ -13,6 +13,7 @@ import {
   filterInboxItems,
 } from './collectionVisibility';
 import { ProjectFilterBar } from './ProjectFilterBar';
+import { TrashDialog } from './ProjectDialogs';
 import {
   EMPTY_PROJECT_FILTERS,
   filterProjectDescendants,
@@ -60,6 +61,9 @@ export function ChildProjects({
     ? data.settings.default_view
     : (availableViews[0] ?? 'kanban');
   const [view, setView] = useState<CollectionView>(fallbackView);
+  // One confirmation dialog for the whole collection; the per-card menu only
+  // asks which child to trash, so every view shares the same flow.
+  const [trashDialog, setTrashDialog] = useState<{ id: string; title: string } | null>(null);
   // Filters are session-only and scoped to one project: the project id is kept
   // alongside the state so client-side navigation starts unfiltered instead of
   // inheriting a query that may hide everything.
@@ -155,6 +159,15 @@ export function ChildProjects({
     refresh,
     notify,
     openMoveDialog: onMoveProject,
+    openTrashDialog: (projectId) => {
+      const known =
+        data.children.find((project) => project.id === projectId) ??
+        data.descendants.find((project) => project.id === projectId);
+      setTrashDialog({
+        id: projectId,
+        title: known?.title ?? t('project.thisProject'),
+      });
+    },
     openCreateDialog: onAddProject,
   };
 
@@ -219,6 +232,19 @@ export function ChildProjects({
             </Button>
           </div>
         )
+      ) : null}
+
+      {trashDialog ? (
+        <TrashDialog
+          open
+          projectId={trashDialog.id}
+          projectTitle={trashDialog.title}
+          onClose={() => setTrashDialog(null)}
+          onTrashed={() => {
+            notify(t('views.trashed', { title: trashDialog.title }));
+            refresh();
+          }}
+        />
       ) : null}
     </section>
   );

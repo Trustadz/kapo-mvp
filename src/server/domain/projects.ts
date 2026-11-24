@@ -612,8 +612,10 @@ export function getProjectPageData(
     .all(projectId) as ProjectRow[];
   const children = childRows
     .filter((childRow) => isActiveProject(ctx, childRow.id))
-    .map(mapProjectCard)
-    .map(withAddonFields);
+    .map((childRow) => ({
+      ...withAddonFields(mapProjectCard(childRow)),
+      canAdmin: canAdminProject(ctx, childRow.id),
+    }));
 
   const descendants: ProjectWithParent[] = [];
   const collectDescendants = (parentId: string) => {

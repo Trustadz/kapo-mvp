@@ -898,10 +898,14 @@ describe('getProjectPageData visibility', () => {
     expect(page.project.canEdit).toBe(true);
     expect(page.project.canAdmin).toBe(false);
     expect(page.project.canMove).toBe(false);
+    // Collection cards carry the viewer's Admin capability per child, so the
+    // row menu can offer Trash only where the API would allow it.
+    expect(page.children.find((child) => child.id === fixture.kitchenId)?.canAdmin).toBe(false);
 
     const adminPage = getProjectPageData(db, actor(fixture.admin), fixture.homeId)!;
     expect(adminPage.project.canAdmin).toBe(true);
     expect(adminPage.project.canMove).toBe(true);
+    expect(adminPage.children.find((child) => child.id === fixture.kitchenId)?.canAdmin).toBe(true);
   });
 });
 

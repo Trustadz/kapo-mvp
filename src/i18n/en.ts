@@ -488,6 +488,7 @@ export const en = {
     statusFor: 'Status for {title}',
     movedTo: 'Moved “{title}” to {status}.',
     reordered: 'Reordered “{title}”.',
+    trashed: 'Moved “{title}” to Trash.',
     releaseTo: 'Release to {status}',
     released: 'Released “{title}” to the start status.',
     noCompleteStatus: 'This workflow has no complete status.',

@@ -47,12 +47,16 @@ export interface ProjectCard {
    * undefined. Unavailable add-ons are never projected.
    */
   addonFields?: ProjectCardAddonField[];
+  /**
+   * True when the viewer is a project Admin. Populated on the project page's
+   * child/descendant cards only (the per-project trash capability); other card
+   * endpoints leave it undefined.
+   */
+  canAdmin?: boolean;
 }
 
 export interface ProjectWithParent extends ProjectCard {
   parentId: string | null;
-  /** True when the viewer is a project Admin (bulk move/trash capability). */
-  canAdmin?: boolean;
 }
 
 /* ------------------------------------------------------------------------- */

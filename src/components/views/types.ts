@@ -23,5 +23,7 @@ export interface CollectionViewContext {
   refresh: () => void;
   notify: (message: string, tone?: 'success' | 'error' | 'info') => void;
   openMoveDialog: (projectId: string, destinationId?: string) => void;
+  /** Opens the shared confirmation dialog for trashing one child project. */
+  openTrashDialog: (projectId: string) => void;
   openCreateDialog: () => void;
 }
