@@ -16,6 +16,7 @@ import {
 const IDENTIFIER_PATTERN = /^[a-z][a-z0-9-]*$/;
 const FORMAT_ID_PATTERN = /^[a-z][a-z0-9+.-]*@\d+$/;
 const TEXT_FIELD_TYPES: ReadonlySet<string> = new Set(['text', 'longtext']);
+const CONTENT_CAPABILITIES: ReadonlySet<AddonCapability> = new Set(['description', 'comments']);
 
 const addons = new Map<string, AddonDefinition>();
 
@@ -85,10 +86,10 @@ function assertValidCapabilities(definition: AddonDefinition): void {
   }
 
   const capabilities = capabilitiesOf(definition);
-  if (capabilities.includes('description')) {
+  if (capabilities.some((capability) => CONTENT_CAPABILITIES.has(capability))) {
     if (!definition.formats) {
       throw new Error(
-        `Add-on "${definition.identifier}" is a description provider but declares no formats.`,
+        `Add-on "${definition.identifier}" is a content provider but declares no formats.`,
       );
     }
     assertValidFormats(definition.identifier, definition.formats);

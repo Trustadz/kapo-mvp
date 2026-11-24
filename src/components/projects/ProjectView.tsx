@@ -20,11 +20,11 @@ import { useToastMessage } from '@/components/ui/use-live-announcer';
 import { markFieldChanged } from '@/lib/changed-fields';
 import { useFieldChanged } from '@/lib/use-field-changed';
 import { setProjectWatch } from '@/components/notifications/api';
-import { ActivityPanel } from './ActivityPanel';
 import { AddonFieldEditor } from './AddonFieldEditor';
 import { InlineProjectTitle } from './InlineProjectTitle';
 import { ChildProjects } from './ChildProjects';
 import { ProjectDescription } from './ProjectDescription';
+import { ProjectDiscussion } from './ProjectDiscussion';
 import {
   readShowInboxPreference,
   writeShowInboxPreference,
@@ -679,10 +679,12 @@ export function ProjectView({ data }: { data: ProjectPageData }) {
         {childBefore ? null : childSection}
       </div>
 
-      <ActivityPanel
+      <ProjectDiscussion
         projectId={project.id}
         projectTitle={project.title}
-        initial={data.activity}
+        comments={data.comments}
+        activity={data.activity}
+        notify={notify}
       />
 
       {/* Dialogs mount only while open: keeps hidden autofocus inputs out of

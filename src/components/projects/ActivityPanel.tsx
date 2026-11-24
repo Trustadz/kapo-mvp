@@ -155,10 +155,12 @@ export interface ActivityPanelProps {
   projectId: string;
   projectTitle: string;
   initial: ActivityPageData;
+  /** Optional heading override when embedded in the Comments/History tabs. */
+  title?: string;
 }
 
 /** Activity history with "Load older activity" pagination (product.md §4). */
-export function ActivityPanel({ projectId, projectTitle, initial }: ActivityPanelProps) {
+export function ActivityPanel({ projectId, projectTitle, initial, title }: ActivityPanelProps) {
   const { t, formatDateTime } = useI18n();
   const [events, setEvents] = useState<ActivityEvent[]>(initial.events);
   const [cursor, setCursor] = useState<string | null>(initial.nextCursor);
@@ -182,7 +184,7 @@ export function ActivityPanel({ projectId, projectTitle, initial }: ActivityPane
   return (
     <Card className={styles.activityCard} as="section" aria-labelledby="activity-heading">
       <h2 id="activity-heading" className={styles.cardTitle}>
-        {t('activity.title')}
+        {title ?? t('activity.title')}
       </h2>
       {error ? <Notice tone="error">{error}</Notice> : null}
       {events.length === 0 ? (

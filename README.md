@@ -564,6 +564,11 @@ The first is the **Markdown description** provider: core owns the description
 record and its plaintext fallback, while the add-on supplies the editor and
 renderer. Admins choose the active provider under Settings → Add-ons.
 
+Comments use the same pattern: core owns the comment records and plaintext
+fallback, while the basic `comments-markdown` provider supplies **bold**,
+*italic*, __underline__ and ~~strikethrough~~. Comments and History share a
+tabbed region on the project page.
+
 ### AI access (MCP)
 
 Kapo ships an opt-in **MCP server** so a user's own local AI client (for
