@@ -110,12 +110,6 @@ export function LoginForm({
         <Notice tone="info">{t('auth.passwordLoginDisabled')}</Notice>
       ) : null}
 
-      {ssoEnabled && !passwordLoginEnabled ? (
-        <p className={styles.description}>
-          {t('auth.ssoOnlyNote', { provider: ssoProviderName })}
-        </p>
-      ) : null}
-
       {ssoEnabled && passwordLoginEnabled ? (
         <div className={styles.divider} aria-hidden="true">
           {t('auth.or')}

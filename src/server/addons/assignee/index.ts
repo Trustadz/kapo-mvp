@@ -39,7 +39,6 @@ export const assigneeAddon: AddonDefinition = {
       label: 'Assigned to',
       type: 'user',
       required: false,
-      description: 'One person responsible for this project.',
     },
   ],
   // User ids are opaque and name text is identity data; filtering by assignee

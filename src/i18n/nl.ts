@@ -63,8 +63,6 @@ export const nl: Messages = {
     expandName: '{title} uitklappen',
     openName: '{title} openen',
     thisStatus: 'deze status',
-    titleOnly: 'Alleen titel.',
-    noFieldsSelected: 'Geen velden geselecteerd.',
     networkError: 'Kan de server niet bereiken. Controleer je verbinding en probeer het opnieuw.',
     genericError: 'Er ging iets mis. Probeer het opnieuw.',
     checkFields: 'Controleer de gemarkeerde velden.',
@@ -102,7 +100,6 @@ export const nl: Messages = {
   },
   language: {
     label: 'Taal',
-    switchHint: 'De hele interface past zich direct aan; je blijft op deze pagina.',
   },
   auth: {
     signIn: 'Inloggen',
@@ -116,10 +113,8 @@ export const nl: Messages = {
     createAccount: 'Account aanmaken',
     createAccountForm: 'Account aanmaken',
     setupSubheading: 'Maak je eerste beheerdersaccount aan',
-    setupDescription: 'Dit account beheert je Kapo-installatie.',
     email: 'E-mailadres',
     confirmPassword: 'Bevestig wachtwoord',
-    setupHint: 'Je initialen worden gebruikt totdat je een profielfoto kiest.',
     invalidCredentials: 'Ongeldige gebruikersnaam of wachtwoord.',
     setupComplete: 'Deze installatie heeft al een account.',
     passwordRecovery:
@@ -129,7 +124,6 @@ export const nl: Messages = {
     continueWith: 'Doorgaan met {provider}',
     or: 'of',
     passwordLoginDisabled: 'Inloggen met een wachtwoord is uitgeschakeld.',
-    ssoOnlyNote: 'Gebruik {provider} om in te loggen.',
     ssoFailed: 'Inloggen met {provider} is niet gelukt. Probeer het opnieuw.',
     ssoUnavailable:
       'Eenmalig inloggen is nu niet beschikbaar. Probeer het opnieuw of neem contact op met een applicatiebeheerder.',
@@ -156,7 +150,6 @@ export const nl: Messages = {
     collapseSidebar: 'Zijbalk inklappen',
     expandSidebar: 'Zijbalk uitklappen',
     accountMenu: 'Accountmenu',
-    viewersCanBrowseOnly: 'Kijkers kunnen alleen rondkijken.',
     appearanceNotSaved:
       'Weergave is voor dit bezoek gewijzigd, maar kon niet worden opgeslagen.',
     captureForm: 'Project toevoegen aan Hoofdproject',
@@ -168,9 +161,7 @@ export const nl: Messages = {
     rootUnavailable: 'Het hoofdproject is niet beschikbaar.',
     captureFailed: 'Het project kon niet worden aangemaakt. Probeer het opnieuw.',
     addProjectTitle: 'Een project toevoegen',
-    addProjectDescription: 'Maakt een onderliggend project van Hoofdproject in de Inbox.',
     add: 'Toevoegen',
-    noFavorites: 'Nog geen favorieten. Open een project en tik op Favoriet.',
   },
   dashboard: {
     title: 'Start',
@@ -178,13 +169,9 @@ export const nl: Messages = {
     editTitle: 'Dashboard bewerken',
     visibleWidgets: 'Zichtbare widgets en volgorde',
     widgetsAria: 'Dashboardwidgets',
-    editorHint:
-      'Eén van elke widget. Toon of verberg ze en wijzig de volgorde; de lay-out past zich aan je apparaat aan.',
     save: 'Dashboard opslaan',
     restoreDefaults: 'Standaardinstellingen herstellen',
     emptyTitle: 'Je dashboard is leeg',
-    emptyDescription:
-      'Kies Dashboard bewerken om de widgets te tonen die je nuttig vindt.',
     inboxLabel: 'Inbox',
     recentLabel: 'Recente wijzigingen',
     loadingWidget: '{name} laden',
@@ -192,10 +179,7 @@ export const nl: Messages = {
     unexpectedResponse: 'Deze widget gaf een onverwacht antwoord.',
     widgetErrorTitle: '{name} kon niet worden geladen',
     widgetErrorText: 'Andere widgets blijven beschikbaar. Probeer deze widget opnieuw.',
-    inboxEmpty: 'Je Inbox is leeg.',
     openInbox: 'Inbox openen',
-    noRecent: 'Geen recente wijzigingen.',
-    recentFooter: 'Open een project om de activiteit te zien.',
     saved: 'Dashboard opgeslagen.',
     readyToDo: 'Klaar om te starten',
     needsProperties: 'Eigenschappen nodig',
@@ -215,7 +199,6 @@ export const nl: Messages = {
   },
   inbox: {
     title: 'Inbox',
-    subtitle: 'Bekijk vastgelegde projecten en zet ze om in werk.',
     viewAria: 'Inboxweergave',
     card: 'Kaart',
     tree: 'Boom',
@@ -223,10 +206,8 @@ export const nl: Messages = {
     treeRegion: 'Applicatieboom',
     bulkRelease: 'Bulk vrijgeven',
     selected: '{count} geselecteerd',
-    selectPrompt: 'Selecteer items om ze samen vrij te geven',
     releaseSelected: 'Selectie vrijgeven',
-    treeEmptyNotice:
-      'Geen Inbox-items op dit moment — je ziet alle projecten die je mag bekijken.',
+    treeEmptyNotice: 'Geen Inbox-items — je ziet alle projecten die je mag bekijken.',
     tableAria: 'Applicatieprojecten',
     caption:
       'Applicatieprojecten en Inbox-items, met status en beschikbare acties',
@@ -238,8 +219,6 @@ export const nl: Messages = {
     selectProject: 'Selecteer {title}',
     alreadyReleased: 'Al vrijgegeven',
     needEditToRelease: 'Je hebt bewerkrechten nodig om dit item vrij te geven',
-    dragHint:
-      'Inbox-items zijn gemarkeerd, selecteerbaar voor bulk vrijgeven en versleepbaar. Sleep er één naar het midden van een andere rij om het onder dat project te plaatsen, of tussen rijen om het in de globale volgorde te verplaatsen. Houd op een touchscreen een Inbox-rij ingedrukt en sleep. Rijen die niet in de Inbox staan, zijn wel sleepdoelen maar alleen-lezen context. Gebruik het pijltje om een tak in of uit te klappen — alle takken beginnen uitgeklapt.',
     releaseAria: 'Vrijgegeven item',
     releaseSuccess: '‘{title}’ vrijgegeven naar {status}.',
     releaseBulkSuccess: '{count} items vrijgegeven.',
@@ -250,21 +229,14 @@ export const nl: Messages = {
       '‘{title}’ onder {parent} geplaatst; het blijft in de Inbox.',
     newParent: 'het nieuwe bovenliggende project',
     releaseTo: 'Vrijgeven naar {status}',
-    releasedOpen: 'Vrijgegeven — open het om verder te werken.',
     changeParent: 'Bovenliggend project wijzigen',
     releaseDropArea: 'Vrijgeefgebied',
     dropActive: 'Vrijgeven naar de startstatus',
     dropIdle: 'Sleep een item hierheen om het vrij te geven',
-    dropHint:
-      'Sleep hierheen om vrij te geven. Wil je liever herordenen? Sleep dan tussen kaarten in de lijst. Liever het toetsenbord? Gebruik de knop Vrijgeven op een kaart.',
     releasedTo: '‘{title}’ vrijgegeven naar {status}.',
-    stillPulled: 'Staat hieronder nog als Opgepakt.',
-    cardDragHint:
-      'Sleep een item boven of onder een andere kaart om het in de globale volgorde te verplaatsen. Sleep een item naar de vrijgeefrail om het in werk te zetten. Houd op een touchscreen een kaart ingedrukt en sleep. Elke sleepactie heeft ook een toetsenbordbedienbare knop: Vrijgeven, Bovenliggend project wijzigen of Openen.',
+    cardDragHint: 'Sleep een item om het te herordenen, of naar de vrijgeefrail om het vrij te geven. Toetsenbordgebruikers kunnen de kaartknoppen gebruiken.',
     listAria: 'Projecten in de Inbox',
     emptyTitle: 'Inbox is leeg',
-    emptyDescription:
-      'Nieuwe projecten die je via de bovenbalk vastlegt, verschijnen hier om te verfijnen.',
     changeParentTitle: 'Bovenliggend project wijzigen',
     changeParentDescription:
       '{title} blijft in de Inbox en start in de startstatus van het nieuwe bovenliggende project.',
@@ -272,8 +244,7 @@ export const nl: Messages = {
     noOtherParent:
       'Er is geen ander project waaronder je dit item kunt plaatsen.',
     findParent: 'Een bovenliggend project vinden',
-    findParentHint:
-      'Zoek op projecttitel. De lijst bevat alleen projecten die je mag bewerken.',
+    findParentHint: 'Alleen projecten die je mag bewerken, worden getoond.',
     typeProjectTitle: 'Typ een projecttitel',
     parentDestinations: 'Bovenliggende projecten',
     noTitlesMatch: 'Geen projecttitels gevonden voor ‘{query}’.',
@@ -353,7 +324,6 @@ export const nl: Messages = {
     unread: 'Ongelezen',
     emptyTitle: 'Nog geen meldingen',
     emptyText: 'Volg een project om wijzigingen te ontvangen.',
-    closeMarksRead: 'Wordt als gelezen gemarkeerd bij sluiten.',
     loadOlder: 'Oudere meldingen laden',
     aChildProject: 'een subproject',
     created: '{actor} heeft “{title}” aangemaakt',
@@ -391,7 +361,6 @@ export const nl: Messages = {
   },
   activity: {
     title: 'Activiteit',
-    empty: 'Nog geen activiteit.',
     loadOlder: 'Oudere activiteit laden',
     viaBadge: 'AI',
     viaBadgeLabel: 'Gewijzigd door een AI-agent via MCP',
@@ -461,10 +430,7 @@ export const nl: Messages = {
     heading: 'Add-ons',
     tab: 'Add-ons',
     applicationHeading: 'Add-ons',
-    applicationHint:
-      'Kies hoe elke geregistreerde add-on zich in de hele installatie gedraagt. Bestaande waarden blijven bewaard maar worden verborgen als een add-on niet beschikbaar is.',
-    projectHint:
-      'Schakel optionele add-ons in voor dit project. Elk project bewaart zijn eigen expliciete momentopname; wijzigingen in een bovenliggend project hebben geen invloed op bestaande onderliggende projecten.',
+    projectHint: 'Elk project houdt zijn eigen momentopname; wijzigingen in een bovenliggend project hebben geen invloed op bestaande onderliggende projecten.',
     modeLabel: 'Beschikbaarheid',
     modeRequired: 'Verplicht',
     modeAlways: 'Altijd aan',
@@ -476,7 +442,6 @@ export const nl: Messages = {
       'Beschikbaar voor projecten; projectbeheerders kiezen of de add-on wordt ingeschakeld.',
     unavailableNote: 'Bestaande waarden blijven bewaard maar worden verborgen.',
     settingsHeading: 'Add-oninstellingen',
-    noSettings: 'Geen extra instellingen voor deze add-on.',
     settingsUnsupported:
       'Dit instellingstype wordt niet ondersteund in Applicatie-instellingen. De opgeslagen waarde blijft bewaard.',
     settingsMalformed:
@@ -522,16 +487,7 @@ export const nl: Messages = {
     columnAria: '{status}, {count} projecten',
     columnAriaOne: '{status}, {count} project',
     noProjects: 'Geen projecten',
-    kanbanHint:
-      'Sleep een kaart naar een kolom om de status te wijzigen, of tussen kaarten om de volgorde te wijzigen. De gemarkeerde opening laat zien waar de kaart terechtkomt. Houd op een touchscreen een kaart ingedrukt en sleep. Toetsenbord- en menugebruikers: open Acties op een kaart om deze eerder of later te plaatsen, of naar een andere status of een ander project te verplaatsen.',
-    cardHint:
-      'Sleep een kaart op een andere kaart om hem in dat project te plaatsen; sleep tussen kaarten om de volgorde te wijzigen. Houd op een touchscreen een kaart ingedrukt en sleep. Toetsenbord- en menugebruikers: open Acties op een kaart om deze eerder of later te plaatsen, naar een andere status of naar een ander project te verplaatsen.',
-    treeHint:
-      'Sleep een project op een andere rij om het in dat project te plaatsen. Sleep tussen twee rijen om het tussen projecten met hetzelfde bovenliggende project te herordenen; slepen tussen rijen van een ander bovenliggend project opent het verplaatsdialoogvenster. Houd op een touchscreen een rij ingedrukt en sleep. Selecteer rijen om meerdere projecten samen te verplaatsen of naar de prullenbak te sturen. Toetsenbord- en menugebruikers: open Acties op een rij om deze eerder of later te plaatsen, naar een andere status of naar een ander project te verplaatsen.',
-    treeContextHint:
-      'Rijen met Context zijn bovenliggende projecten die zichtbaar blijven zodat gevonden onderliggende projecten verbonden blijven; ze zijn alleen-lezen zolang er filters actief zijn.',
-    listHint:
-      'Sleep een rij boven of onder een andere rij om de volgorde te wijzigen. Houd op een touchscreen een rij ingedrukt en sleep. Toetsenbord- en menugebruikers: open Acties op een rij om deze eerder of later te plaatsen, naar een andere status of naar een ander project te verplaatsen.',
+    treeContextHint: 'Contextrijen zijn bovenliggende projecten die zichtbaar blijven zodat treffers verbonden blijven; ze zijn alleen-lezen.',
     bulkActions: 'Bulkacties',
     bulkMove: 'Bulk verplaatsen',
     bulkTrash: 'Bulk naar prullenbak',
@@ -561,12 +517,9 @@ export const nl: Messages = {
   },
   dialogs: {
     addChildTitle: 'Onderliggend project toevoegen',
-    addChildDescription: 'Maak een project onder {title}.',
     title: 'Titel',
-    addChildHint:
-      'Nieuwe projecten starten in de startstatus van het bovenliggende project en komen normaal in de Inbox.',
+    addChildHint: 'Start in de startstatus van het bovenliggende project; komt meestal in de Inbox.',
     moveTitle: 'Project verplaatsen',
-    moveDescription: 'Verplaats {title} naar een ander bovenliggend project.',
     loadingDestinations: 'Bestemmingen laden…',
     destination: 'Bestemming',
     chooseProject: 'Kies een project',
@@ -592,13 +545,9 @@ export const nl: Messages = {
     unarchiveButton: 'Archivering ongedaan maken',
     archiveHint:
       'Archiveren verbergt dit project en de onderliggende projecten, tenzij ‘Gearchiveerde tonen’ aan staat. Onderliggende projecten behouden hun eigen archiveringsstatus.',
-    unarchiveHint:
-      'Na het ongedaan maken van de archivering verschijnt dit project weer volgens de huidige instelling ‘Gearchiveerde tonen’.',
     hideArchivedTitle: '‘Gearchiveerde tonen’ uitzetten?',
-    hideArchivedDescription: '{title} wordt verborgen.',
     turnOffShowArchived: '‘Gearchiveerde tonen’ uitzetten',
-    hideArchivedHint:
-      'Dit project is gearchiveerd of ligt in een gearchiveerd project, dus het is niet meer zichtbaar als ‘Gearchiveerde tonen’ uit staat. Je gaat naar {fallback}. Je kunt ‘Gearchiveerde tonen’ later weer aanzetten.',
+    hideArchivedHint: 'Als ‘Gearchiveerde tonen’ uit staat, wordt dit project verborgen; je gaat naar {fallback}. Je kunt het later weer aanzetten.',
     restoreTitle: 'Project herstellen',
     restoreButton: 'Project herstellen',
     preparingRestore: 'Herstel voorbereiden…',
@@ -639,9 +588,6 @@ export const nl: Messages = {
     search: 'Zoeken',
     trash: 'Prullenbak',
     sectionsAria: 'Zoekonderdelen',
-    subtitle: 'Zoek in projecttitels en beschikbare tekstvelden.',
-    trashSubtitle:
-      'Alleen-lezen projecten · 30 dagen na plaatsing definitief verwijderd',
     filterAria: 'Verwijderde projecten filteren',
     searchAria: 'Projecten zoeken',
     filterPlaceholder: 'Verwijderde projecten filteren…',
@@ -649,17 +595,12 @@ export const nl: Messages = {
     resultsAria: 'Zoekresultaten',
     trashResultsAria: 'Verwijderde projecten',
     findTitle: 'Een project vinden',
-    findDescription:
-      'Voer een titel of een andere beschikbare tekstwaarde in om te zoeken.',
     noMatchTitle: 'Geen projecten gevonden voor ‘{query}’',
-    noMatchDescription: 'Probeer een korter of ander woord.',
     titleMatch: 'Titel komt overeen',
     matchIn: 'Overeenkomst in {field}: {text}',
     textMatch: 'Overeenkomst in tekst: {text}',
     trashNote: 'De prullenbak wordt niet meegenomen in het gewone zoeken.',
     emptyTrashTitle: 'De prullenbak is leeg',
-    emptyTrashDescription:
-      'Projecten die je naar de prullenbak verplaatst, staan hier 30 dagen voordat ze definitief worden verwijderd.',
     trashedSeparately: 'Apart verwijderd',
     under: 'Onder {title}',
     statusUnavailable: 'Status niet beschikbaar',
@@ -676,7 +617,6 @@ export const nl: Messages = {
   },
   profile: {
     heading: 'Profiel',
-    subtitle: 'Je account en voorkeuren',
     account: 'Account',
     accountForm: 'Accountprofiel',
     changePicture: 'Foto wijzigen',
@@ -686,13 +626,12 @@ export const nl: Messages = {
     uploadFailed: 'De afbeelding kon niet worden geüpload. Probeer het opnieuw.',
     saved: 'Profiel opgeslagen.',
     mcpTitle: 'AI-toegang (MCP)',
-    mcpDescription:
-      'Verbind een lokale AI-assistent met Kapo via een persoonlijk token. De assistent werkt namens jou en elke wijziging wordt gemarkeerd in de projectgeschiedenis.',
+    mcpDescription: 'Verbind een lokale AI-assistent via een persoonlijk token. Wijzigingen worden gemarkeerd in de projectgeschiedenis.',
     mcpDisabled:
       'MCP-toegang staat uit voor deze installatie. Een beheerder kan dit aanzetten bij Applicatie-instellingen.',
     mcpNameLabel: 'Tokennaam',
     mcpNamePlaceholder: 'Bijvoorbeeld: Claude Desktop',
-    mcpNameHint: 'Verschijnt in de projectgeschiedenis als “via …”. Kies een naam die je herkent.',
+    mcpNameHint: 'Verschijnt als ‘via …’ in de projectgeschiedenis.',
     mcpCreate: 'Token aanmaken',
     mcpCreatedTitle: 'Kopieer dit token nu',
     mcpCreatedBody:
@@ -702,7 +641,6 @@ export const nl: Messages = {
     mcpCopyFailed: 'Kopiëren is niet automatisch gelukt. Selecteer het token hierboven en kopieer het handmatig.',
     mcpDone: 'Klaar',
     mcpExisting: 'Jouw tokens',
-    mcpNone: 'Je hebt nog geen MCP-tokens.',
     mcpCreatedAt: 'Aangemaakt {date}',
     mcpLastUsed: 'Laatst gebruikt {date}',
     mcpNeverUsed: 'Nooit gebruikt',
@@ -726,11 +664,9 @@ export const nl: Messages = {
     newPassword: 'Nieuw wachtwoord',
     confirmPassword: 'Bevestig wachtwoord',
     savePassword: 'Wachtwoord opslaan',
-    languageHint: 'De interface, datums en getallen passen zich direct aan.',
   },
   users: {
     heading: 'Gebruikersbeheer',
-    subtitle: 'Alleen voor applicatiebeheerders',
     users: 'Gebruikers',
     description:
       'Applicatierollen geven geen toegang tot privéprojecten.',
@@ -744,19 +680,14 @@ export const nl: Messages = {
     accountSaved: 'Account opgeslagen.',
     usernameTaken: 'Die gebruikersnaam is al in gebruik.',
     editUser: 'Gebruiker bewerken',
-    dialogDescription: 'Applicatiebeheer',
     createUser: 'Gebruiker aanmaken',
     saveAccount: 'Account opslaan',
     applicationRole: 'Applicatierol',
     initialResetPassword: 'Initieel wachtwoord / wachtwoord opnieuw instellen',
     leaveBlank: 'Laat leeg om het huidige wachtwoord te behouden.',
-    rolesNoticeTitle: 'Rollen geven geen toegang tot privéprojecten',
-    rolesNoticeBody:
-      'Het wijzigen van een applicatierol omzeilt projectrechten niet. Een wijziging waarbij geen beheerder overblijft, wordt geweigerd.',
   },
   settings: {
     heading: 'Applicatie-instellingen',
-    subtitle: 'Beheer je Kapo-installatie',
     defaults: 'Applicatiestandaarden',
     defaultRole: 'Standaardrol voor accounts',
     trashPurgeEnabled: 'Prullenbak automatisch opschonen',
@@ -767,19 +698,14 @@ export const nl: Messages = {
     viewsAvailable: 'Weergaven beschikbaar voor projecten',
     oneViewRequired: 'Er moet minimaal één weergave beschikbaar blijven.',
     mcp: 'AI-toegang (MCP)',
-    mcpNote:
-      'Standaard uit. Als dit aan staat, kunnen gekozen personen een lokale AI-assistent verbinden met een persoonlijk token. Elke actie blijft aan die persoon toegeschreven en wordt gemarkeerd in de projectgeschiedenis.',
     mcpEnabled: 'MCP-toegang toestaan',
     mcpEnabledDescription:
       'Laat ingelogde gebruikers persoonlijke MCP-tokens maken. Als dit uit staat, werken alle tokens direct niet meer; bestaande geschiedenis blijft bewaard.',
     backups: 'Back-ups',
-    backupsNote:
-      'Elke run maakt een consistente kopie van de database en de uploads-map op de server. Na een geslaagde run worden de oudste back-ups automatisch verwijderd.',
+    backupsNote: 'Kopieert de database en uploads-map.',
     automaticBackups: 'Automatische dagelijkse back-ups',
-    automaticBackupsDescription:
-      'Draait in de app op de ingestelde lokale tijd.',
     startTime: 'Starttijd',
-    startTimeHint: 'Lokale servertijd (stel TZ in voor de container).',
+    startTimeHint: 'Lokale servertijd.',
     keepBackups: 'Back-ups bewaren',
     keepBackupsHint:
       'Tussen 1 en 30; de oudste worden na elke run opgeruimd.',
@@ -788,8 +714,7 @@ export const nl: Messages = {
     destination: 'Bestemming',
     noBackups: 'Nog geen back-ups',
     backupsDisabled: 'Automatische back-ups staan uit',
-    restoreManual:
-      'Herstellen gaat handmatig: stop de container, vervang de database en uploads door een gekozen back-up en start de container weer. De README beschrijft de exacte stappen.',
+    restoreManual: 'Herstellen gaat handmatig.',
     saved: 'Applicatie-instellingen opgeslagen.',
     applicationSectionsAria: 'Applicatie-instellingen',
     generalSettings: 'Algemene instellingen',
@@ -808,8 +733,6 @@ export const nl: Messages = {
     projectSettings: 'Projectinstellingen',
     sectionsAria: 'Projectinstellingen',
     projectDefaults: 'Projectstandaarden',
-    projectDefaultsHint:
-      'Kerngegevens van het project en hoe onderliggende projecten zich gedragen.',
     title: 'Titel',
     reporter: 'Aanmelder',
     childProjectsAppear: 'Projectweergave verschijnt',
@@ -822,8 +745,6 @@ export const nl: Messages = {
       'Als dit uit staat, worden nieuwe projecten direct in hun startstatus aangemaakt.',
     projectSaved: 'Projectinstellingen opgeslagen.',
     discardUnsavedTitle: 'Niet-opgeslagen wijzigingen verwerpen?',
-    discardUnsavedBody:
-      'Je hebt niet-opgeslagen wijzigingen in dit onderdeel. Als je nu weggaat, gaan ze verloren.',
     discardUnsavedConfirm: 'Wijzigingen verwerpen',
     workflowTitle: 'Workflow voor onderliggende projecten',
     workflowHint:
@@ -857,8 +778,6 @@ export const nl: Messages = {
       '{count} verwijderde status wordt alleen door projecten in de prullenbak gebruikt; die worden gekoppeld wanneer de projecten worden hersteld.',
     removedTrashedOnlyPlural:
       '{count} verwijderde statussen worden alleen door projecten in de prullenbak gebruikt; die worden gekoppeld wanneer de projecten worden hersteld.',
-    removedInUseHint:
-      'Als je een status verwijdert die in gebruik is, moet je de onderliggende projecten eerst koppelen.',
     saveWorkflow: 'Workflow opslaan',
     needOneStatus: 'Een workflow heeft minimaal één status nodig.',
     nameEveryStatus: 'Geef elke status een naam.',
@@ -873,8 +792,7 @@ export const nl: Messages = {
     workflowSavedRemappedOne:
       'Workflow opgeslagen. {count} kindproject opnieuw gekoppeld.',
     projectMembers: 'Projectleden',
-    membersHint:
-      'Alleen expliciete rechten. Een rol verlagen of verwijderen beperkt na bevestiging ook onderliggende projecten; meer toegang geven wordt nooit automatisch doorgegeven.',
+    membersHint: 'Alleen expliciete rechten. Een rol hier verlagen beperkt ook onderliggende projecten; meer toegang geven wordt niet doorgegeven.',
     access: 'Toegang',
     rootAccessBefore: 'Hoofdproject gebruikt altijd ',
     rootAccessCustom: 'Aangepaste toegang',
@@ -888,8 +806,6 @@ export const nl: Messages = {
       'Alleen de hieronder geselecteerde leden kunnen dit project openen, zelfs applicatiebeheerders.',
     privateState: 'Privé — alleen geselecteerde leden',
     makePrivate: 'Privé maken',
-    makePrivateHint:
-      'Houdt jou als beheerder en verwijdert elk ander expliciet recht.',
     membersAria: 'Projectleden',
     explicitGrant: 'Expliciet recht · {role}',
     inheritedFrom: 'Geërfd van {parent} · {role}',
@@ -910,16 +826,14 @@ export const nl: Messages = {
     restrictHint:
       'Rechten van onderliggende projecten die de betrokken accounts hebben, worden overschreven door de nieuwe rol. Uitbreidingen worden niet doorgegeven.',
     makePrivateTitle: 'Dit project privé maken?',
-    makePrivateBody:
-      'Overschakelen naar Aangepaste toegang verwijdert het expliciete recht van elk ander account op dit project. Rechten van die accounts op onderliggende projecten worden ook beperkt. Alleen jij en accounts die je opnieuw toevoegt, hebben toegang.',
+    makePrivateBody: 'Overschakelen naar Aangepaste toegang verwijdert het expliciete recht van elk ander account, ook op onderliggende projecten. Alleen jij en opnieuw toegevoegde accounts houden toegang.',
     permissionsUpdated: 'Rechten bijgewerkt.',
     nowPrivate: 'Project is nu privé.',
     changeAtLeastOne:
       'Wijzig minimaal één rol of de toegangsmodus voordat je opslaat.',
     parentFallback: 'bovenliggend project',
     layoutTitle: 'Lay-out en weergaven',
-    layoutHint:
-      'Kies waar projectvelden verschijnen, welke weergaven beschikbaar zijn en welke statussen verborgen zijn. Nieuwe onderliggende projecten nemen de huidige lay-out eenmalig over; latere wijzigingen hier hebben geen invloed op bestaande onderliggende projecten.',
+    layoutHint: 'Nieuwe onderliggende projecten nemen deze lay-out eenmalig over; latere wijzigingen hier hebben geen invloed op hen.',
     pageLayout: 'Pagina-indeling',
     layoutFull: 'Details, eigenschappen en onderliggende projecten',
     layoutChildren: 'Alleen onderliggende projecten en geschiedenis',
@@ -931,8 +845,6 @@ export const nl: Messages = {
     mainArea: 'Hoofdgebied',
     propertiesSidebar: 'Eigenschappen-zijbalk',
     viewProperties: 'Weergave-eigenschappen',
-    viewPropertiesHint:
-      'Compacte eigenschappen op kaarten en rijen per weergave. Kernvelden en beschikbare add-onvelden kunnen hier worden geplaatst.',
     addProperty: 'Eigenschap toevoegen…',
     addField: 'Veld toevoegen…',
     addPropertyTo: 'Eigenschap toevoegen aan {context}',

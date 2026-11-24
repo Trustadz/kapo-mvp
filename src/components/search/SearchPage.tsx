@@ -72,9 +72,6 @@ export function SearchPage({ tab, query, results, trashItems, trashGroups }: Sea
         <h1 className={styles.title}>
           {tab === 'trash' ? t('search.trash') : t('search.search')}
         </h1>
-        <p className={styles.subtitle}>
-          {tab === 'trash' ? t('search.trashSubtitle') : t('search.subtitle')}
-        </p>
       </header>
 
       <form
@@ -106,18 +103,10 @@ export function SearchPage({ tab, query, results, trashItems, trashGroups }: Sea
       {tab === 'search' ? (
         <section aria-label={t('search.resultsAria')} className={styles.results}>
           {!query ? (
-            <EmptyState
-              icon="search"
-              title={t('search.findTitle')}
-              description={t('search.findDescription')}
-            />
+            <EmptyState icon="search" title={t('search.findTitle')} />
           ) : null}
           {query && results.length === 0 ? (
-            <EmptyState
-              icon="search"
-              title={t('search.noMatchTitle', { query })}
-              description={t('search.noMatchDescription')}
-            />
+            <EmptyState icon="search" title={t('search.noMatchTitle', { query })} />
           ) : null}
           {results.map((result) => (
             <article key={result.id} className={styles.resultCard}>
@@ -153,11 +142,7 @@ export function SearchPage({ tab, query, results, trashItems, trashGroups }: Sea
       ) : (
         <section aria-label={t('search.trashResultsAria')} className={styles.results}>
           {trashGroups.length === 0 ? (
-            <EmptyState
-              icon="delete"
-              title={t('search.emptyTrashTitle')}
-              description={t('search.emptyTrashDescription')}
-            />
+            <EmptyState icon="delete" title={t('search.emptyTrashTitle')} />
           ) : (
             <ul className={styles.trashList}>
               {trashGroups.map((group) => (

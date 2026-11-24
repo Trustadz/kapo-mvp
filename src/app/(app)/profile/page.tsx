@@ -28,7 +28,6 @@ export default async function ProfilePage() {
       <div className="page-heading">
         <div className="page-heading-text">
           <h1>{t('profile.heading')}</h1>
-          <p className="page-subtitle">{t('profile.subtitle')}</p>
         </div>
       </div>
       <ProfileForm user={user} landingOptions={landingOptions} />

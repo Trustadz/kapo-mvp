@@ -124,7 +124,7 @@ describe('Inbox view switcher', () => {
     expect(page).toContain('aria-label="Inbox view"');
 
     const tree = renderTree([], [ROOT, HOME]);
-    expect(tree).toContain('No Inbox captures right now');
+    expect(tree).toContain('No Inbox captures — showing all projects you can read.');
     expect(tree).toContain('Home improvement');
     expect(tree).not.toContain('data-inbox="true"');
   });
@@ -271,7 +271,6 @@ describe('Inbox Tree — application overview', () => {
     const contextRow = html.match(/<tr[^>]*data-context="true"[^>]*>/)?.[0] ?? '';
     expect(inboxRow).toContain('draggable="true"');
     expect(contextRow).toContain('draggable="false"');
-    expect(html).toContain('Drop one on another row’s middle');
   });
 
   it('reports bulk state and keeps Release selected disabled with no selection', () => {
@@ -280,7 +279,6 @@ describe('Inbox Tree — application overview', () => {
       [ROOT, HOME, node({ id: 'p1', title: 'Book boiler service', parentId: 'home', inbox: true })],
       { selected: [], bulkPending: true },
     );
-    expect(html).toContain('Select captures to release them together');
     expect(html).toMatch(/<button[^>]*aria-busy="true"[^>]*>.*Release selected/);
   });
 });

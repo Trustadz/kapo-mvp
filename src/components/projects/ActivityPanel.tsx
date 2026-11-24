@@ -185,9 +185,7 @@ export function ActivityPanel({ projectId, projectTitle, initial }: ActivityPane
         {t('activity.title')}
       </h2>
       {error ? <Notice tone="error">{error}</Notice> : null}
-      {events.length === 0 ? (
-        <p className={styles.dialogHint}>{t('activity.empty')}</p>
-      ) : (
+      {events.length === 0 ? null : (
         <ul className={styles.activityList}>
           {events.map((event) => {
             const { main, detail } = describe(event, projectTitle, t);

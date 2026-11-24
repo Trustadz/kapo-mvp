@@ -225,9 +225,13 @@ describe('add-on cards', () => {
     expect(html).toContain('Available to projects; project Admins choose whether to enable it.');
   });
 
-  it('shows a quiet empty-settings note for Assignee', () => {
+  it('omits the settings area for an add-on with no settings fields', () => {
     const html = render();
-    expect(html).toContain('No additional settings for this add-on.');
+    const assignee = html.match(/<section[^>]*aria-labelledby="addon-title-assignee"[\s\S]*?<\/section>/)?.[0] ?? '';
+    expect(assignee).not.toContain('Add-on settings');
+    expect(html).not.toContain('No additional settings for this add-on.');
+    // The add-on that does have settings still gets its own section.
+    expect(html).toContain('addon-setting-digest-paused');
   });
 
   it('renders generic controls for every supported settings field', () => {

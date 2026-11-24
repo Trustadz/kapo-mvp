@@ -45,10 +45,6 @@
   line-height: 1.15;
 }
 
-.subtitle {
-  color: var(--color-muted-strong);
-}
-
 .searchForm {
   display: flex;
   gap: var(--space-3);

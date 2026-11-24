@@ -252,11 +252,11 @@ export function InboxTree({
         <h2 className="visually-hidden">{t('inbox.treeRegion')}</h2>
         {items.length > 0 ? (
           <div className={styles.bulkToolbar} role="region" aria-label={t('inbox.bulkRelease')}>
-            <span className={styles.bulkCount}>
-              {selectedItems.length > 0
-                ? plural('plurals.inboxSelected', selectedItems.length)
-                : t('inbox.selectPrompt')}
-            </span>
+            {selectedItems.length > 0 ? (
+              <span className={styles.bulkCount}>
+                {plural('plurals.inboxSelected', selectedItems.length)}
+              </span>
+            ) : null}
             <Button
               size="sm"
               variant="quiet"
@@ -282,7 +282,6 @@ export function InboxTree({
           <table
             className={styles.treeTable}
             aria-label={t('inbox.tableAria')}
-            aria-describedby="inbox-tree-drag-hint"
           >
             <caption className="visually-hidden">
               {t('inbox.caption')}
@@ -336,7 +335,6 @@ export function InboxTree({
                     data-drop={dropTarget?.id === node.id ? dropTarget.zone : undefined}
                     data-touch-id={node.id}
                     data-touch-target=""
-                    aria-describedby={selectableItem ? 'inbox-tree-drag-hint' : undefined}
                     draggable={selectableItem}
                     onPointerDown={(event) => touchDrag.start(event, node)}
                     onPointerMove={touchDrag.handlePointerMove}
@@ -463,9 +461,6 @@ export function InboxTree({
           </table>
         </div>
 
-        <p className={styles.hint} id="inbox-tree-drag-hint">
-          {t('inbox.dragHint')}
-        </p>
       </div>
       {touchDrag.active ? (
         <TouchDragGhost
@@ -863,7 +858,6 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
       <header className={styles.header}>
         <div className={styles.headerText}>
           <h1 className={styles.title}>{t('inbox.title')}</h1>
-          <p className={styles.subtitle}>{t('inbox.subtitle')}</p>
         </div>
         <InboxViewSwitch view={view} onChange={setView} />
       </header>
@@ -898,11 +892,7 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
           }}
         />
       ) : items.length === 0 ? (
-        <EmptyState
-          icon="inbox"
-          title={t('inbox.emptyTitle')}
-          description={t('inbox.emptyDescription')}
-        />
+        <EmptyState icon="inbox" title={t('inbox.emptyTitle')} />
       ) : (
         <div className={styles.cardLayout}>
           <div className={styles.dropRail}>
@@ -910,7 +900,6 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
             className={styles.dropZone}
             data-active={dropActive || undefined}
             aria-label={t('inbox.releaseDropArea')}
-            aria-describedby="inbox-drop-hint"
             data-drop-area="release"
             onDragOver={(event) => {
               event.preventDefault();
@@ -930,9 +919,6 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
               <span className={styles.dropTitle}>
                 {dropActive ? t('inbox.dropActive') : t('inbox.dropIdle')}
               </span>
-              <span id="inbox-drop-hint" className={styles.dropHint}>
-                {t('inbox.dropHint')}
-              </span>
             </span>
           </section>
 
@@ -948,7 +934,6 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
                     status: lastReleased.startStatusName ?? t('inbox.startStatus'),
                   })}
                 </span>
-                <span className={styles.dropResultHint}>{t('inbox.stillPulled')}</span>
               </span>
               <Link
                 href={`/p/${lastReleased.project.id}`}
@@ -1022,12 +1007,7 @@ export function InboxPage({ initialItems, initialTree = [] }: InboxPageProps) {
                       <ParentContext item={item} />
                     </p>
                     <div className={styles.actions}>
-                      {isPulled ? (
-                        <span className={styles.pulledNote}>
-                          <Icon name="check_circle" size={18} />
-                          {t('inbox.releasedOpen')}
-                        </span>
-                      ) : item.canRelease ? (
+                      {isPulled ? null : item.canRelease ? (
                         <Button
                           variant="quiet"
                           onClick={() => void release(item)}

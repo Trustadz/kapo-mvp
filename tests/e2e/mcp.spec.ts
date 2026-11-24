@@ -131,7 +131,8 @@ test.describe('MCP access', () => {
     await page.goto('/profile');
     await page.getByRole('button', { name: 'Revoke', exact: true }).first().click();
     await page.getByRole('button', { name: 'Revoke token' }).click();
-    await expect(page.getByText('You have no MCP tokens yet.')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Your tokens' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Revoke' })).toHaveCount(0);
 
     const afterRevoke = await rpc({ jsonrpc: '2.0', id: 9, method: 'ping' });
     expect(afterRevoke.status()).toBe(401);

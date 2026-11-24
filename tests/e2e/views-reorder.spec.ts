@@ -121,8 +121,18 @@ test('Card view reorders siblings between cards and opens Move on a card body', 
   await expect(cards.first()).toContainText('Garden beds');
   await page.waitForTimeout(200); // FLIP settle
 
-  // Restore the seeded order by dropping after Install hall shelf.
-  await dragBetween(card('Garden beds'), card('Install hall shelf'), 'after', { x: 4, y: 4 });
+  // The first drag proves the card reorder. Restore the seeded order through
+  // the same reorder endpoint rather than a second coordinate drag: the page
+  // can be scrolled after the first drop, which makes a second drag brittle.
+  const gardenStatus = await card('Garden beds').getByRole('combobox').inputValue();
+  const gardenId = await projectId(page, 'Garden beds');
+  const fixId = await projectId(page, 'Fix kitchen tap');
+  await page.request.post(`/api/projects/${gardenId}/reorder`, {
+    data: { statusId: gardenStatus, beforeId: fixId },
+  });
+  await page.reload();
+  await chooseView(page, 'Card');
+  await expect(list).toBeVisible();
   await expect(cards.first()).toContainText('Renovate basement');
   await expect(cards.nth(3)).toContainText('Garden beds');
   await page.waitForTimeout(200); // FLIP settle

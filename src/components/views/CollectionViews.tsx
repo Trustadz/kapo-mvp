@@ -761,7 +761,6 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
         className={styles.kanban}
         role="list"
         aria-label={t('views.kanbanColumnsAria')}
-        aria-describedby={ctx.canEdit ? 'kanban-drag-hint' : undefined}
         data-kanban-scroller=""
         data-pointer-drag={pointerDrag ? '' : undefined}
       >
@@ -955,11 +954,6 @@ export function KanbanView({ ctx }: { ctx: CollectionViewContext }) {
             document.body,
           )
         : null}
-      {ctx.canEdit ? (
-        <p className="visually-hidden" id="kanban-drag-hint">
-          {t('views.kanbanHint')}
-        </p>
-      ) : null}
     </>
   );
 }
@@ -1064,7 +1058,6 @@ export function CardView({ ctx }: { ctx: CollectionViewContext }) {
         ref={listRef}
         className={styles.cardList}
         aria-label={t('views.cardListAria')}
-        aria-describedby={ctx.canEdit ? 'card-drag-hint' : undefined}
       >
         {ordered.map((project) => (
           <li key={project.id} data-flip-key={project.id}>
@@ -1151,11 +1144,6 @@ export function CardView({ ctx }: { ctx: CollectionViewContext }) {
           </li>
         ))}
       </ul>
-      {ctx.canEdit ? (
-        <p className="visually-hidden" id="card-drag-hint">
-          {t('views.cardHint')}
-        </p>
-      ) : null}
       {touchDrag.active ? (
         <TouchDragGhost
           x={touchDrag.active.x}
@@ -1336,11 +1324,6 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
           data-touch-id={project.id}
           data-touch-target={contextRow ? undefined : ''}
           data-pressing={touchDrag.pending?.payload.id === project.id || undefined}
-          aria-describedby={
-            ctx.canEdit && project.id !== ctx.projectId && !contextRow
-              ? 'tree-drag-hint'
-              : undefined
-          }
           draggable={ctx.canEdit && project.id !== ctx.projectId && !contextRow}
           onPointerDown={(event) => touchDrag.start(event, project)}
           onPointerMove={touchDrag.handlePointerMove}
@@ -1505,7 +1488,6 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
         <table
           className={styles.treeTable}
           aria-label={t('views.treeTableAria')}
-          aria-describedby="tree-drag-hint"
         >
           <caption className="visually-hidden">
             {t('views.treeCaption')}
@@ -1540,9 +1522,6 @@ export function TreeView({ ctx }: { ctx: CollectionViewContext }) {
           </thead>
           <tbody ref={tbodyRef}>{rows}</tbody>
         </table>
-        <p className="visually-hidden" id="tree-drag-hint">
-          {t('views.treeHint')}
-        </p>
         {ctx.contextIds && ctx.contextIds.size > 0 ? (
           <p className={styles.hint}>
             {t('views.treeContextHint')}
@@ -1677,7 +1656,6 @@ export function ListView({ ctx }: { ctx: CollectionViewContext }) {
         ref={listRef}
         className={styles.list}
         aria-label={t('views.checklistAria')}
-        aria-describedby={ctx.canEdit ? 'list-drag-hint' : undefined}
       >
         {ordered.map((project) => {
           const complete = finish !== null && project.statusId === finish.id;
@@ -1770,11 +1748,6 @@ export function ListView({ ctx }: { ctx: CollectionViewContext }) {
           );
         })}
       </ul>
-      {ctx.canEdit ? (
-        <p className="visually-hidden" id="list-drag-hint">
-          {t('views.listHint')}
-        </p>
-      ) : null}
       {touchDrag.active ? (
         <TouchDragGhost
           x={touchDrag.active.x}

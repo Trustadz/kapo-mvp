@@ -25,7 +25,6 @@ export default async function UsersPage() {
       <div className="page-heading">
         <div className="page-heading-text">
           <h1>{t('users.heading')}</h1>
-          <p className="page-subtitle">{t('users.subtitle')}</p>
         </div>
       </div>
       <UsersManager users={users} defaultRole={defaultRole} />

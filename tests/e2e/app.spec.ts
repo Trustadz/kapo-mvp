@@ -69,7 +69,6 @@ test.describe('seeded application', () => {
     await item.getByRole('button', { name: /release to to do/i }).click();
     // The item stays visible marked Pulled until the user leaves Inbox.
     await expect(item.getByText('Pulled')).toBeVisible();
-    await expect(item.getByText(/released — open it to keep working/i)).toBeVisible();
 
     // The status is kept after release.
     const projectId = await findProjectId(page, title);
@@ -374,7 +373,7 @@ test.describe('seeded application', () => {
     await page.getByRole('menuitemradio', { name: 'Show archived' }).click();
     let dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
-    await expect(dialog).toContainText('will be hidden');
+    await expect(dialog).toContainText('Turning Show archived off hides this project');
 
     // Cancelling leaves the preference untouched and keeps the page open.
     await dialog.getByRole('button', { name: 'Cancel' }).click();

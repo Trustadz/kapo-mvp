@@ -32,7 +32,7 @@ export interface DialogProps {
   onClose: () => void;
   title: string;
   description?: string;
-  children: ReactNode;
+  children?: ReactNode;
   footer?: ReactNode;
   /** When false, Escape/backdrop do not close (e.g. while a save is running). */
   dismissible?: boolean;
@@ -223,9 +223,11 @@ export function Dialog({
             <Icon name="close" size={20} />
           </button>
         </header>
-        <div className={styles.body} data-dialog-body="">
-          {children}
-        </div>
+        {children === null || children === undefined ? null : (
+          <div className={styles.body} data-dialog-body="">
+            {children}
+          </div>
+        )}
         {footer ? <footer className={styles.footer}>{footer}</footer> : null}
       </div>
     </dialog>

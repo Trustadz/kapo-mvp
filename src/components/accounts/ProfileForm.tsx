@@ -325,7 +325,6 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
           <Field
             label={t('common.language')}
             htmlFor="profile-language"
-            hint={t('profile.languageHint')}
             labelWidth={190}
           >
             <LanguageSwitcher id="profile-language" hideLabel />

@@ -32,7 +32,6 @@ export default async function ApplicationSettingsPage() {
       <div className="page-heading">
         <div className="page-heading-text">
           <h1>{t('settings.heading')}</h1>
-          <p className="page-subtitle">{t('settings.subtitle')}</p>
         </div>
       </div>
       <ApplicationSettingsForm

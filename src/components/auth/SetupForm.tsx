@@ -83,7 +83,6 @@ export function SetupForm() {
       <div className={styles.intro}>
         <h1 className={styles.heading}>{t('auth.createAccount')}</h1>
         <p className={styles.subheading}>{t('auth.setupSubheading')}</p>
-        <p className={styles.description}>{t('auth.setupDescription')}</p>
       </div>
 
       {formError ? <Notice tone="error">{formError}</Notice> : null}
@@ -164,8 +163,6 @@ export function SetupForm() {
           />
         </Field>
       </div>
-
-      <p className={styles.hint}>{t('auth.setupHint')}</p>
 
       <div className={styles.actions}>
         <Button type="submit" loading={submitting} className={styles.submit}>

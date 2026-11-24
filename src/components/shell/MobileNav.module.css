@@ -77,12 +77,6 @@
   font-weight: 600;
 }
 
-.favoritesMenuHint {
-  margin: 0;
-  color: var(--color-muted);
-  font-size: var(--font-size-small);
-}
-
 .addTab {
   color: var(--color-text);
 }

@@ -260,9 +260,7 @@ export function ProjectSettingsPage({
             </Button>
           </div>
         }
-      >
-        <p className={styles.cardHint}>{t('settings.discardUnsavedBody')}</p>
-      </Dialog>
+      />
 
       <Toast
         open={toast !== null}
@@ -369,7 +367,6 @@ export function GeneralTab({
   return (
     <Card className={styles.card}>
       <h2 className={styles.cardTitle}>{t('settings.projectDefaults')}</h2>
-      <p className={styles.cardHint}>{t('settings.projectDefaultsHint')}</p>
       {error ? <Notice tone="error">{error}</Notice> : null}
       <div className={styles.fields}>
         <Field
@@ -811,9 +808,6 @@ export function WorkflowTab({
         </div>
       </Dialog>
 
-      <p className={styles.cardHint}>
-        {t('settings.removedInUseHint')}
-      </p>
       <div className={styles.footer}>
         <Button onClick={() => void save()} loading={saving} disabled={saving}>
           {t('settings.saveWorkflow')}
@@ -1056,9 +1050,6 @@ function MembersTab({
             >
               {t('settings.makePrivate')}
             </Button>
-            <span className={styles.cardHint}>
-              {t('settings.makePrivateHint')}
-            </span>
           </div>
         ) : null}
       </div>
@@ -1334,15 +1325,6 @@ export function AddonsTab({
                 {view.description ? (
                   <span className={styles.memberMeta}>{view.description}</span>
                 ) : null}
-                {view.mode === 'unavailable' ? (
-                  <span className={styles.memberMeta}>{t('addons.unavailableNote')}</span>
-                ) : null}
-                {view.mode === 'required' ? (
-                  <span className={styles.memberMeta}>{t('addons.requiredNote')}</span>
-                ) : null}
-                {view.mode === 'always' ? (
-                  <span className={styles.memberMeta}>{t('addons.alwaysNote')}</span>
-                ) : null}
               </div>
               {editable && draft ? (
                 <div className={styles.addonControls}>
@@ -1407,9 +1389,6 @@ function ViewFieldListEditor({
   return (
     <div className={styles.fieldListEditor}>
       <h4 className={styles.subheading}>{label}</h4>
-      {fields.length === 0 ? (
-        <p className={styles.cardHint}>{t('common.titleOnly')}</p>
-      ) : null}
       <ul className={styles.fieldList}>
         {fields.map((field, index) => (
           <li key={field} className={styles.fieldListRow}>
@@ -1508,9 +1487,6 @@ function FieldListEditor({
   return (
     <div className={styles.fieldListEditor}>
       <h3 className={styles.subheading}>{label}</h3>
-      {fields.length === 0 ? (
-        <p className={styles.cardHint}>{t('common.noFieldsSelected')}</p>
-      ) : null}
       <ul className={styles.fieldList}>
         {fields.map((field, index) => (
           <li key={field} className={styles.fieldListRow}>
@@ -1840,9 +1816,6 @@ export function LayoutTab({
 
       <div className={styles.viewFieldsBlock}>
         <h3 className={styles.subheading}>{t('settings.viewProperties')}</h3>
-        <p className={styles.cardHint}>
-          {t('settings.viewPropertiesHint')}
-        </p>
         <div className={styles.viewFieldGroups}>
           {COLLECTION_VIEWS.map((view) => (
             <ViewFieldListEditor

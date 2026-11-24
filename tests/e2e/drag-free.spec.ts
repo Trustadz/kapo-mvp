@@ -335,31 +335,4 @@ test.describe('drag-free Kanban and Tree actions', () => {
     await expect(listRows.last()).toContainText(temp.title);
   });
 
-  test('drag instructions and result announcements are exposed to assistive tech', async ({
-    page,
-  }) => {
-    await login(page);
-    await openHome(page);
-    await ensureInboxVisible(page);
-
-    await chooseView(page, 'Kanban');
-    const kanban = page.getByRole('list', { name: 'Kanban columns' });
-    await expect(kanban).toHaveAttribute('aria-describedby', 'kanban-drag-hint');
-    await expect(page.locator('#kanban-drag-hint')).toContainText('Keyboard and menu users');
-
-    await chooseView(page, 'Card');
-    const cards = page.getByRole('list', { name: 'Projects as cards' });
-    await expect(cards).toHaveAttribute('aria-describedby', 'card-drag-hint');
-    await expect(page.locator('#card-drag-hint')).toContainText('Keyboard and menu users');
-
-    await chooseView(page, 'Tree');
-    const tree = page.getByRole('table', { name: 'Child projects' });
-    await expect(tree).toHaveAttribute('aria-describedby', 'tree-drag-hint');
-    await expect(page.locator('#tree-drag-hint')).toContainText('Keyboard and menu users');
-
-    await chooseView(page, 'List');
-    const list = page.getByRole('list', { name: 'Projects checklist' });
-    await expect(list).toHaveAttribute('aria-describedby', 'list-drag-hint');
-    await expect(page.locator('#list-drag-hint')).toContainText('Keyboard and menu users');
-  });
 });

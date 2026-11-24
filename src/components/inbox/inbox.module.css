@@ -25,10 +25,6 @@
   line-height: 1.15;
 }
 
-.subtitle {
-  color: var(--color-muted-strong);
-}
-
 /* Compact Card / Tree switcher; Card is the default. */
 .viewSwitch {
   display: inline-flex;
@@ -243,14 +239,6 @@
   text-decoration: underline;
 }
 
-.pulledNote {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--color-muted);
-  font-size: var(--font-size-small);
-}
-
 /* Drag-to-release target above the list. */
 .dropZone {
   display: flex;
@@ -292,11 +280,6 @@
   font-weight: 600;
 }
 
-.dropHint {
-  color: var(--color-muted);
-  font-size: var(--font-size-small);
-}
-
 /* Small confirmation card shown directly under the drop area after release. */
 .dropResult {
   display: flex;
@@ -328,11 +311,6 @@
   color: var(--color-text);
   font-size: var(--font-size-small);
   overflow-wrap: anywhere;
-}
-
-.dropResultHint {
-  color: var(--color-muted);
-  font-size: var(--font-size-small);
 }
 
 .error {
