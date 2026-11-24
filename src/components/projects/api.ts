@@ -12,6 +12,7 @@ import type {
 import type { ProjectRole, Status } from '@/lib/types';
 import type { ProjectAccessMode } from '@/lib/projects';
 import type { AddonFieldValue, ProjectAddonConfigView } from '@/lib/addons';
+import type { ProjectCommentView } from '@/lib/comments';
 import type { ProjectDescriptionData } from '@/lib/description';
 
 /** Client-side calls to the project APIs; every error carries the §7 shape. */
@@ -279,6 +280,25 @@ export function saveProjectDescription(
 ): Promise<ApiResult<{ description: ProjectDescriptionData }>> {
   return requestJson(`/api/projects/${projectId}/description`, {
     method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+
+export interface CommentSaveBody {
+  body: string;
+  format: string;
+  plaintext: string;
+}
+
+/** POST /api/projects/:id/comments — add a comment through the active provider. */
+export function addProjectComment(
+  projectId: string,
+  body: CommentSaveBody,
+): Promise<ApiResult<{ comment: ProjectCommentView }>> {
+  return requestJson(`/api/projects/${projectId}/comments`, {
+    method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });

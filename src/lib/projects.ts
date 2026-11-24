@@ -1,3 +1,4 @@
+import type { ProjectCommentsData } from './comments';
 import type { ProjectDescriptionData } from './description';
 import type { AppRole, CollectionView, ProjectRole, Status } from './types';
 import {
@@ -282,6 +283,8 @@ export interface ProjectPageData {
   addons: ProjectAddonEditorData;
   /** Core description record plus the active provider. */
   description: ProjectDescriptionData;
+  /** Core comment records plus the active provider. */
+  comments: ProjectCommentsData;
   showArchived: boolean;
 }
 

@@ -35,6 +35,7 @@ import { availableAddonFieldRefs, isAddonFieldRef } from '@/lib/addons';
 import { listActivity, recordAuditEvent } from './audit';
 import { isProjectWatched } from './notifications';
 import { assertInboxExitAllowed } from './addon-hooks';
+import { getProjectCommentsData } from './comments';
 import { getProjectDescriptionData } from './description';
 import {
   getProjectAddonCardFields,
@@ -641,6 +642,7 @@ export function getProjectPageData(
   const canEdit = canEditProject(ctx, projectId);
   const canAdmin = canAdminProject(ctx, projectId);
   const description = getProjectDescriptionData(db, projectId, canEdit && !trashed);
+  const comments = getProjectCommentsData(db, projectId, canEdit && !trashed);
 
   return {
     project: {
@@ -686,6 +688,7 @@ export function getProjectPageData(
     layout,
     addons,
     description,
+    comments,
     showArchived: ctx.user.showArchived,
   };
 }

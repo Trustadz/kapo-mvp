@@ -24,6 +24,16 @@ describe('add-on manifest', () => {
     expect(listAddons().filter((entry) => entry.identifier === 'assignee')).toHaveLength(1);
   });
 
+
+  it('registers the Markdown comments capability provider', () => {
+    const comments = getAddon('comments-markdown');
+    expect(comments?.capabilities).toEqual(['comments']);
+    expect(comments?.formats).toEqual({
+      reads: ['comment-md@1', 'text@1'],
+      writes: ['comment-md@1'],
+    });
+  });
+
   it('registers the Markdown description capability provider', () => {
     const description = getAddon('description-markdown');
     expect(description?.capabilities).toEqual(['description']);

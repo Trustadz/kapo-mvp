@@ -205,7 +205,7 @@ export interface AddonDefinition {
    */
   capabilities?: readonly AddonCapability[];
   /**
-   * Required for exclusive content providers (currently `description`). Core
+   * Required for exclusive content providers (`description`, `comments`). Core
    * stores the format id and plaintext; it never parses the rich body.
    */
   formats?: AddonFormats;

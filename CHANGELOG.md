@@ -13,8 +13,12 @@
   provider is active, the description stays editable as plain text; the
   Markdown provider can reopen plain-text records.
 - **Capability protocol** for compiled-in add-ons: capabilities and declared
-  read/write formats. The first capability is `description`; add-ons without a
-  capability declaration remain property add-ons.
+  read/write formats. `description` and `comments` are implemented; add-ons
+  without a capability declaration remain property add-ons.
+- **Basic comments** in a new Comments tab beside History. Core owns comment
+  records, authors and a plaintext fallback; the `comments-markdown` add-on
+  supports only **bold**, *italic*, __underline__ and ~~strikethrough~~. There
+  are no replies, mentions, edits or notifications in this proof of concept.
 - **Inline project title editing** on the project page. Editors click the title
   (or press Enter/Space on it) to rename in place; Enter or blur saves, Escape
   cancels, and an unchanged title sends no request. Successful saves show a
@@ -136,6 +140,8 @@
 
 ### Upgrade notes
 
+- Migration `008_comments.sql` adds `project_comments`. Existing projects
+  start with no comments and no data migration is needed.
 - Migration `007_description_capability.sql` adds the `project_descriptions`
   and `addon_capabilities` tables. Existing projects start without a
   description and no data migration is needed. The only registered description

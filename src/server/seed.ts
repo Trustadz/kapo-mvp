@@ -95,6 +95,7 @@ export function clearDatabase(db: BetterSqliteDatabase): void {
   db.exec(`
     DELETE FROM project_search;
     DELETE FROM project_descriptions;
+    DELETE FROM project_comments;
     DELETE FROM audit_events;
     DELETE FROM favorites;
     DELETE FROM project_roles;

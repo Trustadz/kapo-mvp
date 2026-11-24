@@ -239,6 +239,33 @@ describe('capability definitions', () => {
     ).toThrow(/unknown capability/);
   });
 
+
+  it('accepts a comments provider with content formats', () => {
+    registerAddon(
+      addon({
+        identifier: 'comments-markdown',
+        capabilities: ['comments'],
+        formats: { reads: ['comment-md@1'], writes: ['comment-md@1'] },
+        fields: [],
+      }),
+    );
+    expect(listCapabilityProviders('comments').map((entry) => entry.identifier)).toEqual([
+      'comments-markdown',
+    ]);
+  });
+
+  it('rejects a comments provider without formats', () => {
+    expect(() =>
+      registerAddon(
+        addon({
+          identifier: 'comments-broken',
+          capabilities: ['comments'],
+          fields: [],
+        }),
+      ),
+    ).toThrow(/content provider/);
+  });
+
   it('keeps definitions without capabilities as property add-ons', () => {
     registerAddon(addon());
     expect(listPropertyAddons().map((entry) => entry.identifier)).toEqual(['assignee']);

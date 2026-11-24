@@ -380,6 +380,7 @@ export const nl: Messages = {
     childTrashedFallback:
       '{actor} heeft een onderliggend project naar de prullenbak verplaatst',
     inboxReleased: '{actor} heeft het uit de Inbox vrijgegeven',
+    historyTitle: 'Geschiedenis',
     workflowUpdated: '{actor} heeft de workflow voor onderliggende projecten gewijzigd',
     descriptionUpdated: '{actor} heeft de beschrijving bijgewerkt',
     updatedField: '{actor} heeft {field} bijgewerkt',
@@ -397,6 +398,20 @@ export const nl: Messages = {
     detailWorkflowUpdated: 'Workflow voor onderliggende projecten bijgewerkt',
     detailAddedStatus: 'Status toegevoegd: {names}',
     detailAddedStatuses: 'Statussen toegevoegd: {names}',
+  },
+  comments: {
+    title: 'Reacties',
+    heading: 'Reacties',
+    empty: 'Nog geen reacties.',
+    placeholder: 'Schrijf een reactie…',
+    addLabel: 'Reactie toevoegen',
+    post: 'Reactie plaatsen',
+    posted: 'Reactie geplaatst.',
+    hint: 'Basisopmaak: **vet**, *cursief*, __onderstreept__, ~~doorgestreept~~.',
+    readOnly: 'Je hebt bewerkrechten nodig om te reageren.',
+    unavailable: 'Reacties zijn alleen-lezen omdat er geen provider actief is.',
+    formerMember: 'Voormalig lid',
+    tabsAria: 'Reacties en geschiedenis',
   },
   description: {
     heading: 'Beschrijving',

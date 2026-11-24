@@ -1,0 +1,103 @@
+.discussion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.panel {
+  min-width: 0;
+}
+
+.commentsCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: var(--font-size-title);
+}
+
+.commentsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.comment {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.commentBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.commentMeta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  color: var(--color-muted);
+  font-size: var(--font-size-small);
+}
+
+.commentAuthor {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.commentText {
+  overflow-wrap: anywhere;
+}
+
+.commentText p {
+  margin: 0;
+}
+
+.commentPlain {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.empty {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+.composer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--font-size-small);
+}
+
+.composerActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.readOnly {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--font-size-small);
+}
