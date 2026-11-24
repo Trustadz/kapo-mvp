@@ -47,11 +47,11 @@ touching a screen, remove helper text that no longer meets the guidelines.
 
 ## Release
 
-- **Verify** runs typecheck, Vitest, and the production build automatically on
-  pull requests and pushes to `main`. Shipping uses the separate, manual
-  **Publish container** workflow on `main`, which reruns verification. Trigger
-  it only with the user's authorization; the owner can also start it in GitHub
-  Actions.
+- **Verify** runs typecheck, Vitest and the production build automatically on
+  pull requests and pushes to `main`; the separate **Changelog** workflow checks
+  the fragment contract. Shipping uses the separate, manual **Publish container**
+  workflow on `main`, which reruns verification. Trigger it only with the user's
+  authorization; the owner can also start it in GitHub Actions.
 - The owner chooses which approved PRs ship by merging them before publishing.
   Do not merge a PR the user has not approved for the next version, and never
   create a release-version commit or PR.
@@ -60,15 +60,20 @@ touching a screen, remove helper text that no longer meets the guidelines.
   repository and creates the GitHub Release. Do not edit `package.json` for a
   release; the tag-derived version is passed to the Docker build and reported by
   the MCP handshake.
-- Add user-facing changes and any upgrade notes under `## Unreleased` in
-  `CHANGELOG.md` as part of the PR. The release notes include that section
-  followed by GitHub's generated PR list.
+- Add one Markdown fragment under `changelog.d/` for each user-facing change,
+  following [changelog.d/README.md](changelog.d/README.md). Do not edit
+  `CHANGELOG.md` in a feature or fix PR; the Changelog workflow rejects it.
+  Apply the `changelog-not-required` label only when the PR has no user-visible
+  change.
+- Release notes combine the pending fragments, any curated `## Unreleased`
+  content and GitHub's generated PR list.
 - Label PRs so generated notes group correctly: `type: feature` for **Added**,
   `type: bug` for **Fixed**, `type: improvement`, `type: accessibility` or
   `type: design` for **Improved**, and `type: docs` for **Documentation**.
   Unlabeled PRs land under **Other changes**.
 - After publishing, verify that `vX.Y.Z` and `latest` point at the release, that
   the GitHub Release exists, and that its notes include the upgrade notes. Then
-  fold the released `## Unreleased` block into `## X.Y.Z — YYYY-MM-DD` in
-  `CHANGELOG.md` in a small docs change.
+  run `npm run changelog:release -- X.Y.Z` in a small docs change to fold the
+  fragments (and any remaining `## Unreleased` content) into
+  `## X.Y.Z — YYYY-MM-DD` and delete the consumed fragments.
 - See [release instructions](README.md#publish-a-release).

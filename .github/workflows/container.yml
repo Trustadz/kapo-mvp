@@ -115,4 +115,4 @@ jobs:
           node .github/scripts/release-notes.mjs release-notes.md
           gh release create "$tag" --verify-tag --latest \
             --title "Kapo $tag" --notes-file release-notes.md
-          echo "::notice::Published $tag. If CHANGELOG.md still has the released ## Unreleased block, fold it under ## $VERSION in a docs-only follow-up."
+          echo "::notice::Published $tag. Run 'npm run changelog:release -- $VERSION' in a docs change to fold the released fragments into CHANGELOG.md."

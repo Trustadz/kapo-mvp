@@ -1,0 +1,54 @@
+name: Changelog
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  fragments:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          # The pull request rule compares the head with its merge base.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Validate fragments
+        run: npm run changelog:check
+
+      - name: Require a fragment for this pull request
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          if jq -e 'index("changelog-not-required")' <<<"$PR_LABELS" >/dev/null; then
+            echo "::notice::Changelog fragment not required (label: changelog-not-required)."
+            exit 0
+          fi
+
+          changed=$(git diff --name-status "$BASE_SHA...$HEAD_SHA")
+
+          if grep -qE '(^|[[:space:]])CHANGELOG\.md([[:space:]]|$)' <<<"$changed"; then
+            echo "::error::Do not edit CHANGELOG.md in a pull request. Add a fragment under changelog.d/ instead."
+            exit 1
+          fi
+
+          if ! grep -qE '^A[[:space:]]+changelog\.d/[^/]+\.(added|changed|fixed|improved|security|upgrade)\.md$' <<<"$changed"; then
+            echo "::error::Add a changelog fragment under changelog.d/ (or apply the changelog-not-required label)."
+            exit 1
+          fi

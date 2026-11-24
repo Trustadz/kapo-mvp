@@ -679,21 +679,24 @@ tagged commit reuses that release number.
 The repository's `package.json` is not bumped by a release: the Git tag is the
 source of truth, and the image receives it as `KAPO_RELEASE_VERSION`.
 
-Release notes come from two places:
+Release notes combine:
 
-- Curated changes and **upgrade notes** under `## Unreleased` in
-  [CHANGELOG.md](CHANGELOG.md) are included first, so operators read migrations
-  and breaking changes before pulling. Add them in the PRs you intend to ship.
-- GitHub generates the PR list and groups it using
+- Curated changes and **upgrade notes** recorded as small fragments under
+  [changelog.d/](changelog.d/README.md). Add one fragment per user-facing change
+  in the PR; do not edit `CHANGELOG.md` directly. Any remaining `## Unreleased`
+  content is included too.
+- GitHub's generated PR list, grouped using
   [.github/release.yml](.github/release.yml). Label PRs `type: feature` for
   **Added**, `type: bug` for **Fixed**, `type: improvement` /
   `type: accessibility` / `type: design` for **Improved**, and `type: docs` for
   **Documentation**. Unlabeled PRs appear under **Other changes**.
 
 After publishing, check that `vX.Y.Z` and `latest` both point at the release and
-that the notes contain the upgrade notes. Then fold the released `## Unreleased`
-block into `## X.Y.Z — YYYY-MM-DD` in a small docs change so the next release
-starts clean. You can edit the generated notes on the **Releases** page.
+that the notes contain the upgrade notes. Then run
+`npm run changelog:release -- X.Y.Z` in a small docs change to fold the fragments
+(and any remaining `## Unreleased` content) into `## X.Y.Z — YYYY-MM-DD` and
+delete the consumed fragments. You can edit the generated notes on the
+**Releases** page.
 
 From a terminal with the GitHub CLI:
 
