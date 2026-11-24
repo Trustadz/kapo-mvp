@@ -17,6 +17,7 @@ export const en = {
     dismissMessage: 'Dismiss message',
     confirm: 'Confirm',
     saveChanges: 'Save changes',
+    saving: 'Saving…',
     retry: 'Retry',
     open: 'Open',
     edit: 'Edit',

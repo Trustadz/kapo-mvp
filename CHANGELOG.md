@@ -126,6 +126,12 @@
   of serving a frozen copy from the service worker cache. The manifest is no
   longer precached or intercepted by `public/sw.js`.
 
+### Improved
+
+- **Saving feedback.** The “Save changes” buttons in application settings,
+  project settings and the profile now keep a **Saving…** label with a spinner
+  visible for at least 600 ms, so a fast save no longer flashes past without the
+  user noticing it happened.
 
 ### Security notes
 

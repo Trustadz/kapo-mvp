@@ -13,6 +13,7 @@ export const nl: Messages = {
     dismissMessage: 'Melding sluiten',
     confirm: 'Bevestigen',
     saveChanges: 'Wijzigingen opslaan',
+    saving: 'Opslaan…',
     retry: 'Opnieuw proberen',
     open: 'Openen',
     edit: 'Bewerken',

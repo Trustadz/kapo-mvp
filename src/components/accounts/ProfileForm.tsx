@@ -22,6 +22,7 @@ import { Select } from '@/components/ui/Select';
 import { Toast } from '@/components/ui/Toast';
 import { useToastMessage } from '@/components/ui/use-live-announcer';
 import { patchJson } from '@/lib/api-client';
+import { remainingSaveFeedback } from '@/lib/saving-feedback';
 import { formatPersonName } from '@/lib/format';
 import { applyAppearance } from '@/lib/theme';
 import { APPEARANCES, type Appearance, type AuthUser } from '@/lib/types';
@@ -120,6 +121,7 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
       return;
     }
 
+    const startedAt = Date.now();
     setSaving(true);
     try {
       const result = await patchJson<{ user: AuthUser }>('/api/me', {
@@ -137,9 +139,11 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
       setSaved(next);
       setValues(next);
       applyAppearance(next.appearance);
+      await remainingSaveFeedback(startedAt);
       notify(t('profile.saved'));
       router.refresh();
     } finally {
+      await remainingSaveFeedback(startedAt);
       setSaving(false);
     }
   };
@@ -350,6 +354,7 @@ export function ProfileForm({ user, landingOptions }: ProfileFormProps) {
             <Button
               type="submit"
               loading={saving}
+              loadingLabel={t('common.saving')}
               disabled={!dirty}
               className={styles.saveButton}
             >

@@ -11,6 +11,8 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;
+  /** Replaces the label while `loading`, e.g. “Saving…”. */
+  loadingLabel?: ReactNode;
   icon?: ReactNode;
   fullWidth?: boolean;
 }
@@ -27,6 +29,7 @@ export function Button({
   variant = 'primary',
   size = 'md',
   loading = false,
+  loadingLabel,
   icon,
   fullWidth = false,
   className,
@@ -50,7 +53,9 @@ export function Button({
       {...rest}
     >
       {loading ? <Spinner size="sm" /> : icon ? <span className={styles.icon}>{icon}</span> : null}
-      <span className={styles.label}>{children}</span>
+      <span className={styles.label}>
+        {loading && loadingLabel ? loadingLabel : children}
+      </span>
     </button>
   );
 }
