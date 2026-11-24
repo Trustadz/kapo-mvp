@@ -17,6 +17,7 @@ import {
 } from '@/components/ui';
 import { useToastMessage } from '@/components/ui/use-live-announcer';
 import { requestJson } from '@/lib/api-client';
+import { remainingSaveFeedback } from '@/lib/saving-feedback';
 import { APP_ROLES, COLLECTION_VIEWS, type AppRole, type CollectionView } from '@/lib/types';
 import type { AddonApplicationConfig, AddonFieldValue, AddonMode } from '@/lib/addons';
 import type { DescriptionCapabilitySettings } from '@/lib/description';
@@ -192,6 +193,7 @@ export function ApplicationSettingsForm({
     options: { expectAddons?: boolean } = {},
   ) => {
     if (savingTab) return;
+    const startedAt = Date.now();
     setSavingTab(tab);
     setFormError(tab, null);
     try {
@@ -222,10 +224,12 @@ export function ApplicationSettingsForm({
         return next;
       });
       if (result.data.backupStatus) setStatus(result.data.backupStatus);
+      await remainingSaveFeedback(startedAt);
       notify(t('settings.saved'));
     } catch {
       setFormError(tab, t('common.networkError'));
     } finally {
+      await remainingSaveFeedback(startedAt);
       setSavingTab(null);
     }
   };
@@ -806,6 +810,7 @@ function PanelActions({
       <Button
         type="submit"
         loading={saving}
+        loadingLabel={t('common.saving')}
         disabled={!dirty || saving}
         className={styles.saveButton}
       >

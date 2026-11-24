@@ -18,6 +18,7 @@ import {
   Toast,
 } from '@/components/ui';
 import type { CollectionView, ProjectRole } from '@/lib/types';
+import { remainingSaveFeedback } from '@/lib/saving-feedback';
 import { COLLECTION_VIEWS } from '@/lib/types';
 import {
   COLLECTION_VIEW_MESSAGE_KEYS,
@@ -324,6 +325,7 @@ export function GeneralTab({
   };
 
   const save = async () => {
+    const startedAt = Date.now();
     setSaving(true);
     setError(null);
     setFieldErrors({});
@@ -354,6 +356,7 @@ export function GeneralTab({
       if (titleSaved) markFieldChanged(project.id, 'title');
       if (skipInboxWillChange) markFieldChanged(project.id, 'skip_inbox');
     }
+    await remainingSaveFeedback(startedAt);
     setSaving(false);
     if (!failed) {
       // Keep the local baseline in step immediately; the refreshed server data
@@ -402,7 +405,12 @@ export function GeneralTab({
         </Field>
       </div>
       <div className={styles.footer}>
-        <Button onClick={() => void save()} loading={saving} disabled={saving}>
+        <Button
+          onClick={() => void save()}
+          loading={saving}
+          loadingLabel={t('common.saving')}
+          disabled={saving}
+        >
           {t('common.saveChanges')}
         </Button>
         <Button variant="quiet" onClick={reset} disabled={saving}>
@@ -1716,6 +1724,7 @@ export function LayoutTab({
       return;
     }
     setError(null);
+    const startedAt = Date.now();
     setSaving(true);
     const result = await saveProjectSettings(project.id, {
       layout_mode: layoutMode,
@@ -1726,6 +1735,7 @@ export function LayoutTab({
       view_fields: viewFields,
       layout_template: asTemplate ? { main, sidebar } : null,
     });
+    await remainingSaveFeedback(startedAt);
     setSaving(false);
     if (!result.ok) {
       setError(result.message);
@@ -1882,7 +1892,12 @@ export function LayoutTab({
       </div>
 
       <div className={styles.footer}>
-        <Button onClick={() => void save()} loading={saving} disabled={saving}>
+        <Button
+          onClick={() => void save()}
+          loading={saving}
+          loadingLabel={t('common.saving')}
+          disabled={saving}
+        >
           {t('common.saveChanges')}
         </Button>
         <Button
