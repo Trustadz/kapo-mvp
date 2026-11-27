@@ -3,6 +3,7 @@ import type { Database as BetterSqliteDatabase } from 'better-sqlite3';
 import {
   getOidcConfig,
   mapOidcClaims,
+  oidcCallbackUrl,
   oidcRedirectUri,
   OidcLoginError,
 } from '@/server/auth/oidc';
@@ -149,6 +150,29 @@ describe('oidcRedirectUri', () => {
     expect(
       oidcRedirectUri(getOidcConfig(), new Request('http://localhost:3000/login')),
     ).toBe('http://localhost:3000/api/auth/pocketid/callback');
+  });
+});
+
+describe('oidcCallbackUrl', () => {
+  it('keeps the public origin and callback query behind a TLS proxy', () => {
+    setEnv({
+      KAPO_OIDC_ISSUER: 'https://id.example.com',
+      KAPO_OIDC_CLIENT_ID: 'kapo',
+      KAPO_PUBLIC_URL: 'https://kapo.example.com',
+    });
+
+    // The proxy terminates TLS and forwards the callback to the container
+    // over its internal http:// address.
+    const callback = oidcCallbackUrl(
+      getOidcConfig(),
+      new Request(
+        'http://10.0.0.5:3000/api/auth/pocketid/callback?code=abc&state=xyz',
+      ),
+    );
+
+    expect(callback.toString()).toBe(
+      'https://kapo.example.com/api/auth/pocketid/callback?code=abc&state=xyz',
+    );
   });
 });
 
