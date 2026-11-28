@@ -196,6 +196,32 @@ describe('PocketID sign-in', () => {
     ).toEqual(MOCK_AVATAR_PNG);
   });
 
+  it('completes sign-in behind a TLS proxy that forwards over http', async () => {
+    const savedPublicUrl = process.env.KAPO_PUBLIC_URL;
+    process.env.KAPO_PUBLIC_URL = 'https://kapo.example.com';
+
+    try {
+      const callbackUrl = await beginSignIn();
+      // The browser sees https, but the proxy forwards the callback to the
+      // container's internal http:// address.
+      const internal = new URL(callbackUrl);
+      internal.protocol = 'http:';
+      internal.host = 'localhost';
+
+      const response = await completeSignIn(makeRequest(internal));
+
+      expect(errorCode(response)).toBeNull();
+      expect(sessionUser()).toBe(admin.id);
+      expect(oidc.lastRedirectUris()).toEqual({
+        authorization: 'https://kapo.example.com/api/auth/pocketid/callback',
+        token: 'https://kapo.example.com/api/auth/pocketid/callback',
+      });
+    } finally {
+      if (savedPublicUrl === undefined) delete process.env.KAPO_PUBLIC_URL;
+      else process.env.KAPO_PUBLIC_URL = savedPublicUrl;
+    }
+  });
+
   it('auto-provisions an unknown email as a Viewer with a Root grant', async () => {
     oidc.setUser({
       sub: 'sub-new',

@@ -199,6 +199,23 @@ export function oidcRedirectUri(config: OidcConfig, request: Request): string {
   return new URL('/api/auth/pocketid/callback', base).toString();
 }
 
+/**
+ * The URL openid-client should treat as the authorization response.
+ *
+ * `authorizationCodeGrant()` derives the `redirect_uri` it sends to the token
+ * endpoint from this URL (minus the query). The origin therefore has to be the
+ * same canonical origin as the authorization request. Behind a TLS-terminating
+ * reverse proxy the incoming request URL can be the container's internal
+ * `http://` address, so using `new URL(request.url)` directly would make the
+ * token exchange disagree with the authorization request (`invalid_grant`).
+ * The provider's query parameters are preserved for state/nonce/code handling.
+ */
+export function oidcCallbackUrl(config: OidcConfig, request: Request): URL {
+  const callback = new URL(oidcRedirectUri(config, request));
+  callback.search = new URL(request.url).search;
+  return callback;
+}
+
 export interface OidcClaims {
   subject: string;
   email: string | null;

@@ -14,6 +14,7 @@ import {
   getOidcConfig,
   mapOidcClaims,
   OidcLoginError,
+  oidcCallbackUrl,
   oidcErrorRedirect,
 } from '@/server/auth/oidc';
 import { verifyOidcTransaction } from '@/server/auth/oidc-state';
@@ -62,11 +63,15 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   try {
     const oidc = await getOidcClient(config);
-    const tokens = await client.authorizationCodeGrant(oidc, currentUrl, {
-      pkceCodeVerifier: transaction.codeVerifier,
-      expectedState: transaction.state,
-      expectedNonce: transaction.nonce,
-    });
+    const tokens = await client.authorizationCodeGrant(
+      oidc,
+      oidcCallbackUrl(config, request),
+      {
+        pkceCodeVerifier: transaction.codeVerifier,
+        expectedState: transaction.state,
+        expectedNonce: transaction.nonce,
+      },
+    );
     const idTokenClaims = tokens.claims();
     if (!idTokenClaims) {
       throw new OidcLoginError('invalid_claims', 'PocketID returned no ID token.');

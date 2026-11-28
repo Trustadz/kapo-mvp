@@ -33,6 +33,11 @@ export interface MockOidcServer {
   url: string;
   setUser(user: MockOidcUser): void;
   getUser(): MockOidcUser;
+  /**
+   * The `redirect_uri` from the latest authorization and token requests. The
+   * token endpoint rejects a mismatched redirect_uri the way PocketID does.
+   */
+  lastRedirectUris(): { authorization: string | null; token: string | null };
   close(): Promise<void>;
 }
 
@@ -92,6 +97,8 @@ export async function startMockOidcServer(
   let issuer = '';
   let currentUser: MockOidcUser = { ...(options.user ?? DEFAULT_USER) };
   const codes = new Map<string, AuthorizationCode>();
+  let lastAuthorizationRedirectUri: string | null = null;
+  let lastTokenRedirectUri: string | null = null;
   const { privateKey, publicKey } = generateKeyPairSync('rsa', {
     modulusLength: 2048,
   });
@@ -186,6 +193,7 @@ export async function startMockOidcServer(
           return;
         }
         const code = randomBytes(24).toString('base64url');
+        lastAuthorizationRedirectUri = redirectUri;
         codes.set(code, {
           codeChallenge,
           clientId,
@@ -205,9 +213,17 @@ export async function startMockOidcServer(
         const form = new URLSearchParams(await readBody(request));
         const code = form.get('code') ?? '';
         const verifier = form.get('code_verifier') ?? '';
+        lastTokenRedirectUri = form.get('redirect_uri');
         const record = codes.get(code);
         if (!record) {
           json(response, 400, { error: 'invalid_grant', error_description: 'Unknown code' });
+          return;
+        }
+        if (lastTokenRedirectUri !== record.redirectUri) {
+          json(response, 400, {
+            error: 'invalid_grant',
+            error_description: 'redirect_uri does not match the authorization request',
+          });
           return;
         }
         codes.delete(code);
@@ -309,6 +325,12 @@ export async function startMockOidcServer(
     },
     getUser() {
       return { ...currentUser };
+    },
+    lastRedirectUris() {
+      return {
+        authorization: lastAuthorizationRedirectUri,
+        token: lastTokenRedirectUri,
+      };
     },
     close() {
       return new Promise<void>((resolve, reject) => {
